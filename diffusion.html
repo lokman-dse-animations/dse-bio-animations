@@ -235,6 +235,10 @@
     display: flex;
     gap: 6px;
   }
+  #factorPick .toggle-btn {
+    flex: 1 1 42%;
+    min-width: 0;
+  }
   .toggle-btn {
     flex: 1;
     border: 1px solid var(--border);
@@ -309,43 +313,25 @@
     </div>
 
     <div class="card" id="factorPanel">
-      <h2>互動：調控擴散因素</h2>
+      <h2>互動：一次只示範一項</h2>
       <div class="factor-row">
-        <div class="factor-label">d. 溫度</div>
-        <div class="toggle-group" data-factor="temp">
-          <button type="button" class="toggle-btn" data-val="low">低溫</button>
-          <button type="button" class="toggle-btn on" data-val="high">高溫</button>
+        <div class="factor-label">① 選擇因素</div>
+        <div class="toggle-group" id="factorPick" style="flex-wrap:wrap">
+          <button type="button" class="toggle-btn on" data-demo="temp">溫度</button>
+          <button type="button" class="toggle-btn" data-demo="gradient">濃度梯度</button>
+          <button type="button" class="toggle-btn" data-demo="distance">距離</button>
+          <button type="button" class="toggle-btn" data-demo="area">表面面積</button>
+          <button type="button" class="toggle-btn" data-demo="size">粒子大小</button>
         </div>
       </div>
       <div class="factor-row">
-        <div class="factor-label">a. 濃度梯度</div>
-        <div class="toggle-group" data-factor="gradient">
-          <button type="button" class="toggle-btn" data-val="small">較小</button>
-          <button type="button" class="toggle-btn on" data-val="large">較大</button>
+        <div class="factor-label" id="factorLevelLabel">② 比較：溫度</div>
+        <div class="toggle-group" id="factorLevel">
+          <button type="button" class="toggle-btn" data-level="low">低溫</button>
+          <button type="button" class="toggle-btn on" data-level="high">高溫</button>
         </div>
       </div>
-      <div class="factor-row">
-        <div class="factor-label">b. 擴散距離</div>
-        <div class="toggle-group" data-factor="distance">
-          <button type="button" class="toggle-btn on" data-val="short">較短</button>
-          <button type="button" class="toggle-btn" data-val="long">較長</button>
-        </div>
-      </div>
-      <div class="factor-row">
-        <div class="factor-label">c. 表面面積</div>
-        <div class="toggle-group" data-factor="area">
-          <button type="button" class="toggle-btn" data-val="small">較小</button>
-          <button type="button" class="toggle-btn on" data-val="large">較大</button>
-        </div>
-      </div>
-      <div class="factor-row">
-        <div class="factor-label">e. 粒子大小</div>
-        <div class="toggle-group" data-factor="size">
-          <button type="button" class="toggle-btn on" data-val="small">細小</button>
-          <button type="button" class="toggle-btn" data-val="large">較大</button>
-        </div>
-      </div>
-      <p class="factor-hint" id="factorHint">高溫 → 粒子動能大、移動快，擴散速率較高。試調各選項，觀察左室→右室的淨移動。</p>
+      <p class="factor-hint" id="factorHint">現正示範「溫度」。按「高溫」或「低溫」比較粒子移動快慢——畫面上只顯示此因素。</p>
     </div>
 
     <div class="card">
@@ -408,12 +394,12 @@
     {
       id: "importance",
       title: "場景 5：擴散的重要性",
-      desc: "左側<strong>肺泡氣體交換</strong>：氧氣由肺泡→血液；二氧化碳由血液→肺泡。右側<strong>組織細胞</strong>：氧氣與養分進入細胞；細胞產生的二氧化碳排出。皆沿濃度梯度擴散。"
+      desc: "左：<strong>肺氣囊</strong>與<strong>微血管</strong>氣體交換——氧氣進入血液、二氧化碳離開血液。右：血液與<strong>體細胞</strong>經<strong>組織液</strong>交換氧氣、養分與廢物。皆為擴散。"
     },
     {
       id: "factors",
       title: "場景 6：影響擴散速率的因素",
-      desc: "用右側<strong>互動按鈕</strong>調控溫度、濃度梯度、距離、表面面積與粒子大小，觀察粒子由左室向右室擴散的快慢。尤其比較<strong>低溫／高溫</strong>下的移動速度。"
+      desc: "先選<strong>一項因素</strong>（如溫度），再按比較按鈕（如高溫／低溫）。畫面上<strong>只示範該因素</strong>的粒子行為，不會同時疊加其他因素。"
     }
   ];
 
@@ -424,35 +410,55 @@
   let particles = [];
   let dyePhase = 0; // 0 drop, 1 spreading, 2 even
 
-  // Interactive factor controls (scene 6)
-  const factorState = {
-    temp: "high",       // low | high
-    gradient: "large",  // small | large
-    distance: "short",  // short | long
-    area: "large",      // small | large
-    size: "small"       // small | large
-  };
+  // Interactive factor controls (scene 6) — ONE factor at a time
+  let activeDemo = "temp";   // temp | gradient | distance | area | size
+  let demoLevel = "high";    // low/high (or small/large mapped)
 
-  const FACTOR_HINTS = {
+  const DEMO_META = {
     temp: {
-      low: "低溫 → 粒子動能較小、移動較慢，擴散速率較低。",
-      high: "高溫 → 粒子動能大、移動快，擴散速率較高。"
+      title: "溫度",
+      lowLabel: "低溫",
+      highLabel: "高溫",
+      hints: {
+        low: "現正只示範「溫度：低溫」。粒子動能小、移動慢 → 擴散速率較低。",
+        high: "現正只示範「溫度：高溫」。粒子動能大、移動快 → 擴散速率較高。"
+      }
     },
     gradient: {
-      small: "濃度梯度較小 → 左右差異不大，淨移動較慢。",
-      large: "濃度梯度較大 → 高→低差異明顯，淨移動較快。"
+      title: "濃度梯度",
+      lowLabel: "較小",
+      highLabel: "較大",
+      hints: {
+        low: "現正只示範「濃度梯度：較小」。左右差異不大 → 淨移動較慢。",
+        high: "現正只示範「濃度梯度：較大」。高→低差異明顯 → 淨移動較快。"
+      }
     },
     distance: {
-      short: "擴散距離較短 → 粒子更快到達另一側，速率較高。",
-      long: "擴散距離較長 → 需時較多，擴散較慢（短距離最有效）。"
+      title: "擴散距離",
+      lowLabel: "較短",
+      highLabel: "較長",
+      hints: {
+        low: "現正只示範「距離：較短」。粒子較快到達另一側 → 擴散較快。",
+        high: "現正只示範「距離：較長」。需時較多 → 擴散較慢（短距離最有效）。"
+      }
     },
     area: {
-      small: "表面面積較小（窄通道）→ 單位時間通過粒子較少。",
-      large: "表面面積較大（寬通道）→ 更多粒子可同時通過。"
+      title: "表面面積",
+      lowLabel: "較小",
+      highLabel: "較大",
+      hints: {
+        low: "現正只示範「表面面積：較小」（窄開口）→ 單位時間通過粒子較少。",
+        high: "現正只示範「表面面積：較大」（寬開口）→ 更多粒子可同時通過。"
+      }
     },
     size: {
-      small: "細小粒子 → 移動較快，較易通過通道。",
-      large: "較大粒子 → 移動較慢，通過較困難。"
+      title: "粒子大小",
+      lowLabel: "細小",
+      highLabel: "較大",
+      hints: {
+        low: "現正只示範「粒子：細小」→ 移動較快，較易擴散。",
+        high: "現正只示範「粒子：較大」→ 移動較慢，擴散較困難。"
+      }
     }
   };
 
@@ -462,6 +468,9 @@
   const btnPlay = document.getElementById("btnPlay");
   const factorPanel = document.getElementById("factorPanel");
   const factorHint = document.getElementById("factorHint");
+  const factorLevelLabel = document.getElementById("factorLevelLabel");
+  const factorLevelEl = document.getElementById("factorLevel");
+  const factorPickEl = document.getElementById("factorPick");
 
   scenes.forEach((s, i) => {
     const b = document.createElement("button");
@@ -472,12 +481,21 @@
     stepsEl.appendChild(b);
   });
 
-  function updateFactorHint(which) {
-    const key = which || "temp";
-    const val = factorState[key];
-    if (FACTOR_HINTS[key] && FACTOR_HINTS[key][val]) {
-      factorHint.textContent = FACTOR_HINTS[key][val] + " 試調各選項，觀察左室→右室的淨移動。";
-    }
+  function syncFactorLevelButtons() {
+    const meta = DEMO_META[activeDemo];
+    factorLevelLabel.textContent = "② 比較：" + meta.title;
+    const btns = factorLevelEl.querySelectorAll(".toggle-btn");
+    btns[0].textContent = meta.lowLabel;
+    btns[0].setAttribute("data-level", "low");
+    btns[1].textContent = meta.highLabel;
+    btns[1].setAttribute("data-level", "high");
+    btns.forEach(b => {
+      b.classList.toggle("on", b.getAttribute("data-level") === demoLevel);
+    });
+    factorPickEl.querySelectorAll(".toggle-btn").forEach(b => {
+      b.classList.toggle("on", b.getAttribute("data-demo") === activeDemo);
+    });
+    factorHint.textContent = meta.hints[demoLevel];
   }
 
   function updateUI() {
@@ -489,6 +507,7 @@
     btnPlay.textContent = playing ? "暫停" : "播放";
     const isFactors = scenes[sceneIndex].id === "factors";
     factorPanel.classList.toggle("visible", isFactors);
+    if (isFactors) syncFactorLevelButtons();
   }
 
   function goScene(i) {
@@ -507,29 +526,26 @@
     initParticles();
   }
 
-  function applyFactorChange(name, val) {
-    factorState[name] = val;
-    const group = factorPanel.querySelector('.toggle-group[data-factor="' + name + '"]');
-    if (group) {
-      group.querySelectorAll(".toggle-btn").forEach(b => {
-        b.classList.toggle("on", b.getAttribute("data-val") === val);
-      });
-    }
-    updateFactorHint(name);
-    // Rebuild demo particles so gradient/size/etc. take effect immediately
-    if (scenes[sceneIndex].id === "factors") {
-      initFactorParticles();
-    }
+  function setActiveDemo(demo) {
+    activeDemo = demo;
+    // Sensible default level per demo
+    demoLevel = (demo === "distance" || demo === "size") ? "low" : "high";
+    syncFactorLevelButtons();
+    if (scenes[sceneIndex].id === "factors") initFactorParticles();
+  }
+
+  function setDemoLevel(level) {
+    demoLevel = level;
+    syncFactorLevelButtons();
+    if (scenes[sceneIndex].id === "factors") initFactorParticles();
   }
 
   function wireFactorControls() {
-    factorPanel.querySelectorAll(".toggle-group").forEach(group => {
-      const name = group.getAttribute("data-factor");
-      group.querySelectorAll(".toggle-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          applyFactorChange(name, btn.getAttribute("data-val"));
-        });
-      });
+    factorPickEl.querySelectorAll(".toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => setActiveDemo(btn.getAttribute("data-demo")));
+    });
+    factorLevelEl.querySelectorAll(".toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => setDemoLevel(btn.getAttribute("data-level")));
     });
   }
 
@@ -847,66 +863,74 @@
     }
 
     if (id === "importance") {
-      // Left panel: alveolar gas exchange
-      // O2: alveolus (left) → blood (right)
-      for (let i = 0; i < 8; i++) {
+      // Alveolus O2: air → blood (into RBCs)
+      for (let i = 0; i < 9; i++) {
         particles.push({
           kind: "alvO2",
-          t: Math.random() * 3.5,
-          period: 3.2 + Math.random() * 0.6,
+          t: Math.random() * 4,
+          period: 3.5 + Math.random() * 0.8,
           lane: i,
-          color: "#e74c3c",
-          label: "氧氣",
-          r: 12
+          color: "#1a5276",
+          label: "氧",
+          r: 10
         });
       }
-      // CO2: blood (right) → alveolus (left)
-      for (let i = 0; i < 7; i++) {
+      // Alveolus CO2: blood → air
+      for (let i = 0; i < 8; i++) {
         particles.push({
           kind: "alvCO2",
+          t: Math.random() * 4,
+          period: 3.5 + Math.random() * 0.8,
+          lane: i,
+          color: "#d68910",
+          label: "二氧化碳",
+          r: 10
+        });
+      }
+      // Tissue: O2 / nutrients out of capillary into cells
+      for (let i = 0; i < 7; i++) {
+        particles.push({
+          kind: "tisO2",
           t: Math.random() * 3.5,
           period: 3.2 + Math.random() * 0.6,
           lane: i,
-          color: "#3498db",
-          label: "二氧化碳",
-          r: 12
+          color: "#1a5276",
+          label: "氧",
+          r: 9
         });
       }
-      // Right panel: tissue cell
-      // O2: extracellular → into cell
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          kind: "cellO2",
-          t: Math.random() * 3.2,
-          period: 3.0 + Math.random() * 0.5,
-          lane: i,
-          color: "#e74c3c",
-          label: "氧氣",
-          r: 11
-        });
-      }
-      // CO2: inside cell → out
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          kind: "cellCO2",
-          t: Math.random() * 3.2,
-          period: 3.0 + Math.random() * 0.5,
-          lane: i,
-          color: "#3498db",
-          label: "二氧化碳",
-          r: 11
-        });
-      }
-      // Nutrients: into cell
       for (let i = 0; i < 5; i++) {
         particles.push({
-          kind: "cellNut",
+          kind: "tisNut",
           t: Math.random() * 3.5,
           period: 3.4 + Math.random() * 0.5,
           lane: i,
           color: "#27ae60",
-          label: "養分",
-          r: 12
+          label: "營養素",
+          r: 10
+        });
+      }
+      // Tissue: CO2 / wastes from cells into blood
+      for (let i = 0; i < 6; i++) {
+        particles.push({
+          kind: "tisCO2",
+          t: Math.random() * 3.5,
+          period: 3.2 + Math.random() * 0.6,
+          lane: i,
+          color: "#d68910",
+          label: "二氧化碳",
+          r: 9
+        });
+      }
+      for (let i = 0; i < 4; i++) {
+        particles.push({
+          kind: "tisWaste",
+          t: Math.random() * 3.5,
+          period: 3.5 + Math.random() * 0.5,
+          lane: i,
+          color: "#7f8c8d",
+          label: "廢物",
+          r: 9
         });
       }
     }
@@ -916,51 +940,103 @@
     }
   }
 
+  // Geometry for the ACTIVE demo only (other factors held at neutral defaults)
   function factorGeom() {
-    // Chamber geometry driven by interactive controls
-    const left = 70, right = W - 70, top = 110, bot = H - 70;
+    const left = 80, right = W - 80, top = 120, bot = H - 90;
     const mid = (left + right) / 2;
-    const gapHalf = factorState.distance === "short" ? 28 : 110;
-    const wallGap = factorState.area === "large" ? 160 : 55;
+    // Defaults: medium gap, medium opening — overridden per isolated demo
+    let gapHalf = 40;
+    let wallGap = 120;
+    let speed = 1.0;
+    let radius = 11;
+    let nLeft = 28;
+    let nRight = 8;
+
+    if (activeDemo === "temp") {
+      speed = demoLevel === "high" ? 2.2 : 0.4;
+      gapHalf = 36;
+      wallGap = 130;
+      nLeft = 30; nRight = 6;
+    } else if (activeDemo === "gradient") {
+      if (demoLevel === "high") { nLeft = 48; nRight = 3; }
+      else { nLeft = 16; nRight = 14; }
+      speed = 1.0;
+      gapHalf = 36;
+      wallGap = 130;
+    } else if (activeDemo === "distance") {
+      gapHalf = demoLevel === "low" ? 22 : 130; // lowLabel=較短
+      wallGap = 130;
+      speed = 1.0;
+      nLeft = 32; nRight = 5;
+    } else if (activeDemo === "area") {
+      wallGap = demoLevel === "high" ? 200 : 42; // high=較大
+      gapHalf = 36;
+      speed = 1.0;
+      nLeft = 32; nRight = 5;
+    } else if (activeDemo === "size") {
+      radius = demoLevel === "low" ? 8 : 18; // low=細小
+      speed = demoLevel === "low" ? 1.35 : 0.7;
+      gapHalf = 36;
+      wallGap = 130;
+      nLeft = 28; nRight = 6;
+    }
+
     return {
-      left: left, right: right, top: top, bot: bot,
-      mid: mid,
-      gapL: mid - gapHalf,
-      gapR: mid + gapHalf,
+      left: left, right: right, top: top, bot: bot, mid: mid,
+      gapL: mid - gapHalf, gapR: mid + gapHalf,
       gapTop: (top + bot) / 2 - wallGap / 2,
       gapBot: (top + bot) / 2 + wallGap / 2,
-      speed: factorState.temp === "high" ? 1.85 : 0.55,
-      radius: factorState.size === "small" ? 9 : 16,
-      nLeft: factorState.gradient === "large" ? 42 : 18,
-      nRight: factorState.gradient === "large" ? 4 : 12
+      speed: speed, radius: radius, nLeft: nLeft, nRight: nRight,
+      // For temp-only demo: no barrier emphasis
+      showBarrier: activeDemo === "distance" || activeDemo === "area" ||
+                   activeDemo === "gradient" || activeDemo === "size",
+      showTempOnly: activeDemo === "temp"
     };
   }
 
   function initFactorParticles() {
-    particles = particles.filter(p => p.kind !== "factorDot");
+    particles = [];
     const g = factorGeom();
-    for (let i = 0; i < g.nLeft; i++) {
+    const nL = g.nLeft, nR = g.nRight;
+
+    if (g.showTempOnly) {
+      // Single open box — only temperature affects motion
+      for (let i = 0; i < 36; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp0 = 40 + Math.random() * 50;
+        particles.push({
+          kind: "factorDot",
+          x: g.left + 40 + Math.random() * (g.right - g.left - 80),
+          y: g.top + 40 + Math.random() * (g.bot - g.top - 80),
+          vx: Math.cos(ang) * sp0,
+          vy: Math.sin(ang) * sp0,
+          r: 11,
+          color: demoLevel === "high" ? "#e67e22" : "#5dade2"
+        });
+      }
+      return;
+    }
+
+    for (let i = 0; i < nL; i++) {
       particles.push({
         kind: "factorDot",
-        x: g.left + 20 + Math.random() * (g.gapL - g.left - 40),
-        y: g.top + 20 + Math.random() * (g.bot - g.top - 40),
-        vx: (Math.random() - 0.5) * 100,
-        vy: (Math.random() - 0.5) * 100,
-        r: g.radius + Math.random() * 2,
-        color: "#f39c12",
-        side: "L"
+        x: g.left + 24 + Math.random() * Math.max(40, g.gapL - g.left - 50),
+        y: g.top + 24 + Math.random() * (g.bot - g.top - 48),
+        vx: (Math.random() - 0.3) * 90,
+        vy: (Math.random() - 0.5) * 90,
+        r: g.radius,
+        color: "#f39c12"
       });
     }
-    for (let i = 0; i < g.nRight; i++) {
+    for (let i = 0; i < nR; i++) {
       particles.push({
         kind: "factorDot",
-        x: g.gapR + 20 + Math.random() * (g.right - g.gapR - 40),
-        y: g.top + 20 + Math.random() * (g.bot - g.top - 40),
-        vx: (Math.random() - 0.5) * 100,
-        vy: (Math.random() - 0.5) * 100,
-        r: g.radius + Math.random() * 2,
-        color: "#f39c12",
-        side: "R"
+        x: g.gapR + 24 + Math.random() * Math.max(40, g.right - g.gapR - 50),
+        y: g.top + 24 + Math.random() * (g.bot - g.top - 48),
+        vx: (Math.random() - 0.7) * 90,
+        vy: (Math.random() - 0.5) * 90,
+        r: g.radius,
+        color: "#f39c12"
       });
     }
   }
@@ -1122,38 +1198,57 @@
     }
 
     if (id === "importance") {
+      // Layout anchors (must match drawSceneImportance)
+      // Left alveolus center ~ (280, 380), capillary band around right of alveolus
+      // Right: capillary top band y~180-320, tissue cells below y~420-680
       particles.forEach(p => {
         p.t += dt;
-        const u = (p.t % p.period) / p.period; // 0..1
-        const jigX = Math.sin(p.t * 3 + p.lane) * 6;
-        const jigY = Math.cos(p.t * 2.4 + p.lane) * 5;
+        const u = (p.t % p.period) / p.period;
+        const jig = Math.sin(p.t * 2.8 + p.lane) * 5;
 
         if (p.kind === "alvO2") {
-          // Alveolus (x~200) → blood (x~480), mid-panel y~360
-          const y0 = 280 + (p.lane % 4) * 28;
-          p.x = 170 + u * 320 + jigX;
-          p.y = y0 + Math.sin(u * Math.PI) * 20 + jigY;
+          // From alveolus interior → through wall → into capillary / RBC
+          // Path: (220, 320+lane) → (360, 300+lane) → (420, 340)
+          const y0 = 300 + (p.lane % 5) * 22;
+          if (u < 0.45) {
+            const t = u / 0.45;
+            p.x = 200 + t * 140 + jig;
+            p.y = y0 + t * 10;
+          } else {
+            const t = (u - 0.45) / 0.55;
+            p.x = 340 + t * 100 + jig * 0.5;
+            p.y = y0 + 10 + t * 30;
+          }
         } else if (p.kind === "alvCO2") {
-          // Blood (x~480) → alveolus (x~170)
-          const y0 = 300 + (p.lane % 4) * 26;
-          p.x = 490 - u * 320 + jigX;
-          p.y = y0 + 40 + Math.sin(u * Math.PI) * 18 + jigY;
-        } else if (p.kind === "cellO2") {
-          // Outside cell (left of cell) → into cell
-          // Cell box approx x 820-1080, y 280-560
-          const y0 = 320 + (p.lane % 3) * 40;
-          p.x = 700 + u * 220 + jigX;
-          p.y = y0 + jigY;
-        } else if (p.kind === "cellCO2") {
-          // Inside cell → out to tissue fluid
-          const y0 = 400 + (p.lane % 3) * 36;
-          p.x = 1000 - u * 240 + jigX;
-          p.y = y0 + jigY;
-        } else if (p.kind === "cellNut") {
-          // Nutrients into cell from top-left outside
-          const y0 = 250 + (p.lane % 3) * 30;
-          p.x = 720 + u * 200 + jigX;
-          p.y = y0 + u * 80 + jigY;
+          // From capillary / plasma → into alveolus air
+          const y0 = 360 + (p.lane % 4) * 24;
+          if (u < 0.5) {
+            const t = u / 0.5;
+            p.x = 450 - t * 100 + jig;
+            p.y = y0 - t * 20;
+          } else {
+            const t = (u - 0.5) / 0.5;
+            p.x = 350 - t * 140 + jig * 0.5;
+            p.y = y0 - 20 - t * 40;
+          }
+        } else if (p.kind === "tisO2") {
+          // Capillary (top) → tissue fluid → body cell
+          const x0 = 720 + (p.lane % 5) * 70;
+          p.x = x0 + jig;
+          p.y = 240 + u * 280;
+        } else if (p.kind === "tisNut") {
+          const x0 = 750 + (p.lane % 4) * 80;
+          p.x = x0 + jig * 0.8;
+          p.y = 250 + u * 260;
+        } else if (p.kind === "tisCO2") {
+          // Body cell → tissue fluid → capillary
+          const x0 = 740 + (p.lane % 5) * 70;
+          p.x = x0 + jig;
+          p.y = 560 - u * 280;
+        } else if (p.kind === "tisWaste") {
+          const x0 = 780 + (p.lane % 3) * 90;
+          p.x = x0 + jig * 0.7;
+          p.y = 540 - u * 250;
         }
       });
     }
@@ -1161,63 +1256,55 @@
     if (id === "factors") {
       const g = factorGeom();
       const speedMul = g.speed;
-      // Larger particles move a bit slower
-      const sizeDrag = factorState.size === "large" ? 0.65 : 1;
       particles.forEach(p => {
         if (p.kind !== "factorDot") return;
-        p.r = g.radius + (p.r % 2); // keep size in sync with control
-        p.x += p.vx * dt * speedMul * sizeDrag;
-        p.y += p.vy * dt * speedMul * sizeDrag;
+        p.r = g.radius;
+        p.x += p.vx * dt * speedMul;
+        p.y += p.vy * dt * speedMul;
 
-        // Outer walls
-        if (p.x < g.left + 8) { p.x = g.left + 8; p.vx = Math.abs(p.vx); }
-        if (p.x > g.right - 8) { p.x = g.right - 8; p.vx = -Math.abs(p.vx); }
-        if (p.y < g.top + 8) { p.y = g.top + 8; p.vy = Math.abs(p.vy); }
-        if (p.y > g.bot - 8) { p.y = g.bot - 8; p.vy = -Math.abs(p.vy); }
+        if (p.x < g.left + 10) { p.x = g.left + 10; p.vx = Math.abs(p.vx); }
+        if (p.x > g.right - 10) { p.x = g.right - 10; p.vx = -Math.abs(p.vx); }
+        if (p.y < g.top + 10) { p.y = g.top + 10; p.vy = Math.abs(p.vy); }
+        if (p.y > g.bot - 10) { p.y = g.bot - 10; p.vy = -Math.abs(p.vy); }
 
-        // Divider walls with gap (opening = surface area; thickness = distance)
-        // Left face of barrier
-        if (p.x < g.gapL && p.x > g.gapL - 14) {
-          if (p.y < g.gapTop || p.y > g.gapBot) {
-            p.vx = -Math.abs(p.vx);
-            p.x = g.gapL - 14;
+        if (g.showBarrier) {
+          if (p.x < g.gapL && p.x > g.gapL - 12) {
+            if (p.y < g.gapTop || p.y > g.gapBot) {
+              p.vx = -Math.abs(p.vx); p.x = g.gapL - 12;
+            }
+          }
+          if (p.x > g.gapR && p.x < g.gapR + 12) {
+            if (p.y < g.gapTop || p.y > g.gapBot) {
+              p.vx = Math.abs(p.vx); p.x = g.gapR + 12;
+            }
+          }
+          if (p.x >= g.gapL && p.x <= g.gapR) {
+            if (p.y < g.gapTop) {
+              p.y = g.gapTop - 2; p.vy = -Math.abs(p.vy);
+              p.x = p.x < g.mid ? g.gapL - 2 : g.gapR + 2;
+              p.vx = p.x < g.mid ? -Math.abs(p.vx) : Math.abs(p.vx);
+            } else if (p.y > g.gapBot) {
+              p.y = g.gapBot + 2; p.vy = Math.abs(p.vy);
+              p.x = p.x < g.mid ? g.gapL - 2 : g.gapR + 2;
+              p.vx = p.x < g.mid ? -Math.abs(p.vx) : Math.abs(p.vx);
+            }
+          }
+          // Net drift for gradient demo
+          if (activeDemo === "gradient" && p.x < g.mid) {
+            p.vx += (demoLevel === "high" ? 22 : 5) * dt * speedMul;
+          } else if (activeDemo !== "temp" && p.x < g.mid) {
+            p.vx += 10 * dt * speedMul;
           }
         }
-        // Right face of barrier
-        if (p.x > g.gapR && p.x < g.gapR + 14) {
-          if (p.y < g.gapTop || p.y > g.gapBot) {
-            p.vx = Math.abs(p.vx);
-            p.x = g.gapR + 14;
-          }
-        }
-        // Inside barrier thickness but outside gap vertically — bounce back
-        if (p.x >= g.gapL && p.x <= g.gapR) {
-          if (p.y < g.gapTop) {
-            p.y = g.gapTop - 2;
-            p.vy = -Math.abs(p.vy);
-            // push out horizontally toward nearer side
-            if (p.x < (g.gapL + g.gapR) / 2) { p.x = g.gapL - 2; p.vx = -Math.abs(p.vx); }
-            else { p.x = g.gapR + 2; p.vx = Math.abs(p.vx); }
-          } else if (p.y > g.gapBot) {
-            p.y = g.gapBot + 2;
-            p.vy = Math.abs(p.vy);
-            if (p.x < (g.gapL + g.gapR) / 2) { p.x = g.gapL - 2; p.vx = -Math.abs(p.vx); }
-            else { p.x = g.gapR + 2; p.vx = Math.abs(p.vx); }
-          }
-        }
 
-        // Bias: net drift left→right when gradient is large
-        if (factorState.gradient === "large" && p.x < g.mid) {
-          p.vx += 18 * dt * speedMul;
-        } else if (factorState.gradient === "small" && p.x < g.mid) {
-          p.vx += 4 * dt * speedMul;
-        }
-
-        p.vx += (Math.random() - 0.5) * 50 * dt * speedMul;
-        p.vy += (Math.random() - 0.5) * 50 * dt * speedMul;
-        const maxSp = 140 * speedMul * sizeDrag;
+        p.vx += (Math.random() - 0.5) * 45 * dt * speedMul;
+        p.vy += (Math.random() - 0.5) * 45 * dt * speedMul;
+        const maxSp = (g.showTempOnly ? 160 : 120) * speedMul;
         const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
         if (sp > maxSp) { p.vx *= maxSp / sp; p.vy *= maxSp / sp; }
+        if (g.showTempOnly && sp < 25 * speedMul) {
+          p.vx *= 1.08; p.vy *= 1.08;
+        }
       });
     }
   }
@@ -1434,134 +1521,273 @@
     ctx.fillText("通道蛋白", channelCx, MEM_Y);
   }
 
+  function drawRBC(x, y, s, oxygenated) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(1, 0.62);
+    const g = ctx.createRadialGradient(-s * 0.2, -s * 0.2, 1, 0, 0, s);
+    g.addColorStop(0, oxygenated ? "#ff8a80" : "#c0392b");
+    g.addColorStop(1, oxygenated ? "#e74c3c" : "#7b241c");
+    ctx.beginPath();
+    ctx.arc(0, 0, s, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // biconcave dent
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = oxygenated ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.12)";
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawSceneImportance() {
-    // ===== Left: 肺泡氣體交換 =====
-    roundRect(40, 50, 600, 700, 16);
-    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    // ========== LEFT: 肺氣囊氣體交換 ==========
+    roundRect(24, 36, 620, 730, 14);
+    ctx.fillStyle = "rgba(255,255,255,0.78)";
     ctx.fill();
     ctx.strokeStyle = "#2c5aa0";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = "#2c5aa0";
-    ctx.font = "bold 30px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("肺泡氣體交換", 340, 100);
+    ctx.fillText("肺氣囊與微血管的氣體交換", 334, 72);
 
-    // Alveolus (air sac) — left
+    // Capillary wrapping (behind alveolus slightly)
     ctx.beginPath();
-    ctx.ellipse(200, 360, 110, 150, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(243,156,18,0.12)";
-    ctx.fill();
-    ctx.strokeStyle = "#e67e22";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = "#d35400";
-    ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
-    ctx.fillText("肺泡", 200, 350);
-    ctx.font = "18px 'Noto Sans TC', sans-serif";
-    ctx.fillStyle = "#5a6a7a";
-    ctx.fillText("（空氣）", 200, 378);
-    ctx.fillStyle = "#c0392b";
-    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
-    ctx.fillText("氧氣濃度高", 200, 250);
-    ctx.fillStyle = "#2471a3";
-    ctx.fillText("二氧化碳濃度低", 200, 480);
-
-    // Capillary / blood — right of alveolus
-    roundRect(400, 220, 200, 280, 24);
+    ctx.ellipse(340, 380, 210, 175, 0, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(231,76,60,0.10)";
     ctx.fill();
     ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 14;
+    ctx.stroke();
+    // inner capillary lumen hint
+    ctx.strokeStyle = "rgba(192,57,43,0.35)";
     ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = "#c0392b";
-    ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("微血管", 500, 340);
-    ctx.font = "18px 'Noto Sans TC', sans-serif";
-    ctx.fillStyle = "#5a6a7a";
-    ctx.fillText("（血液）", 500, 368);
-
-    // Direction arrows (static teaching cues)
-    drawArrow(280, 300, 390, 300, "#e74c3c", 4);
-    drawCallout(335, 270, "氧氣 →", "#c0392b");
-    drawArrow(390, 420, 280, 420, "#3498db", 4);
-    drawCallout(335, 455, "← 二氧化碳", "#2471a3");
-
-    drawAnnotationBox(60, 620, [
-      "氧氣：肺泡（高）→ 血液（低）",
-      "二氧化碳：血液（高）→ 肺泡（低）",
-      "沿濃度梯度擴散，供全身細胞使用"
-    ], "#2c5aa0");
-
-    // ===== Right: 組織細胞 =====
-    roundRect(660, 50, 580, 700, 16);
-    ctx.fillStyle = "rgba(255,255,255,0.72)";
-    ctx.fill();
-    ctx.strokeStyle = "#27ae60";
-    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(340, 380, 198, 163, 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.fillStyle = "#1e8449";
-    ctx.font = "bold 30px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("組織細胞的物質交換", 950, 100);
+    // Capillary wall label
+    ctx.fillStyle = "#922b21";
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("微血管壁", 470, 240);
 
-    // Extracellular / tissue fluid
-    roundRect(690, 140, 200, 480, 18);
-    ctx.fillStyle = "rgba(52,152,219,0.08)";
+    // Alveolus (氣囊) — pinkish sac
+    ctx.beginPath();
+    ctx.ellipse(280, 380, 130, 145, 0, 0, Math.PI * 2);
+    const ag = ctx.createRadialGradient(250, 340, 20, 280, 380, 140);
+    ag.addColorStop(0, "rgba(255, 230, 220, 0.95)");
+    ag.addColorStop(1, "rgba(245, 183, 177, 0.9)");
+    ctx.fillStyle = ag;
     ctx.fill();
-    ctx.strokeStyle = "#5dade2";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#e59866";
+    ctx.lineWidth = 5;
     ctx.stroke();
-    ctx.fillStyle = "#2471a3";
-    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
-    ctx.fillText("組織液", 790, 180);
-    ctx.font = "17px 'Noto Sans TC', sans-serif";
-    ctx.fillStyle = "#5a6a7a";
-    ctx.fillText("／血液", 790, 205);
 
-    // Cell
-    roundRect(920, 200, 280, 360, 28);
-    ctx.fillStyle = "rgba(46,125,79,0.12)";
-    ctx.fill();
-    ctx.strokeStyle = "#27ae60";
+    // Thin water film (inner ring)
+    ctx.beginPath();
+    ctx.ellipse(280, 380, 118, 132, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(52,152,219,0.55)";
     ctx.lineWidth = 4;
     ctx.stroke();
-    ctx.fillStyle = "#1e8449";
-    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
-    ctx.fillText("細胞", 1060, 380);
-    ctx.font = "17px 'Noto Sans TC', sans-serif";
+
+    // Alveolar wall label
+    ctx.fillStyle = "#a04000";
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("氣囊壁", 200, 265);
+    ctx.fillStyle = "#2471a3";
+    ctx.fillText("薄水膜", 280, 310);
+
+    ctx.fillStyle = "#6e2c00";
+    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.fillText("氣囊（肺泡）", 280, 385);
+    ctx.font = "15px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#5a6a7a";
-    ctx.fillText("（消耗氧氣、產生二氧化碳）", 1060, 410);
+    ctx.fillText("空氣 · 氧高 · 二氧化碳低", 280, 410);
 
-    // Teaching arrows
-    drawArrow(880, 280, 930, 280, "#e74c3c", 4);
-    drawCallout(905, 250, "氧氣進入", "#c0392b");
-    drawArrow(930, 480, 880, 480, "#3498db", 4);
-    drawCallout(905, 515, "二氧化碳排出", "#2471a3");
-    drawArrow(880, 340, 930, 340, "#27ae60", 3);
+    // Airway stub at top of alveolus
+    ctx.fillStyle = "rgba(245,183,177,0.9)";
+    roundRect(250, 200, 60, 50, 8);
+    ctx.fill();
+    ctx.strokeStyle = "#e59866";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    drawArrow(280, 170, 280, 205, "#1a5276", 3);
+    ctx.fillStyle = "#1a5338";
+    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("吸入空氣（含氧）", 280, 158);
 
-    drawAnnotationBox(690, 640, [
-      "氧氣、養分：組織液 → 細胞內",
-      "二氧化碳（廢物）：細胞內 → 組織液",
-      "細胞藉擴散維持生命活動"
+    // RBCs in capillary (left = deoxygenated in, right = oxygenated out)
+    drawRBC(455, 320, 22, false);
+    drawRBC(480, 380, 20, false);
+    drawRBC(460, 440, 21, true);
+    drawRBC(500, 480, 19, true);
+    drawRBC(420, 500, 18, true);
+
+    ctx.fillStyle = "#7b241c";
+    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("紅血細胞", 505, 360);
+
+    // Blood flow labels
+    ctx.fillStyle = "#922b21";
+    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    drawArrow(120, 520, 180, 480, "#922b21", 3);
+    ctx.fillText("來自肺動脈的缺氧血", 150, 555);
+    ctx.font = "13px 'Noto Sans TC', sans-serif";
+    ctx.fillText("（氧低 · 二氧化碳高）", 150, 575);
+
+    drawArrow(520, 280, 580, 240, "#c0392b", 3);
+    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+    ctx.fillText("流往肺靜脈的含氧血", 520, 220);
+    ctx.font = "13px 'Noto Sans TC', sans-serif";
+    ctx.fillText("（氧高 · 二氧化碳低）", 520, 240);
+
+    // Exhale arrow
+    drawArrow(200, 230, 140, 180, "#d68910", 3);
+    ctx.fillStyle = "#b9770e";
+    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("呼出空氣（含二氧化碳）", 130, 165);
+
+    // Step notes
+    drawAnnotationBox(40, 620, [
+      "攝取氧：①吸入 → ②溶於薄水膜 → ③擴散入紅血細胞",
+      "排出二氧化碳：①離開血液 → ②進入氣囊 → ③呼出",
+      "氧（藍箭）進入血液　｜　二氧化碳（橙箭）離開血液"
+    ], "#2c5aa0");
+
+    // ========== RIGHT: 血液與體細胞 ==========
+    roundRect(660, 36, 596, 730, 14);
+    ctx.fillStyle = "rgba(255,255,255,0.78)";
+    ctx.fill();
+    ctx.strokeStyle = "#1e8449";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#1e8449";
+    ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("血液與體細胞之間的物質交換", 958, 72);
+
+    // Capillary tube (top)
+    roundRect(700, 110, 520, 160, 40);
+    ctx.fillStyle = "rgba(231,76,60,0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.fillStyle = "#922b21";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("微血管", 720, 140);
+    ctx.font = "14px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("微血管壁（單層細胞）", 720, 162);
+
+    drawArrow(780, 185, 1100, 185, "#c0392b", 3);
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("血流 →", 960, 175);
+
+    drawRBC(820, 200, 20, true);
+    drawRBC(920, 195, 18, true);
+    drawRBC(1020, 205, 19, false);
+    drawRBC(1120, 198, 17, false);
+
+    // Tissue fluid region
+    roundRect(700, 290, 520, 360, 16);
+    ctx.fillStyle = "rgba(241, 196, 15, 0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#b7950b";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#7d6608";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("組織液（體細胞浸浴其中）", 720, 320);
+
+    // Body cells
+    function bodyCell(cx, cy, label) {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 55, 40, -0.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(212, 172, 13, 0.45)";
+      ctx.fill();
+      ctx.strokeStyle = "#9a7d0a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx - 8, cy - 4, 10, 0, Math.PI * 2);
+      ctx.fillStyle = "#c0392b";
+      ctx.fill();
+      if (label) {
+        ctx.fillStyle = "#5d4e00";
+        ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(label, cx, cy + 28);
+      }
+    }
+    bodyCell(820, 420, "體細胞");
+    bodyCell(980, 450, "體細胞");
+    bodyCell(1120, 410, "體細胞");
+    bodyCell(880, 560, null);
+    bodyCell(1050, 580, null);
+
+    // Direction legends
+    drawArrow(960, 275, 960, 310, "#1a5276", 3);
+    ctx.fillStyle = "#1a5276";
+    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("氧、營養素、水 ↓（進入組織液／細胞）", 720, 285);
+
+    drawArrow(1180, 500, 1180, 290, "#d68910", 3);
+    ctx.fillStyle = "#b9770e";
+    ctx.textAlign = "right";
+    ctx.fillText("二氧化碳、其他廢物 ↑（進入血液）", 1170, 640);
+
+    drawAnnotationBox(710, 670, [
+      "氧／營養素：微血管 → 組織液 → 體細胞（擴散）",
+      "二氧化碳／廢物：體細胞 → 組織液 → 血液（擴散）"
     ], "#1e8449");
 
-    // Draw molecules on top
+    // Molecules on top
     particles.forEach(p => {
-      if (p.kind === "alvO2" || p.kind === "alvCO2" ||
-          p.kind === "cellO2" || p.kind === "cellCO2" || p.kind === "cellNut") {
-        // Only show label on some to reduce clutter
-        const showLabel = (p.lane % 3 === 0);
-        drawMolecule(p.x, p.y, p.r, p.color, showLabel ? p.label : null);
+      const kinds = ["alvO2","alvCO2","tisO2","tisNut","tisCO2","tisWaste"];
+      if (kinds.indexOf(p.kind) >= 0) {
+        const show = (p.lane % 4 === 0);
+        drawMolecule(p.x, p.y, p.r, p.color, show ? p.label : null);
       }
     });
   }
 
   function drawSceneFactors() {
     const g = factorGeom();
+    const meta = DEMO_META[activeDemo];
+    const levelName = demoLevel === "high" ? meta.highLabel : meta.lowLabel;
+
+    // Title banner — emphasises isolation
+    roundRect(60, 36, W - 120, 58, 10);
+    ctx.fillStyle = "rgba(44,90,160,0.10)";
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("只示範：「" + meta.title + "　→　" + levelName + "」", W / 2, 74);
 
     // Chamber
     roundRect(g.left, g.top, g.right - g.left, g.bot - g.top, 14);
@@ -1571,63 +1797,68 @@
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Barrier (distance = thickness; area = gap height)
-    ctx.fillStyle = "rgba(44,90,160,0.22)";
-    // top wall of barrier
-    ctx.fillRect(g.gapL, g.top, g.gapR - g.gapL, g.gapTop - g.top);
-    // bottom wall of barrier
-    ctx.fillRect(g.gapL, g.gapBot, g.gapR - g.gapL, g.bot - g.gapBot);
-    ctx.strokeStyle = "#2c5aa0";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(g.gapL, g.top, g.gapR - g.gapL, g.gapTop - g.top);
-    ctx.strokeRect(g.gapL, g.gapBot, g.gapR - g.gapL, g.bot - g.gapBot);
+    if (g.showTempOnly) {
+      // Temperature-only: open box, no barrier
+      const col = demoLevel === "high" ? "#e67e22" : "#5dade2";
+      drawCallout(W / 2, g.top + 36,
+        demoLevel === "high" ? "高溫：粒子動能大，移動快" : "低溫：粒子動能小，移動慢",
+        col);
+      // Speed trails hint
+      ctx.fillStyle = col;
+      ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(demoLevel === "high" ? "擴散速率較高 ▲" : "擴散速率較低 ▼", W / 2, g.bot - 30);
+    } else {
+      // Barrier for distance / area / gradient / size demos
+      ctx.fillStyle = "rgba(44,90,160,0.22)";
+      ctx.fillRect(g.gapL, g.top, g.gapR - g.gapL, Math.max(0, g.gapTop - g.top));
+      ctx.fillRect(g.gapL, g.gapBot, g.gapR - g.gapL, Math.max(0, g.bot - g.gapBot));
+      ctx.strokeStyle = "#2c5aa0";
+      ctx.lineWidth = 2;
+      if (g.gapTop > g.top) ctx.strokeRect(g.gapL, g.top, g.gapR - g.gapL, g.gapTop - g.top);
+      if (g.bot > g.gapBot) ctx.strokeRect(g.gapL, g.gapBot, g.gapR - g.gapL, g.bot - g.gapBot);
 
-    // Opening highlight
-    ctx.strokeStyle = "#27ae60";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(g.gapL, g.gapTop, g.gapR - g.gapL, g.gapBot - g.gapTop);
-    ctx.setLineDash([]);
+      ctx.strokeStyle = "#27ae60";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(g.gapL, g.gapTop, g.gapR - g.gapL, g.gapBot - g.gapTop);
+      ctx.setLineDash([]);
 
-    // Labels
-    ctx.fillStyle = "#c0392b";
-    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("高濃度", (g.left + g.gapL) / 2, g.top - 18);
-    ctx.fillStyle = "#2e7d4f";
-    ctx.fillText("低濃度", (g.gapR + g.right) / 2, g.top - 18);
+      ctx.fillStyle = "#c0392b";
+      ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("高濃度", (g.left + g.gapL) / 2, g.top - 16);
+      ctx.fillStyle = "#2e7d4f";
+      ctx.fillText("低濃度", (g.gapR + g.right) / 2, g.top - 16);
 
-    // Distance / area callouts
-    const distLabel = factorState.distance === "short" ? "距離：較短" : "距離：較長";
-    const areaLabel = factorState.area === "large" ? "面積：較大" : "面積：較小";
-    drawCallout((g.gapL + g.gapR) / 2, g.gapTop - 18, distLabel, "#2c5aa0");
-    drawCallout((g.gapL + g.gapR) / 2, (g.gapTop + g.gapBot) / 2, areaLabel, "#27ae60");
+      drawArrow(g.gapL - 30, (g.gapTop + g.gapBot) / 2,
+                g.gapR + 30, (g.gapTop + g.gapBot) / 2, "#e67e22", 4);
 
-    // Temperature badge
-    const tempLabel = factorState.temp === "high" ? "溫度：高溫（動能大）" : "溫度：低溫（動能小）";
-    const tempColor = factorState.temp === "high" ? "#e67e22" : "#5dade2";
-    drawCallout(W / 2, 55, tempLabel, tempColor);
+      // Demo-specific callout only
+      let tip = "";
+      if (activeDemo === "gradient") {
+        tip = demoLevel === "high" ? "濃度差異大 → 淨移動快" : "濃度差異小 → 淨移動慢";
+      } else if (activeDemo === "distance") {
+        tip = demoLevel === "low" ? "距離短 → 較快到達" : "距離長 → 較慢到達";
+        drawCallout((g.gapL + g.gapR) / 2, g.gapTop - 22,
+          demoLevel === "low" ? "距離：較短" : "距離：較長", "#2c5aa0");
+      } else if (activeDemo === "area") {
+        tip = demoLevel === "high" ? "開口大（面積大）→ 通過多" : "開口小（面積小）→ 通過少";
+        drawCallout((g.gapL + g.gapR) / 2, (g.gapTop + g.gapBot) / 2,
+          demoLevel === "high" ? "面積：較大" : "面積：較小", "#27ae60");
+      } else if (activeDemo === "size") {
+        tip = demoLevel === "low" ? "細小粒子 → 擴散較快" : "較大粒子 → 擴散較慢";
+      }
+      if (tip) drawCallout(W / 2, g.bot - 28, tip, "#e67e22");
+    }
 
-    // Net movement arrow through gap
-    drawArrow(g.gapL - 40, (g.gapTop + g.gapBot) / 2 - 50,
-              g.gapR + 40, (g.gapTop + g.gapBot) / 2 - 50, "#e67e22", 4);
-    drawCallout(W / 2, (g.gapTop + g.gapBot) / 2 - 78, "粒子淨移動", "#e67e22");
-
-    // Particles
     particles.forEach(p => {
       if (p.kind === "factorDot") drawMolecule(p.x, p.y, p.r, p.color);
     });
 
-    // Summary strip
-    const sizeLabel = factorState.size === "small" ? "細小" : "較大";
-    const gradLabel = factorState.gradient === "large" ? "較大" : "較小";
-    drawAnnotationBox(g.left, g.bot + 12, [
-      "目前設定：溫度=" + (factorState.temp === "high" ? "高溫" : "低溫") +
-      "　濃度梯度=" + gradLabel +
-      "　距離=" + (factorState.distance === "short" ? "較短" : "較長") +
-      "　面積=" + (factorState.area === "large" ? "較大" : "較小") +
-      "　粒子=" + sizeLabel
-    ], "#2c5aa0");
+    drawAnnotationBox(g.left, H - 52, [
+      "提示：右側先選一項因素，再按比較按鈕。其他因素不會同時疊加在畫面中。"
+    ], "#5a6a7a");
   }
 
   function clearBg() {
@@ -1688,7 +1919,7 @@
   wireFactorControls();
   initParticles();
   updateUI();
-  updateFactorHint("temp");
+  syncFactorLevelButtons();
   requestAnimationFrame(loop);
 })();
 </script>
