@@ -313,7 +313,7 @@
     {
       id: "blocked",
       title: "場景 5：大分子一般不能通過",
-      desc: "蛋白質等<strong>大分子</strong>通常無法直接穿越細胞膜（需胞吞／胞吐等其他機制，本動畫不展開）。對照左側小分子可自由擴散。"
+      desc: "<strong>蛋白質</strong>、<strong>澱粉</strong>等<strong>大分子</strong>通常無法直接穿越細胞膜（需胞吞／胞吐等其他機制，本動畫不展開）。對照左側小分子可自由擴散。"
     },
     {
       id: "overview",
@@ -634,30 +634,52 @@
     return t * t * (3 - 2 * t);
   }
 
-  function drawBigMolecule(x, y, blocked) {
-    // stylized large polymer
+  function drawBigMolecule(x, y, blocked, kind) {
+    // kind: "protein" (grey cluster) or "starch" (beige branched chain)
     ctx.save();
     ctx.translate(x, y);
-    const parts = [
-      [0, 0, 31], [-34, 16, 23], [31, 18, 25], [-16, -26, 21], [26, -16, 20]
-    ];
-    parts.forEach(([px, py, r], i) => {
+    if (kind === "starch") {
+      const parts = [
+        [0, 0, 22], [-28, -6, 18], [30, -4, 18], [-12, 24, 16],
+        [18, 22, 15], [-42, 14, 14], [48, 12, 14], [0, -28, 15]
+      ];
+      parts.forEach(([px, py, r], i) => {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? "#d4a017" : "#e8c547";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(120,80,10,0.35)";
+        ctx.stroke();
+      });
+      // link hints
+      ctx.strokeStyle = "rgba(180,130,20,0.5)";
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fillStyle = i === 0 ? "#7f8c8d" : "#95a5a6";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.2)";
+      ctx.moveTo(-28, -6); ctx.lineTo(0, 0); ctx.lineTo(30, -4);
+      ctx.moveTo(0, 0); ctx.lineTo(-12, 24); ctx.lineTo(18, 22);
       ctx.stroke();
-    });
+    } else {
+      const parts = [
+        [0, 0, 31], [-34, 16, 23], [31, 18, 25], [-16, -26, 21], [26, -16, 20]
+      ];
+      parts.forEach(([px, py, r], i) => {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? "#7f8c8d" : "#95a5a6";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.2)";
+        ctx.stroke();
+      });
+    }
     ctx.restore();
     if (blocked) {
       ctx.strokeStyle = "#c0392b";
       ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.moveTo(x - 36, y - 36);
-      ctx.lineTo(x + 36, y + 36);
-      ctx.moveTo(x + 36, y - 36);
-      ctx.lineTo(x - 36, y + 36);
+      ctx.moveTo(x - 40, y - 40);
+      ctx.lineTo(x + 40, y + 40);
+      ctx.moveTo(x + 40, y - 40);
+      ctx.lineTo(x - 40, y + 40);
       ctx.stroke();
     }
   }
@@ -755,7 +777,7 @@
       const cx = W * 0.58;
       rejectMarks = [];
       // Water that will bounce off hydrophobic bilayer (away from channel)
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 2; i++) {
         particles.push({
           kind: "waterBounce",
           x: 80 + Math.random() * 280,
@@ -766,13 +788,13 @@
           phase: Math.random() * 10,
           label: "水",
           color: "#3498db",
-          delay: i * 0.25,
+          delay: i * 1.4,
           bounces: 0,
           mode: "fall" // fall | bounce | seek | through | inside
         });
       }
       // Water / ions that succeed via channel
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         particles.push({
           kind: "waterChannel",
           x: cx + (Math.random() - 0.5) * 90,
@@ -782,7 +804,7 @@
           phase: Math.random() * 10,
           label: i % 2 === 0 ? "水" : "礦物離子",
           color: "#3498db",
-          delay: 0.8 + i * 0.45,
+          delay: 1.6 + i * 1.1,
           channelX: cx,
           mode: "approach"
         });
@@ -790,7 +812,7 @@
     }
     if (id === "overview") {
       const cx = W * 0.52;
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         particles.push({
           kind: "ion",
           x: cx + (Math.random() - 0.5) * 40,
@@ -850,11 +872,23 @@
     if (id === "blocked") {
       particles.push({
         kind: "big",
-        x: W * 0.45,
-        y: 100,
-        bob: 0
+        subtype: "protein",
+        label: "蛋白質",
+        x: W * 0.32,
+        y: 110,
+        bob: 0,
+        bobPhase: 0
       });
-      for (let i = 0; i < 5; i++) {
+      particles.push({
+        kind: "big",
+        subtype: "starch",
+        label: "澱粉",
+        x: W * 0.58,
+        y: 95,
+        bob: 0,
+        bobPhase: 1.7
+      });
+      for (let i = 0; i < 4; i++) {
         particles.push({
           kind: "gas",
           x: 100 + i * 55,
@@ -899,20 +933,21 @@
       } else if (p.kind === "waterBounce") {
         const age = sceneT - (p.delay || 0);
         if (age < 0) return;
+        // Hydrophobic core starts just past the outer hydrophilic heads
+        const hydroTop = MEM_Y - MEM_H / 2 + HEAD_R * 2.2;
         if (p.mode === "fall" || p.mode === "bounce") {
           p.x += p.vx * dt;
           p.y += p.vy * dt;
-          // hit hydrophobic region (not over channel)
+          // May pass / touch outer 親水頭部; only rebound in 疏水尾部 middle
           const overChannel = Math.abs(p.x - channelCx) < channelHalf;
-          if (p.y >= topBound - 4 && p.y <= topBound + 18 && !overChannel) {
-            // REPELLED by hydrophobic tails
-            p.vy = -Math.abs(p.vy) * 0.85 - 15;
-            p.vx += (Math.random() - 0.5) * 80;
-            p.y = topBound - 6;
+          if (p.y >= hydroTop && p.y <= MEM_Y + 8 && !overChannel) {
+            // REPELLED by hydrophobic tails (middle of bilayer)
+            p.vy = -Math.abs(p.vy) * 0.9 - 20;
+            p.vx += (Math.random() - 0.5) * 70;
+            p.y = hydroTop - 2;
             p.bounces = (p.bounces || 0) + 1;
             p.mode = "bounce";
-            rejectMarks.push({ x: p.x, y: topBound - 8, age: 0 });
-            // after a bounce or two, seek the channel
+            rejectMarks.push({ x: p.x, y: hydroTop, age: 0 });
             if (p.bounces >= 1) {
               p.mode = "seek";
             }
@@ -924,9 +959,11 @@
           // gravity-ish after bounce
           p.vy += 55 * dt;
         } else if (p.mode === "seek") {
-          p.x += (channelCx - p.x) * 0.06;
-          p.y += (topBound - 30 - p.y) * 0.05;
-          if (Math.abs(p.x - channelCx) < 18 && p.y > topBound - 45) {
+          // drift toward channel while still outside / near heads
+          p.x += (channelCx - p.x) * 0.07;
+          const seekY = Math.min(p.y + 25 * dt, hydroTop - 8);
+          p.y += (seekY - p.y) * 0.12;
+          if (Math.abs(p.x - channelCx) < 20 && p.y > topBound - 10) {
             p.mode = "through";
           }
         } else if (p.mode === "through") {
@@ -1026,9 +1063,10 @@
         // visual state driven by carrierPhase — positions updated in draw
       } else if (p.kind === "big") {
         p.bob += dt;
-        const targetY = MEM_Y - MEM_H / 2 - 55 + Math.sin(p.bob * 2) * 12;
+        const baseX = p.subtype === "starch" ? W * 0.58 : W * 0.32;
+        const targetY = MEM_Y - MEM_H / 2 - 70 + Math.sin(p.bob * 2 + (p.bobPhase || 0)) * 14;
         p.y += (targetY - p.y) * 0.1;
-        p.x = W * 0.45 + Math.sin(p.bob * 0.7) * 30;
+        p.x = baseX + Math.sin(p.bob * 0.7 + (p.bobPhase || 0)) * 18;
       }
     });
   }
@@ -1103,7 +1141,7 @@
       const cx = W * 0.58;
       drawChannel(cx, true);
       drawCallout(cx, MEM_Y + MEM_H / 2 + 48, "通道蛋白", "#5a3d8a");
-      drawCallout(W * 0.28, MEM_Y - 8, "疏水尾部排斥", "#c0392b");
+      drawCallout(W * 0.26, MEM_Y - 4, "疏水尾部排斥", "#c0392b");
       drawCallout(cx, MEM_Y - MEM_H / 2 - 36, "經通道蛋白進入", "#1e8449");
       // highlight hydrophobic core band away from channel
       ctx.fillStyle = "rgba(192, 57, 43, 0.08)";
@@ -1180,12 +1218,13 @@
     if (id === "blocked") {
       drawAnnotationBox(W - 340, 90, [
         "大分子一般不能通過",
+        "• 例：蛋白質、澱粉",
         "• 體積太大，無法穿過",
         "  雙層或一般通道／載體",
         "• 對照：小分子可簡單擴散",
         "• （胞吞／胞吐另述）"
       ], "#7f8c8d");
-      drawCallout(W * 0.45, MEM_Y - MEM_H / 2 - 90, "大分子 ✕", "#c0392b");
+      drawCallout(W * 0.45, MEM_Y - MEM_H / 2 - 110, "大分子 ✕", "#c0392b");
     }
 
     if (id === "overview") {
@@ -1219,11 +1258,11 @@
       } else if (p.kind === "atpViz") {
         // drawn in carrier scene block
       } else if (p.kind === "big") {
-        drawBigMolecule(p.x, p.y, true);
+        drawBigMolecule(p.x, p.y, true, p.subtype || "protein");
         ctx.fillStyle = "#1a2332";
-        ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("大分子（如蛋白質）", p.x, p.y + 42);
+        ctx.fillText(p.label || "大分子", p.x, p.y + 55);
       }
     });
 

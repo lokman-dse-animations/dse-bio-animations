@@ -280,10 +280,12 @@
 
   const MEM_Y = H * 0.48;
   const MEM_H = 200;
-  const HEAD_R = 17;
-  const COLS = 22;
-  const COL_GAP = (W - 100) / (COLS - 1);
-  const X0 = 50;
+  const HEAD_R = 14;
+  const COLS = 40;
+  const COL_GAP = (W - 80) / (COLS - 1);
+  const X0 = 40;
+  const EDGE_L = 36;
+  const EDGE_R = W - 36;
 
   const scenes = [
     {
@@ -302,14 +304,24 @@
       desc: "紫色的<strong>膜蛋白</strong>鑲嵌在磷脂雙層中；若空間允許，它們也能<strong>橫向移動</strong>，像<strong>冰山漂浮在海上</strong>。糖蛋白外側有橙色<strong>碳水化合物</strong>鏈。"
     },
     {
+      id: "topdown",
+      title: "場景 4：俯瞰——流動鑲嵌",
+      desc: "<strong>鳥瞰／俯視</strong>細胞膜表面：黃色圓＝磷脂頭部，紫色塊＝膜蛋白。兩者皆在膜面上<strong>橫向移動</strong>；蛋白散佈其間形成<strong>鑲嵌圖案</strong>——一目了然何謂流動、何謂鑲嵌。"
+    },
+    {
       id: "naming",
-      title: "場景 4：為何稱「流動鑲嵌」",
+      title: "場景 5：為何稱「流動鑲嵌」",
       desc: "<strong>流動</strong>：磷脂與部分蛋白可橫向移動，膜像液體般流動。<strong>鑲嵌</strong>：蛋白分子散佈在磷脂之間，俯視如<strong>馬賽克／鑲嵌圖案</strong>。合稱<strong>流動鑲嵌模型</strong>。"
     },
     {
       id: "cholesterol",
-      title: "場景 5：膽固醇維持流動性",
+      title: "場景 6：膽固醇維持流動性",
       desc: "動物細胞膜含<strong>膽固醇</strong>（綠色）。高溫時限制磷脂過度移動，避免膜過稀；低溫時阻止磷脂排得太密，保持柔韌——幫助<strong>維持適當流動性</strong>。"
+    },
+    {
+      id: "division",
+      title: "場景 7：流動性與細胞分裂",
+      desc: "左：整細胞；右：顯微。<strong>上、下膜同時</strong>向內縊縮 → 相遇後<strong>斷開／融合</strong> → <strong>兩層完整封閉膜</strong>。磷脂仍可橫向移動；流動性容許形狀改變。"
     }
   ];
 
@@ -319,9 +331,9 @@
   let sceneT = 0;
   let lastTs = performance.now();
 
-  // Phospholipid lateral positions (per column index) — allow sliding
-  let lipidOffsets = [];   // top layer x offsets from base
-  let lipidOffsetsBot = [];
+  // Phospholipid absolute x positions (top / bottom layers)
+  let lipidXTop = [];
+  let lipidXBot = [];
   let lipidVel = [];
   let lipidVelBot = [];
   let lipidPhase = [];
@@ -329,8 +341,16 @@
   // Membrane proteins that can drift
   let proteins = [];
 
-  // Mosaic tiles for scene 4
+  // Mosaic tiles for naming inset
   let mosaicTiles = [];
+
+  // Top-down (俯瞰) surface particles
+  let topLipids = [];
+  let topProteins = [];
+  let topBounds = { x: 60, y: 90, w: W - 120, h: H - 200 };
+
+  // Micro cleavage-furrow membrane lipids (parametric along curve)
+  let furrowLipids = [];
 
   const stepsEl = document.getElementById("steps");
   const titleEl = document.getElementById("sceneTitle");
@@ -372,17 +392,21 @@
   }
 
   function initScene() {
-    lipidOffsets = [];
-    lipidOffsetsBot = [];
+    lipidXTop = [];
+    lipidXBot = [];
     lipidVel = [];
     lipidVelBot = [];
     lipidPhase = [];
     proteins = [];
     mosaicTiles = [];
+    topLipids = [];
+    topProteins = [];
+    furrowLipids = [];
 
     for (let i = 0; i < COLS; i++) {
-      lipidOffsets[i] = 0;
-      lipidOffsetsBot[i] = 0;
+      const base = X0 + i * COL_GAP;
+      lipidXTop[i] = base;
+      lipidXBot[i] = base + (Math.random() - 0.5) * 6;
       lipidVel[i] = 0;
       lipidVelBot[i] = 0;
       lipidPhase[i] = Math.random() * Math.PI * 2;
@@ -391,47 +415,69 @@
     const id = scenes[sceneIndex].id;
 
     if (id === "lateral" || id === "proteins" || id === "naming" || id === "cholesterol") {
-      // Give each lipid a small random lateral velocity for continuous sliding
+      // Continuous lateral sliding — absolute x, wrap only at edges
       for (let i = 0; i < COLS; i++) {
-        lipidVel[i] = (Math.random() - 0.5) * 28;
-        lipidVelBot[i] = (Math.random() - 0.5) * 28;
-        lipidOffsets[i] = (Math.random() - 0.5) * COL_GAP * 0.4;
-        lipidOffsetsBot[i] = (Math.random() - 0.5) * COL_GAP * 0.4;
+        lipidVel[i] = (Math.random() - 0.5) * 32;
+        lipidVelBot[i] = (Math.random() - 0.5) * 32;
+        lipidXTop[i] = X0 + i * COL_GAP + (Math.random() - 0.5) * COL_GAP * 0.35;
+        lipidXBot[i] = X0 + i * COL_GAP + (Math.random() - 0.5) * COL_GAP * 0.35;
       }
     }
 
     if (id === "proteins" || id === "naming" || id === "cholesterol") {
-      // Channel protein (transmembrane)
+      // More membrane proteins for crowded classroom look
       proteins.push({
         kind: "channel",
-        x: W * 0.32,
-        vx: 12,
-        w: 56,
+        x: W * 0.18,
+        vx: 10,
+        w: 50,
         label: "通道蛋白",
         showCarb: false
       });
-      // Carrier-like / receptor with glycoprotein
       proteins.push({
         kind: "glyco",
-        x: W * 0.58,
-        vx: -9,
-        w: 48,
+        x: W * 0.38,
+        vx: -8,
+        w: 46,
         label: "糖蛋白",
         showCarb: true
       });
-      // Peripheral / enzyme-like on inner side
+      proteins.push({
+        kind: "channel",
+        x: W * 0.55,
+        vx: 7,
+        w: 48,
+        label: "",
+        showCarb: false
+      });
+      proteins.push({
+        kind: "glyco",
+        x: W * 0.72,
+        vx: -11,
+        w: 44,
+        label: "",
+        showCarb: true
+      });
       proteins.push({
         kind: "peripheral",
-        x: W * 0.78,
-        vx: 7,
-        w: 40,
+        x: W * 0.88,
+        vx: 6,
+        w: 38,
         label: "酶",
+        showCarb: false
+      });
+      proteins.push({
+        kind: "peripheral",
+        x: W * 0.28,
+        vx: -5,
+        w: 36,
+        label: "",
         showCarb: false
       });
     }
 
     if (id === "naming") {
-      // Mosaic tiles for top-down inset
+      // Mosaic tiles for small inset
       const colors = ["#7b5ea7", "#f0b429", "#5b9bd5", "#8f73b8", "#e8c547", "#6aa3d5", "#9b7bb8", "#d4a017"];
       for (let r = 0; r < 5; r++) {
         for (let c = 0; c < 7; c++) {
@@ -443,6 +489,84 @@
         }
       }
     }
+
+    if (id === "topdown") {
+      initTopDown();
+    }
+    if (id === "division") {
+      initFurrow();
+    }
+  }
+
+  function initTopDown() {
+    const b = topBounds;
+    const margin = 22;
+    // Crowded pack of phospholipid heads across surface
+    const cols = 18;
+    const rows = 12;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const jitter = 12;
+        topLipids.push({
+          x: b.x + margin + col * ((b.w - margin * 2) / (cols - 1)) + (Math.random() - 0.5) * jitter,
+          y: b.y + margin + row * ((b.h - margin * 2) / (rows - 1)) + (Math.random() - 0.5) * jitter,
+          r: 11 + Math.random() * 3.5,
+          vx: (Math.random() - 0.5) * 34,
+          vy: (Math.random() - 0.5) * 34,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    // Extra scattered lipids to fill gaps
+    for (let i = 0; i < 40; i++) {
+      topLipids.push({
+        x: b.x + margin + Math.random() * (b.w - margin * 2),
+        y: b.y + margin + Math.random() * (b.h - margin * 2),
+        r: 10 + Math.random() * 3,
+        vx: (Math.random() - 0.5) * 30,
+        vy: (Math.random() - 0.5) * 30,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    // More membrane proteins (mosaic pieces)
+    const protSpecs = [
+      { kind: "channel", x: 0.22, y: 0.35, r: 42, vx: 12, vy: 7, label: "通道蛋白" },
+      { kind: "glyco", x: 0.48, y: 0.28, r: 38, vx: -10, vy: 9, label: "糖蛋白" },
+      { kind: "carrier", x: 0.72, y: 0.40, r: 36, vx: 8, vy: -11, label: "載體蛋白" },
+      { kind: "receptor", x: 0.35, y: 0.68, r: 32, vx: -7, vy: -8, label: "受體蛋白" },
+      { kind: "channel", x: 0.62, y: 0.72, r: 36, vx: 9, vy: 6, label: "" },
+      { kind: "glyco", x: 0.85, y: 0.58, r: 34, vx: -8, vy: 5, label: "" },
+      { kind: "carrier", x: 0.15, y: 0.62, r: 30, vx: 6, vy: -9, label: "" }
+    ];
+    protSpecs.forEach(s => {
+      topProteins.push({
+        kind: s.kind,
+        x: b.x + b.w * s.x,
+        y: b.y + b.h * s.y,
+        r: s.r,
+        vx: s.vx,
+        vy: s.vy,
+        label: s.label,
+        trail: []
+      });
+    });
+  }
+
+  function initFurrow() {
+    // Phospholipids on TOP and BOTTOM of cleavage furrow (pinch together)
+    const nPer = 36;
+    ["top", "bot"].forEach(band => {
+      for (let i = 0; i < nPer; i++) {
+        furrowLipids.push({
+          s: (i + 0.5) / nPer,
+          band: band,
+          layer: i % 2 === 0 ? "outer" : "inner",
+          vs: (Math.random() - 0.5) * 0.08,
+          phase: Math.random() * Math.PI * 2,
+          alive: true
+        });
+      }
+    });
   }
 
   // --- Drawing helpers ---
@@ -505,9 +629,9 @@
   }
 
   function proteinGap(x) {
-    // returns true if this x overlaps a protein
+    // true if x overlaps a protein (used only for cholesterol placement)
     for (const p of proteins) {
-      const half = (p.w || 48) + 8;
+      const half = (p.w || 48) + 6;
       if (Math.abs(x - p.x) < half) return true;
     }
     return false;
@@ -518,14 +642,13 @@
     ctx.fillStyle = "rgba(91,155,213,0.08)";
     ctx.fillRect(20, MEM_Y - MEM_H / 2 - 4, W - 40, MEM_H + 8);
 
-    // Draw phospholipids with lateral offsets; skip those overlapping proteins
-    // Sort by x so overlapping looks ok
+    // Always draw all lipids (proteins are painted on top later).
+    // Only skip when past the LEFT/RIGHT edge — never hide mid-canvas.
     const topItems = [];
     const botItems = [];
     for (let i = 0; i < COLS; i++) {
-      const baseX = X0 + i * COL_GAP;
-      const tx = baseX + (animateLateral ? lipidOffsets[i] : 0);
-      const bx = baseX + (animateLateral ? lipidOffsetsBot[i] : 0);
+      const tx = animateLateral ? lipidXTop[i] : (X0 + i * COL_GAP);
+      const bx = animateLateral ? lipidXBot[i] : (X0 + i * COL_GAP);
       topItems.push({ x: tx, i, phase: phase + i * 0.35 });
       botItems.push({ x: bx, i, phase: phase + i * 0.35 + 0.8 });
     }
@@ -533,14 +656,12 @@
     botItems.sort((a, b) => a.x - b.x);
 
     topItems.forEach(it => {
-      if (it.x < 30 || it.x > W - 30) return;
-      if (proteinGap(it.x)) return;
+      if (!lipidVisibleX(it.x)) return; // gone at boundary — no edge flash
       const hl = animateLateral && Math.abs(lipidVel[it.i]) > 8;
       drawSinglePhospholipid(it.x, "top", it.phase, hl);
     });
     botItems.forEach(it => {
-      if (it.x < 30 || it.x > W - 30) return;
-      if (proteinGap(it.x)) return;
+      if (!lipidVisibleX(it.x)) return;
       const hl = animateLateral && Math.abs(lipidVelBot[it.i]) > 8;
       drawSinglePhospholipid(it.x, "bot", it.phase, hl);
     });
@@ -833,53 +954,90 @@
   }
 
   // --- Update lateral motion ---
+  // Edge rule: on touch → disappear immediately, respawn fully inside opposite edge (no wrap/bounce flash)
+  const EDGE_INSET = HEAD_R + 4;
+
+  function respawnXFromLeft() {
+    // Appeared from left inward (coming from right exit)
+    return EDGE_L + EDGE_INSET + Math.random() * 6;
+  }
+  function respawnXFromRight() {
+    return EDGE_R - EDGE_INSET - Math.random() * 6;
+  }
+  function hitLeftEdge(x) { return x <= EDGE_L + HEAD_R; }
+  function hitRightEdge(x) { return x >= EDGE_R - HEAD_R; }
+  function lipidVisibleX(x) {
+    return x > EDGE_L + HEAD_R && x < EDGE_R - HEAD_R;
+  }
+
   function updateLipids(dt) {
     const id = scenes[sceneIndex].id;
-    if (id === "structure") return;
-
-    const minX = X0 - COL_GAP * 0.3;
-    const maxX = X0 + (COLS - 1) * COL_GAP + COL_GAP * 0.3;
+    if (id === "structure" || id === "topdown" || id === "division") return;
 
     for (let i = 0; i < COLS; i++) {
-      // occasional velocity nudge for organic feel
-      if (Math.random() < 0.02) {
-        lipidVel[i] += (Math.random() - 0.5) * 20;
-        lipidVelBot[i] += (Math.random() - 0.5) * 20;
+      if (Math.random() < 0.025) {
+        lipidVel[i] += (Math.random() - 0.5) * 22;
+        lipidVelBot[i] += (Math.random() - 0.5) * 22;
       }
-      // damping
       lipidVel[i] *= 0.992;
       lipidVelBot[i] *= 0.992;
-      // clamp speed
-      lipidVel[i] = Math.max(-40, Math.min(40, lipidVel[i]));
-      lipidVelBot[i] = Math.max(-40, Math.min(40, lipidVelBot[i]));
+      lipidVel[i] = Math.max(-38, Math.min(38, lipidVel[i]));
+      lipidVelBot[i] = Math.max(-38, Math.min(38, lipidVelBot[i]));
 
-      lipidOffsets[i] += lipidVel[i] * dt;
-      lipidOffsetsBot[i] += lipidVelBot[i] * dt;
-
-      // wrap: keep within membrane span by wrapping offset relative to base
-      const base = X0 + i * COL_GAP;
-      let tx = base + lipidOffsets[i];
-      if (tx < minX) lipidOffsets[i] += (maxX - minX);
-      if (tx > maxX) lipidOffsets[i] -= (maxX - minX);
-      let bx = base + lipidOffsetsBot[i];
-      if (bx < minX) lipidOffsetsBot[i] += (maxX - minX);
-      if (bx > maxX) lipidOffsetsBot[i] -= (maxX - minX);
-
-      // soft repulsion between neighboring lipids in same layer
-      for (let j = i + 1; j < COLS; j++) {
-        const dTop = (base + lipidOffsets[i]) - (X0 + j * COL_GAP + lipidOffsets[j]);
-        if (Math.abs(dTop) < HEAD_R * 2.1) {
-          const push = (HEAD_R * 2.1 - Math.abs(dTop)) * 0.5 * Math.sign(dTop || 1);
-          lipidOffsets[i] += push * dt * 8;
-          lipidOffsets[j] -= push * dt * 8;
+      // Soft slide around proteins (stay visible mid-canvas)
+      for (const p of proteins) {
+        const half = (p.w || 48) * 0.55 + HEAD_R;
+        const dT = lipidXTop[i] - p.x;
+        if (Math.abs(dT) < half) {
+          lipidVel[i] += Math.sign(dT || 1) * 18 * dt * 60;
         }
-        const dBot = (base + lipidOffsetsBot[i]) - (X0 + j * COL_GAP + lipidOffsetsBot[j]);
-        if (Math.abs(dBot) < HEAD_R * 2.1) {
-          const push = (HEAD_R * 2.1 - Math.abs(dBot)) * 0.5 * Math.sign(dBot || 1);
-          lipidOffsetsBot[i] += push * dt * 8;
-          lipidOffsetsBot[j] -= push * dt * 8;
+        const dB = lipidXBot[i] - p.x;
+        if (Math.abs(dB) < half) {
+          lipidVelBot[i] += Math.sign(dB || 1) * 18 * dt * 60;
         }
       }
+
+      lipidXTop[i] += lipidVel[i] * dt;
+      lipidXBot[i] += lipidVelBot[i] * dt;
+
+      // Instant despawn at edge → respawn opposite (fully inside, no flash)
+      if (hitLeftEdge(lipidXTop[i])) {
+        lipidXTop[i] = respawnXFromRight();
+        if (lipidVel[i] > 0) lipidVel[i] = -Math.abs(lipidVel[i]);
+      } else if (hitRightEdge(lipidXTop[i])) {
+        lipidXTop[i] = respawnXFromLeft();
+        if (lipidVel[i] < 0) lipidVel[i] = Math.abs(lipidVel[i]);
+      }
+      if (hitLeftEdge(lipidXBot[i])) {
+        lipidXBot[i] = respawnXFromRight();
+        if (lipidVelBot[i] > 0) lipidVelBot[i] = -Math.abs(lipidVelBot[i]);
+      } else if (hitRightEdge(lipidXBot[i])) {
+        lipidXBot[i] = respawnXFromLeft();
+        if (lipidVelBot[i] < 0) lipidVelBot[i] = Math.abs(lipidVelBot[i]);
+      }
+    }
+
+    // Soft repulsion between neighboring lipids (same layer)
+    for (let i = 0; i < COLS; i++) {
+      for (let j = i + 1; j < COLS; j++) {
+        let dTop = lipidXTop[i] - lipidXTop[j];
+        if (Math.abs(dTop) < HEAD_R * 1.95) {
+          const push = (HEAD_R * 1.95 - Math.abs(dTop)) * 0.5 * Math.sign(dTop || 1);
+          lipidXTop[i] += push * dt * 10;
+          lipidXTop[j] -= push * dt * 10;
+        }
+        let dBot = lipidXBot[i] - lipidXBot[j];
+        if (Math.abs(dBot) < HEAD_R * 1.95) {
+          const push = (HEAD_R * 1.95 - Math.abs(dBot)) * 0.5 * Math.sign(dBot || 1);
+          lipidXBot[i] += push * dt * 10;
+          lipidXBot[j] -= push * dt * 10;
+        }
+      }
+      // After repulsion, same edge rule (no mid-canvas teleport)
+      if (hitLeftEdge(lipidXTop[i])) lipidXTop[i] = respawnXFromRight();
+      else if (hitRightEdge(lipidXTop[i])) lipidXTop[i] = respawnXFromLeft();
+      if (hitLeftEdge(lipidXBot[i])) lipidXBot[i] = respawnXFromRight();
+      else if (hitRightEdge(lipidXBot[i])) lipidXBot[i] = respawnXFromLeft();
     }
   }
 
@@ -887,7 +1045,7 @@
     const id = scenes[sceneIndex].id;
     if (id !== "proteins" && id !== "naming" && id !== "cholesterol") return;
 
-    const margin = 100;
+    const margin = 70;
     proteins.forEach(p => {
       // bounce off other proteins
       proteins.forEach(q => {
@@ -906,9 +1064,123 @@
       if (Math.abs(p.vx) < 4) p.vx += (Math.random() - 0.5) * 3;
 
       p.x += p.vx * dt;
-      if (p.x < margin) { p.x = margin; p.vx = Math.abs(p.vx); }
-      if (p.x > W - margin) { p.x = W - margin; p.vx = -Math.abs(p.vx); }
+      // Instant disappear at edge → respawn opposite (no bounce flash)
+      if (p.x < margin) {
+        p.x = W - margin - 4;
+        p.vx = -Math.abs(p.vx || 8);
+        p.trail = [];
+      } else if (p.x > W - margin) {
+        p.x = margin + 4;
+        p.vx = Math.abs(p.vx || 8);
+        p.trail = [];
+      }
     });
+  }
+
+  function updateTopDown(dt) {
+    if (scenes[sceneIndex].id !== "topdown") return;
+    const b = topBounds;
+    const pad = 22;
+
+    // Lipid–lipid soft repulsion + Brownian drift
+    for (let i = 0; i < topLipids.length; i++) {
+      const L = topLipids[i];
+      if (Math.random() < 0.04) {
+        L.vx += (Math.random() - 0.5) * 28;
+        L.vy += (Math.random() - 0.5) * 28;
+      }
+      L.vx *= 0.985;
+      L.vy *= 0.985;
+      L.vx = Math.max(-42, Math.min(42, L.vx));
+      L.vy = Math.max(-42, Math.min(42, L.vy));
+
+      // bounce off proteins
+      for (const P of topProteins) {
+        const dx = L.x - P.x;
+        const dy = L.y - P.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const minD = L.r + P.r + 4;
+        if (dist < minD) {
+          const push = (minD - dist) / dist;
+          L.x += dx * push * 0.6;
+          L.y += dy * push * 0.6;
+          L.vx += dx * push * 8;
+          L.vy += dy * push * 8;
+        }
+      }
+
+      L.x += L.vx * dt;
+      L.y += L.vy * dt;
+
+      // Touch boundary → disappear immediately, respawn from opposite edge (inset, no flash)
+      const minX = b.x + pad, maxX = b.x + b.w - pad;
+      const minY = b.y + pad, maxY = b.y + b.h - pad;
+      if (L.x <= minX) { L.x = maxX - 2; L.vx = -Math.abs(L.vx || 10); }
+      else if (L.x >= maxX) { L.x = minX + 2; L.vx = Math.abs(L.vx || 10); }
+      if (L.y <= minY) { L.y = maxY - 2; L.vy = -Math.abs(L.vy || 10); }
+      else if (L.y >= maxY) { L.y = minY + 2; L.vy = Math.abs(L.vy || 10); }
+    }
+
+    // Sparse lipid–lipid separation (sample neighbors)
+    for (let i = 0; i < topLipids.length; i++) {
+      for (let j = i + 1; j < topLipids.length; j += 3) {
+        const A = topLipids[i], B = topLipids[j];
+        const dx = A.x - B.x, dy = A.y - B.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const minD = A.r + B.r - 2;
+        if (dist < minD) {
+          const push = (minD - dist) * 0.25;
+          A.x += (dx / dist) * push;
+          A.y += (dy / dist) * push;
+          B.x -= (dx / dist) * push;
+          B.y -= (dy / dist) * push;
+        }
+      }
+    }
+
+    // Proteins drift slowly (icebergs)
+    for (let i = 0; i < topProteins.length; i++) {
+      const P = topProteins[i];
+      if (Math.random() < 0.02) {
+        P.vx += (Math.random() - 0.5) * 10;
+        P.vy += (Math.random() - 0.5) * 10;
+      }
+      // mutual repulsion
+      for (let j = 0; j < topProteins.length; j++) {
+        if (i === j) continue;
+        const Q = topProteins[j];
+        const dx = P.x - Q.x, dy = P.y - Q.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const minD = P.r + Q.r + 16;
+        if (dist < minD) {
+          const push = (minD - dist) * 0.4;
+          P.vx += (dx / dist) * push;
+          P.vy += (dy / dist) * push;
+        }
+      }
+      P.vx *= 0.99;
+      P.vy *= 0.99;
+      P.vx = Math.max(-22, Math.min(22, P.vx));
+      P.vy = Math.max(-22, Math.min(22, P.vy));
+      if (Math.hypot(P.vx, P.vy) < 5) {
+        P.vx += (Math.random() - 0.5) * 4;
+        P.vy += (Math.random() - 0.5) * 4;
+      }
+
+      // trail for motion teaching
+      P.trail.push({ x: P.x, y: P.y });
+      if (P.trail.length > 18) P.trail.shift();
+
+      P.x += P.vx * dt;
+      P.y += P.vy * dt;
+      const pr = P.r + 8;
+      const minX = b.x + pr, maxX = b.x + b.w - pr;
+      const minY = b.y + pr, maxY = b.y + b.h - pr;
+      if (P.x <= minX) { P.x = maxX - 2; P.vx = -Math.abs(P.vx || 6); P.trail = []; }
+      else if (P.x >= maxX) { P.x = minX + 2; P.vx = Math.abs(P.vx || 6); P.trail = []; }
+      if (P.y <= minY) { P.y = maxY - 2; P.vy = -Math.abs(P.vy || 6); P.trail = []; }
+      else if (P.y >= maxY) { P.y = minY + 2; P.vy = Math.abs(P.vy || 6); P.trail = []; }
+    }
   }
 
   // --- Scene renderers ---
@@ -953,8 +1225,8 @@
     drawLateralArrows();
 
     // Highlight one lipid with a trail marker
-    const hi = 10;
-    const hx = X0 + hi * COL_GAP + lipidOffsets[hi];
+    const hi = Math.min(14, COLS - 1);
+    const hx = lipidXTop[hi];
     const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
     ctx.save();
     ctx.strokeStyle = "#c0392b";
@@ -1054,15 +1326,238 @@
     ctx.restore();
   }
 
+  function drawTopLipid(L) {
+    const g = ctx.createRadialGradient(L.x - 2, L.y - 2, 1, L.x, L.y, L.r);
+    g.addColorStop(0, "#ffe08a");
+    g.addColorStop(0.65, "#f0b429");
+    g.addColorStop(1, "#d4920a");
+    ctx.beginPath();
+    ctx.arc(L.x, L.y, L.r, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(180,120,20,0.3)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // tiny blue hint: looking down onto head (tail below, not visible) — small ring
+    ctx.beginPath();
+    ctx.arc(L.x, L.y, L.r * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(91,155,213,0.25)";
+    ctx.fill();
+  }
+
+  function drawTopProtein(P) {
+    // motion trail
+    if (P.trail && P.trail.length > 1) {
+      for (let i = 0; i < P.trail.length; i++) {
+        const t = P.trail[i];
+        const a = (i + 1) / P.trail.length * 0.35;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, P.r * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(123,94,167," + a + ")";
+        ctx.fill();
+      }
+    }
+
+    if (P.kind === "channel") {
+      ctx.beginPath();
+      ctx.arc(P.x, P.y, P.r, 0, Math.PI * 2);
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(P.x, P.y, P.r * 0.72, 0, Math.PI * 2);
+      ctx.fillStyle = "#5a3d8a";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(P.x, P.y, P.r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(238,244,251,0.95)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(P.x - P.r * 0.35, P.y, P.r * 0.55, -0.8, 0.8);
+      ctx.stroke();
+    } else if (P.kind === "glyco") {
+      // irregular oval body
+      ctx.beginPath();
+      ctx.ellipse(P.x, P.y, P.r * 1.05, P.r * 0.85, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(P.x - 4, P.y - 4, P.r * 0.7, P.r * 0.55, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "#8f73b8";
+      ctx.fill();
+      // carbohydrate branches (seen from above as orange dots radiating)
+      const arms = 5;
+      for (let a = 0; a < arms; a++) {
+        const ang = sceneT * 0.4 + a * (Math.PI * 2 / arms);
+        const len = P.r + 16 + (a % 2) * 6;
+        const ex = P.x + Math.cos(ang) * len;
+        const ey = P.y + Math.sin(ang) * len;
+        ctx.strokeStyle = "#e67e22";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(P.x + Math.cos(ang) * P.r * 0.7, P.y + Math.sin(ang) * P.r * 0.7);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ex, ey, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#e67e22";
+        ctx.fill();
+      }
+    } else if (P.kind === "carrier") {
+      // kidney / U shape from above
+      ctx.beginPath();
+      ctx.arc(P.x - P.r * 0.35, P.y, P.r * 0.7, 0, Math.PI * 2);
+      ctx.arc(P.x + P.r * 0.35, P.y, P.r * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(P.x, P.y, P.r * 0.35, P.r * 0.55, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(238,244,251,0.9)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(P.x, P.y - 2, P.r * 0.95, P.r * 0.75, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = "#5a3d8a";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else {
+      // receptor — rounded with binding notch
+      ctx.beginPath();
+      ctx.arc(P.x, P.y, P.r, 0, Math.PI * 2);
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(P.x, P.y - P.r * 0.15, P.r * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = "#9b7bb8";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(P.x, P.y - P.r * 0.55, P.r * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(238,244,251,0.95)";
+      ctx.fill();
+    }
+
+    // velocity arrow (small)
+    const spd = Math.hypot(P.vx, P.vy) || 1;
+    if (spd > 3) {
+      const ux = P.vx / spd, uy = P.vy / spd;
+      const ax = P.x + ux * (P.r + 8);
+      const ay = P.y + uy * (P.r + 8);
+      drawArrow(ax, ay, ax + ux * 28, ay + uy * 28, "#5a3d8a");
+    }
+
+    if (P.label) {
+      drawCallout(P.x, P.y - P.r - 22, P.label, "#5a3d8a");
+    }
+  }
+
+  function renderTopDown() {
+    const b = topBounds;
+
+    // Title banner
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 36px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("俯瞰圖（鳥瞰細胞膜表面）", 48, 52);
+    ctx.font = "22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("由上往下看 · 黃色＝磷脂頭部 · 紫色＝膜蛋白 · 皆可橫向移動", 48, 82);
+
+    // Membrane surface "sea"
+    roundRect(b.x, b.y, b.w, b.h, 24);
+    const sea = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+    sea.addColorStop(0, "#d6e8f8");
+    sea.addColorStop(0.5, "#c5dcf0");
+    sea.addColorStop(1, "#d6e8f8");
+    ctx.fillStyle = sea;
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // subtle grid to suggest surface plane
+    ctx.save();
+    ctx.beginPath();
+    roundRect(b.x, b.y, b.w, b.h, 24);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(44,90,160,0.06)";
+    ctx.lineWidth = 1;
+    for (let gx = b.x; gx < b.x + b.w; gx += 40) {
+      ctx.beginPath(); ctx.moveTo(gx, b.y); ctx.lineTo(gx, b.y + b.h); ctx.stroke();
+    }
+    for (let gy = b.y; gy < b.y + b.h; gy += 40) {
+      ctx.beginPath(); ctx.moveTo(b.x, gy); ctx.lineTo(b.x + b.w, gy); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Draw lipids first (sea), then proteins on top
+    // Skip molecules at/over boundary to avoid edge flicker
+    const bPad = 22;
+    topLipids.forEach(L => {
+      if (L.x <= topBounds.x + bPad || L.x >= topBounds.x + topBounds.w - bPad) return;
+      if (L.y <= topBounds.y + bPad || L.y >= topBounds.y + topBounds.h - bPad) return;
+      drawTopLipid(L);
+    });
+    topProteins.forEach(P => {
+      const pr = P.r + 4;
+      if (P.x <= topBounds.x + pr || P.x >= topBounds.x + topBounds.w - pr) return;
+      if (P.y <= topBounds.y + pr || P.y >= topBounds.y + topBounds.h - pr) return;
+      drawTopProtein(P);
+    });
+
+    // Big lateral-motion cue
+    const pulse = 0.5 + 0.5 * Math.sin(sceneT * 2.8);
+    ctx.save();
+    ctx.globalAlpha = 0.5 + pulse * 0.45;
+    drawArrow(b.x + 70, b.y + b.h - 36, b.x + 200, b.y + b.h - 36, "#c0392b");
+    drawArrow(b.x + 200, b.y + b.h - 70, b.x + 70, b.y + b.h - 70, "#c0392b");
+    ctx.restore();
+    drawCallout(b.x + 135, b.y + b.h - 100, "橫向移動", "#c0392b");
+
+    // Concept badges
+    roundRect(b.x + b.w - 210, b.y + 16, 190, 70, 10);
+    ctx.fillStyle = "rgba(192,57,43,0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("流動", b.x + b.w - 115, b.y + 44);
+    ctx.font = "16px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("分子在膜面滑動", b.x + b.w - 115, b.y + 68);
+
+    roundRect(b.x + b.w - 210, b.y + 96, 190, 70, 10);
+    ctx.fillStyle = "rgba(123,94,167,0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#7b5ea7";
+    ctx.stroke();
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 26px 'Noto Sans TC', sans-serif";
+    ctx.fillText("鑲嵌", b.x + b.w - 115, b.y + 124);
+    ctx.font = "16px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("蛋白散佈如馬賽克", b.x + b.w - 115, b.y + 148);
+
+    // Legend strip at bottom
+    drawAnnotationBox(48, H - 95, [
+      "俯瞰要點：磷脂頭部（黃）與膜蛋白（紫）都在膜表面移動；",
+      "蛋白嵌在磷脂之間 → 鑲嵌；整體可流動 → 流動鑲嵌模型"
+    ], "#2c5aa0");
+  }
+
   function renderCholesterol(phase) {
     drawBilayerWithOffsets(phase, true);
 
     // Draw cholesterol between tails at several positions
-    const cholXs = [X0 + 3 * COL_GAP, X0 + 7 * COL_GAP, X0 + 12 * COL_GAP, X0 + 16 * COL_GAP, X0 + 19 * COL_GAP];
-    cholXs.forEach((x, i) => {
-      // avoid protein gaps
+    // More cholesterol tucked among dense lipids
+    const cholIdx = [2, 5, 9, 13, 17, 22, 27, 31, 35];
+    cholIdx.forEach((idx, i) => {
+      const x = lipidXTop[idx % COLS];
       if (proteinGap(x)) return;
-      drawCholesterol(x + lipidOffsets[i % COLS] * 0.3, i % 2 === 0);
+      drawCholesterol(x, i % 2 === 0);
     });
 
     drawProteins();
@@ -1109,6 +1604,519 @@
     ctx.fillText("保持柔韌", tx + 260, ty + 86);
   }
 
+  // --- Cell division (fluidity → shape change) ---
+  function drawAnimalCell(cx, cy, rx, ry, pinch, nuclei) {
+    // pinch: 0 = round, 1 = fully pinched at center (figure-8 ready to split)
+    // nuclei: array of {x,y,r} in local-ish canvas coords, or null to auto
+    ctx.save();
+
+    // Membrane path with cleavage furrow
+    ctx.beginPath();
+    if (pinch < 0.02) {
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    } else {
+      // Constricted cell: left and right lobes with waist
+      const waist = Math.max(4, ry * (1 - pinch * 0.92));
+      const lobeRx = rx * (0.55 + pinch * 0.08);
+      const gap = rx * pinch * 0.15;
+      // left lobe
+      const lx = cx - rx * 0.42 * pinch - gap;
+      const rxR = cx + rx * 0.42 * pinch + gap;
+      // Build smooth peanut / figure-8 outline
+      const steps = 64;
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        // Superformula-ish: radius shrinks near top/bottom midline as pinch grows
+        const midFactor = Math.abs(Math.cos(a)); // 1 at left/right, 0 at top/bottom... use sin for vertical waist
+        // waist along vertical axis (a=±π/2)
+        const waistT = Math.pow(Math.abs(Math.sin(a)), 1.2);
+        const rScaleX = rx * (1 - pinch * 0.05);
+        const rScaleY = ry;
+        const indent = pinch * rx * 0.55 * Math.pow(Math.abs(Math.cos(a)), 2.2);
+        // Classic cleavage: indent from left and right toward center along horizontal mid
+        // Use parametric: x = cos(a)*rx * (1 - pinch*k*sin^2), actually indent on sides at equator
+        // Better: x compressed near y=0 by pinch (horizontal furrow from outside)
+        const furrow = pinch * 0.72 * Math.exp(-Math.pow(Math.sin(a) * 2.2, 2));
+        // furrow max when sin(a)~0 i.e. left and right tips... wait we want furrow at middle of left-right axis
+        // Animal cytokinesis: ring contracts in plane, viewed as left-right lobes, waist in center.
+        // Parametric peanut:
+        // x = cos(t) * rx
+        // y = sin(t) * ry * (1 - pinch*0.85*cos(t)^2)  -- no that's vertical
+        // For horizontal split into left-right daughters:
+        // x = cos(t) * rx * (1 - p * sin(t)^2) roughly creates waist in middle? 
+        // Actually: x = cos(t)*rx; y = sin(t)*ry*(a + b*cos(t)^2) no
+        // Standard cassini/peanut: 
+        const p = pinch;
+        const xx = cx + Math.cos(a) * rx * (1.0 - p * 0.08);
+        // Waist: reduce |x| contribution when near vertical center... 
+        // When a near ±π/2 (top/bottom), full height; when a near 0/π (right/left), full width.
+        // Cleavage furrow is constriction AT CENTER: reduce radius when |cos(a)| is small? 
+        // Center of cell is origin; furrow means points near x=0 get pulled inward in y? No -
+        // Looking at textbook: cell elongates horizontally, pinches in middle vertically (y constricted at x=0).
+        // So: elongated in x, waist in y at center.
+        const elongate = 1 + p * 0.55;
+        const x = cx + Math.cos(a) * rx * elongate;
+        // y radius smaller when |x| near 0 i.e. |cos(a)| small
+        const waistFactor = 1 - p * 0.88 * Math.pow(Math.abs(Math.cos(a)), 0); // wrong
+        // Use: y = sin(a) * ry * (1 - p * cos^2(a))? When cos=±1 (sides), y=sin*ry*(1-p) small - that's poles wrong.
+        // Correct peanut for left-right lobes:
+        // x = cos(t) * R
+        // y = sin(t) * R * (c + d * cos(2t)) or
+        // y = sin(t) * ry * lerp(1, small, (1+cos(2t))/2) ...
+        // At t=0 (right): cos=1, want full height of right lobe
+        // At t=π/2 (top center): cos=0, want SMALL height (waist)
+        // So multiply y by (k + (1-k)|cos(t)|) or (1 - p*(1-|cos|))
+        const yMul = 1 - p * 0.9 * (1 - Math.abs(Math.cos(a)));
+        const y = cy + Math.sin(a) * ry * Math.max(0.08, yMul);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    // Cytoplasm fill
+    const g = ctx.createRadialGradient(cx - rx * 0.2, cy - ry * 0.2, 10, cx, cy, rx * 1.2);
+    g.addColorStop(0, "#fce4ec");
+    g.addColorStop(0.6, "#f8bbd0");
+    g.addColorStop(1, "#f48fb1");
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // Membrane stroke — hint of bilayer (outer darker pink + thin gold edge)
+    ctx.strokeStyle = "#c2185b";
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(240,180,41,0.55)";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Nuclei
+    const nucList = nuclei || [{ x: cx, y: cy, r: Math.min(rx, ry) * 0.32 }];
+    nucList.forEach(n => {
+      const ng = ctx.createRadialGradient(n.x - 4, n.y - 4, 2, n.x, n.y, n.r);
+      ng.addColorStop(0, "#b39ddb");
+      ng.addColorStop(0.7, "#7b5ea7");
+      ng.addColorStop(1, "#5a3d8a");
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = ng;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(90,61,138,0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // nucleolus hint
+      ctx.beginPath();
+      ctx.arc(n.x + n.r * 0.15, n.y - n.r * 0.1, n.r * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(90,61,138,0.45)";
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  function renderDivision() {
+    // one cell → top+bottom pinch together → break → two sealed membranes
+    const cycle = 9.0;
+    const t = sceneT % cycle;
+    let stage = 0;
+    if (t < 2.0) stage = 0;
+    else if (t < 4.0) stage = 1;
+    else if (t < 5.5) stage = 2;
+    else stage = 3;
+
+    let pinch = 0.08;
+    if (stage === 0) pinch = 0.08 + (t / 2.0) * 0.14;
+    else if (stage === 1) pinch = 0.22 + ((t - 2.0) / 2.0) * 0.68;
+    else if (stage === 2) pinch = 0.90 + ((t - 4.0) / 1.5) * 0.10;
+    else pinch = 1.0;
+
+    const sepAmt = stage < 2 ? 0 : (stage === 2 ? Math.min(1, (t - 4.0) / 1.5) : 1);
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 28px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("流動性 → 細胞分裂（整細胞 + 分裂溝顯微）", 36, 40);
+
+    const pills = ["① 一細胞", "② 上下縊縮", "③ 膜斷開", "④ 兩完整膜"];
+    pills.forEach((lab, i) => {
+      const px = 36 + i * 128;
+      const py = 52;
+      roundRect(px, py, 120, 30, 8);
+      ctx.fillStyle = i === stage ? "#2c5aa0" : "rgba(255,255,255,0.9)";
+      ctx.fill();
+      ctx.strokeStyle = "#2c5aa0";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = i === stage ? "#fff" : "#2c5aa0";
+      ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(lab, px + 60, py + 20);
+    });
+
+    const leftX = 24, leftY = 96, leftW = 560, leftH = 520;
+    const rightX = 600, rightY = 96, rightW = 656, rightH = 520;
+
+    roundRect(leftX, leftY, leftW, leftH, 14);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("整細胞觀", leftX + 16, leftY + 28);
+
+    roundRect(rightX, rightY, rightW, rightH, 14);
+    ctx.fillStyle = "rgba(232,240,250,0.85)";
+    ctx.fill();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.fillText("顯微：上下膜同時縊縮 → 融合封閉", rightX + 16, rightY + 28);
+
+    drawArrow(leftX + leftW - 8, leftY + leftH * 0.45, rightX + 8, rightY + rightH * 0.45, "#5a6a7a");
+    ctx.fillStyle = "#5a6a7a";
+    ctx.font = "14px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("放大", (leftX + leftW + rightX) / 2, leftY + leftH * 0.45 - 12);
+
+    // ===== MACRO =====
+    const cx = leftX + leftW * 0.5;
+    const cy = leftY + leftH * 0.52;
+    ctx.save();
+    ctx.beginPath();
+    roundRect(leftX + 4, leftY + 36, leftW - 8, leftH - 44, 10);
+    ctx.clip();
+
+    if (stage === 0) {
+      const pulse = 1 + Math.sin(sceneT * 2) * 0.02;
+      const rx = 118 * pulse, ry = 108 * pulse;
+      drawAnimalCell(cx, cy, rx, ry, 0, [{ x: cx, y: cy, r: 38 }]);
+      drawCallout(cx, cy - ry - 28, "親代細胞", "#2c5aa0");
+      drawCallout(cx + 55, cy - 6, "細胞核", "#5a3d8a");
+      drawCallout(cx, cy + ry + 28, "一層連續細胞膜", "#c2185b");
+    } else if (stage === 1) {
+      const u = (t - 2.0) / 2.0;
+      const p = Math.min(1, u * 1.05);
+      const elongate = 1 + p * 0.45;
+      const rx = 118 * elongate;
+      const ry = 100;
+      const sep = p * 72;
+      drawAnimalCell(cx, cy, rx, ry, p, [
+        { x: cx - sep, y: cy, r: 32 },
+        { x: cx + sep, y: cy, r: 32 }
+      ]);
+      if (p > 0.2) {
+        // TOP and BOTTOM of furrow pinch at the same time
+        const waistY = cy;
+        const topTipY = cy - ry * Math.max(0.08, 1 - p * 0.9);
+        const botTipY = cy + ry * Math.max(0.08, 1 - p * 0.9);
+        drawCallout(cx, topTipY - 36, "上：分裂溝", "#c0392b");
+        drawCallout(cx, botTipY + 36, "下：分裂溝", "#c0392b");
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        // arrows from top down and bottom up — simultaneous
+        drawArrow(cx - 40, topTipY - 50, cx - 10, topTipY + 4, "#c0392b");
+        drawArrow(cx + 40, topTipY - 50, cx + 10, topTipY + 4, "#c0392b");
+        drawArrow(cx - 40, botTipY + 50, cx - 10, botTipY - 4, "#c0392b");
+        drawArrow(cx + 40, botTipY + 50, cx + 10, botTipY - 4, "#c0392b");
+        ctx.restore();
+        drawCallout(cx, cy, "上下同時縊縮", "#2c5aa0");
+      }
+    } else {
+      const breakProg = stage === 2 ? sepAmt : 1;
+      const sep = 70 + breakProg * 110;
+      const rx = 80, ry = 74;
+      const lx = cx - sep * 0.52;
+      const rxC = cx + sep * 0.52;
+
+      if (stage === 2 && breakProg < 0.85) {
+        const glow = 0.45 + 0.4 * Math.sin(sceneT * 8);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 22 + breakProg * 10, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(192,57,43," + glow + ")";
+        ctx.fill();
+        drawCallout(cx, cy - 110, "上下膜相遇 → 斷開／融合！", "#c0392b");
+      }
+
+      drawAnimalCell(lx, cy, rx, ry, 0, [{ x: lx, y: cy, r: 28 }]);
+      drawAnimalCell(rxC, cy, rx, ry, 0, [{ x: rxC, y: cy, r: 28 }]);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(240,180,41,0.9)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(lx, cy, rx + 6, ry + 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(rxC, cy, rx + 6, ry + 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      drawCallout(lx, cy - ry - 26, "子細胞", "#2c5aa0");
+      drawCallout(rxC, cy - ry - 26, "子細胞", "#2c5aa0");
+      drawCallout(lx, cy + ry + 30, "完整封閉膜", "#c2185b");
+      drawCallout(rxC, cy + ry + 30, "完整封閉膜", "#c2185b");
+
+      if (stage === 3 || breakProg > 0.5) {
+        ctx.fillStyle = "#2e7d4f";
+        ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("上下同時縊縮後融合 → 兩層完整封閉膜", cx, leftY + leftH - 28);
+      }
+    }
+    ctx.restore();
+
+    drawFurrowMicroPanel(rightX, rightY, rightW, rightH, pinch, stage, sepAmt);
+
+    const capY = H - 118;
+    roundRect(36, capY, W - 72, 88, 12);
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 21px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("分裂溝：細胞膜上下同時向內縊縮 → 相遇後斷開並融合封閉成兩層完整膜。", W / 2, capY + 34);
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "17px 'Noto Sans TC', sans-serif";
+    ctx.fillText("流動性使膜可彎曲、斷開與重新密封；右圖可見上、下膜同時靠近。", W / 2, capY + 64);
+  }
+
+  // Top or bottom membrane of cleavage furrow (pinch toward midplane together)
+  // band: "top" | "bot"; s in [0,1] left→right
+  function furrowBandPoint(band, s, pinch, panel) {
+    const padX = 36;
+    const x = panel.x + padX + s * (panel.w - padX * 2);
+    const midY = panel.y + panel.h * 0.52;
+    // Resting half-gap between top & bottom membranes; shrinks as pinch → 1
+    const halfGap0 = panel.h * 0.28;
+    const halfGap = Math.max(4, halfGap0 * (1 - pinch * 0.92));
+    // Extra dip/rise strongest at center (u=0)
+    const u = (s - 0.5) * 2; // -1..1
+    const centerPull = pinch * halfGap0 * 0.85 * (1 - Math.pow(Math.abs(u), 1.7));
+    let y;
+    if (band === "top") {
+      y = midY - halfGap - centerPull * 0.15; // tip moves down as halfGap shrinks
+      // At high pinch, tip is near midY
+      y = midY - halfGap * (0.35 + 0.65 * Math.pow(Math.abs(u), 1.4));
+    } else {
+      y = midY + halfGap * (0.35 + 0.65 * Math.pow(Math.abs(u), 1.4));
+    }
+    // Tangent
+    const ds = 0.002;
+    const s2 = Math.max(0, Math.min(1, s + ds));
+    const x2 = panel.x + padX + s2 * (panel.w - padX * 2);
+    const u2 = (s2 - 0.5) * 2;
+    let y2;
+    if (band === "top") {
+      y2 = midY - halfGap * (0.35 + 0.65 * Math.pow(Math.abs(u2), 1.4));
+    } else {
+      y2 = midY + halfGap * (0.35 + 0.65 * Math.pow(Math.abs(u2), 1.4));
+    }
+    const tx = x2 - x, ty = y2 - y;
+    const len = Math.hypot(tx, ty) || 1;
+    // Normal: outward = toward extracellular (outside the cell)
+    // Top membrane: extracellular above → normal upward (ny < 0 in canvas? canvas y down, so up = negative y)
+    // Bot membrane: extracellular below → normal downward (ny > 0)
+    let nx = -ty / len, ny = tx / len;
+    if (band === "top") {
+      if (ny > 0) { nx = -nx; ny = -ny; } // prefer upward
+    } else {
+      if (ny < 0) { nx = -nx; ny = -ny; } // prefer downward
+    }
+    return { x, y, nx, ny, ux: tx / len, uy: ty / len, midY };
+  }
+
+  function sealedMembranePoint(side, s, panel, sepAmt) {
+    const cx = panel.x + panel.w * 0.5 + side * (55 + sepAmt * 95);
+    const cy = panel.y + panel.h * 0.52;
+    const rx = 78 + sepAmt * 8;
+    const ry = 110;
+    const a = s * Math.PI * 2;
+    const x = cx + Math.cos(a) * rx;
+    const y = cy + Math.sin(a) * ry;
+    return { x, y, nx: Math.cos(a), ny: Math.sin(a), ux: -Math.sin(a), uy: Math.cos(a), cx, cy };
+  }
+
+  function updateFurrow(dt) {
+    if (scenes[sceneIndex].id !== "division") return;
+    for (const L of furrowLipids) {
+      if (Math.random() < 0.03) L.vs += (Math.random() - 0.5) * 0.04;
+      L.vs *= 0.99;
+      L.vs = Math.max(-0.12, Math.min(0.12, L.vs));
+      L.s += L.vs * dt;
+      if (L.s < 0) L.s += 1;
+      if (L.s >= 1) L.s -= 1;
+    }
+  }
+
+  function drawFurrowPLAt(p, L, bilay, hr) {
+    const sign = L.layer === "outer" ? 1 : -1;
+    const hx = p.x + p.nx * bilay * sign;
+    const hy = p.y + p.ny * bilay * sign;
+    const midX = p.x, midY = p.y;
+
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = "round";
+    for (let k = 0; k < 2; k++) {
+      const ox = p.ux * (k === 0 ? -2.5 : 2.5);
+      const oy = p.uy * (k === 0 ? -2.5 : 2.5);
+      ctx.beginPath();
+      for (let i = 0; i <= 7; i++) {
+        const u = i / 7;
+        const wave = Math.sin(u * Math.PI * 2 + L.phase + k) * 1.8;
+        const xx = hx + (midX - hx) * u + ox * (1 - u) + p.ux * wave * 0.25;
+        const yy = hy + (midY - hy) * u + oy * (1 - u) + p.uy * wave * 0.25;
+        if (i === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
+    const g = ctx.createRadialGradient(hx - 1.5, hy - 1.5, 1, hx, hy, hr);
+    g.addColorStop(0, "#ffe08a");
+    g.addColorStop(0.7, "#f0b429");
+    g.addColorStop(1, "#d4920a");
+    ctx.beginPath();
+    ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  function drawFurrowMicroPanel(px, py, pw, ph, pinch, stage, sepAmt) {
+    const panel = { x: px, y: py, w: pw, h: ph };
+    ctx.save();
+    ctx.beginPath();
+    roundRect(px + 6, py + 40, pw - 12, ph - 50, 10);
+    ctx.clip();
+
+    ctx.fillStyle = "#5a6a7a";
+    ctx.font = "15px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+
+    if (stage < 2) {
+      // TOP + BOTTOM membranes pinch toward midplane at the same time
+      ctx.fillText("細胞外", px + 18, py + 58);
+      ctx.fillText("細胞質", px + 18, py + ph * 0.52);
+      ctx.fillText("細胞外", px + 18, py + ph - 28);
+
+      ["top", "bot"].forEach(band => {
+        ctx.beginPath();
+        for (let i = 0; i <= 50; i++) {
+          const p = furrowBandPoint(band, i / 50, pinch, panel);
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.strokeStyle = "rgba(91,155,213,0.30)";
+        ctx.lineWidth = 30;
+        ctx.stroke();
+      });
+
+      // Soft cytoplasm between the two membranes
+      ctx.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const p = furrowBandPoint("top", i / 40, pinch, panel);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      for (let i = 40; i >= 0; i--) {
+        const p = furrowBandPoint("bot", i / 40, pinch, panel);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(248,187,208,0.28)";
+      ctx.fill();
+
+      furrowLipids.forEach(L => {
+        if (L.s <= 0.02 || L.s >= 0.98) return;
+        const p = furrowBandPoint(L.band || "top", L.s, pinch, panel);
+        drawFurrowPLAt(p, L, 14, 7.5);
+      });
+
+      const topTip = furrowBandPoint("top", 0.5, pinch, panel);
+      const botTip = furrowBandPoint("bot", 0.5, pinch, panel);
+      drawCallout(topTip.x - 100, topTip.y - 8, "上膜", "#c0392b");
+      drawCallout(botTip.x - 100, botTip.y + 8, "下膜", "#c0392b");
+
+      // Simultaneous pinch arrows
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      drawArrow(topTip.x + 30, topTip.y - 40, topTip.x + 8, topTip.y + 2, "#c0392b");
+      drawArrow(botTip.x + 30, botTip.y + 40, botTip.x + 8, botTip.y - 2, "#c0392b");
+      ctx.restore();
+      drawCallout((topTip.x + botTip.x) / 2 + 90, (topTip.y + botTip.y) / 2, "同時向內", "#2c5aa0");
+
+      if (pinch > 0.75) {
+        const glow = 0.35 + 0.35 * Math.sin(sceneT * 6);
+        const mx = topTip.x;
+        const my = (topTip.y + botTip.y) / 2;
+        ctx.beginPath();
+        ctx.arc(mx, my, 14, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(192,57,43," + glow + ")";
+        ctx.fill();
+        drawCallout(mx + 70, my, "即將相遇", "#c0392b");
+      }
+
+      drawCallout(px + pw * 0.72, py + 72, "磷脂橫向移動", "#c0392b");
+    } else {
+      // Next moment: membranes fuse/seal into two complete closed membranes
+      ctx.fillText("細胞外", px + 18, py + 58);
+      ctx.fillText("細胞質（各子細胞內）", px + 18, py + ph - 28);
+
+      [-1, 1].forEach(side => {
+        ctx.beginPath();
+        for (let i = 0; i <= 48; i++) {
+          const p = sealedMembranePoint(side, i / 48, panel, sepAmt);
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "rgba(248,187,208,0.35)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(91,155,213,0.35)";
+        ctx.lineWidth = 28;
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(240,180,41,0.8)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      });
+
+      const mid = Math.floor(furrowLipids.length / 2);
+      furrowLipids.forEach((L, i) => {
+        const side = i < mid ? -1 : 1;
+        const p = sealedMembranePoint(side, L.s, panel, sepAmt);
+        drawFurrowPLAt(p, L, 14, 7.5);
+      });
+
+      const gapX = px + pw * 0.5;
+      const gapY = py + ph * 0.52;
+      if (stage === 2) {
+        const glow = 0.4 + 0.4 * Math.sin(sceneT * 8);
+        ctx.beginPath();
+        ctx.arc(gapX, gapY, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(192,57,43," + glow + ")";
+        ctx.fill();
+        drawCallout(gapX, gapY - 52, "上下膜融合／斷開！", "#c0392b");
+      } else {
+        drawCallout(gapX, gapY - 24, "已分成兩層封閉膜", "#2e7d4f");
+      }
+
+      const leftC = sealedMembranePoint(-1, 0, panel, sepAmt);
+      const rightC = sealedMembranePoint(1, 0, panel, sepAmt);
+      drawCallout(leftC.cx, py + 78, "左：完整封閉膜", "#c2185b");
+      drawCallout(rightC.cx, py + 78, "右：完整封閉膜", "#c2185b");
+    }
+
+    ctx.restore();
+  }
+
+  // --- Main loop ---
   // --- Main loop ---
   function frame(ts) {
     const dt = Math.min(0.05, (ts - lastTs) / 1000);
@@ -1117,6 +2125,8 @@
       sceneT += dt;
       updateLipids(dt);
       updateProteins(dt);
+      updateTopDown(dt);
+      updateFurrow(dt);
     }
 
     // clear
@@ -1135,8 +2145,10 @@
     if (id === "structure") renderStructure(phase);
     else if (id === "lateral") renderLateral(phase);
     else if (id === "proteins") renderProteins(phase);
+    else if (id === "topdown") renderTopDown();
     else if (id === "naming") renderNaming(phase);
     else if (id === "cholesterol") renderCholesterol(phase);
+    else if (id === "division") renderDivision();
 
     requestAnimationFrame(frame);
   }

@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>滲透 — 物質穿越細胞膜</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --head: #f0b429;
+    --head-edge: #d4920a;
+    --tail: #5b9bd5;
+    --protein: #7b5ea7;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+    --water: #3498db;
+    --sucrose: #f1c40f;
+    --cell: #e8a0a0;
+    --plant: #7dcea0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 420px;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+  .swatch.rect {
+    border-radius: 3px;
+    width: 18px;
+    height: 12px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .scene-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+  .scene-desc {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .scene-desc strong { color: var(--accent); }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .step-btn {
+    text-align: left;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block;
+    width: 1.4em;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: #eef2f7;
+    color: var(--ink);
+  }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  footer {
+    text-align: center;
+    padding: 8px 16px 14px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>滲透</h1>
+  <span class="sub">物質穿越細胞膜 · 香港中學文憑試生物學 · 中四</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="滲透動畫"></canvas>
+    </div>
+    <div class="legend-bar" id="legendBar">
+      <span class="legend-item"><span class="swatch" style="background:#3498db"></span>水分子</span>
+      <span class="legend-item"><span class="swatch" style="background:#f1c40f"></span>蔗糖分子</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#f0b429"></span>親水頭部</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#5b9bd5"></span>疏水尾部</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#95a5a6"></span>差異透性膜</span>
+      <span class="legend-item"><span class="swatch" style="background:#e8a0a0"></span>動物細胞</span>
+      <span class="legend-item"><span class="swatch" style="background:#7dcea0"></span>植物細胞</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：甚麼是滲透？</div>
+      <p class="scene-desc" id="sceneDesc"></p>
+    </div>
+
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重播本場景</button>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重播本場景<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應 DSE 生物「滲透」· 請離線以 Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const scenes = [
+    {
+      id: "define",
+      title: "場景 1：甚麼是滲透？",
+      desc: "當兩種<strong>不同濃度</strong>的溶液被<strong>差異透性膜</strong>（只容許水分子通過、不容許溶質粒子通過的膜）分隔時，水分子由<strong>較稀溶液</strong>向<strong>較濃溶液</strong>淨移動。此過程稱為<strong>滲透</strong>。"
+    },
+    {
+      id: "waterpot",
+      title: "場景 2：水勢",
+      desc: "<strong>水勢</strong>量度水分子移動的趨勢。純水的水勢最高（定為<strong>零</strong>）；加入溶質（如蔗糖）會使水勢<strong>下降</strong>（負值）。水勢與溶質濃度成<strong>反比</strong>。滲透＝水分子由<strong>高水勢</strong>→<strong>低水勢</strong>穿過差異透性膜的淨移動。"
+    },
+    {
+      id: "demo",
+      title: "場景 3：滲透如何運作",
+      desc: "左側：濃蔗糖溶液（水勢較低）；右側：稀蔗糖溶液（水勢較高）。水分子可穿過差異透性膜，蔗糖分子太大不能通過。一段時間後，濃側液面<strong>上升</strong>、稀側液面<strong>下降</strong>。"
+    },
+    {
+      id: "dialysis",
+      title: "場景 4：透析管示範滲透",
+      desc: "實驗裝置：透析管內盛<strong>20% 蔗糖溶液</strong>，浸於<strong>蒸餾水</strong>中，接上毛細管。水由蒸餾水（高水勢）滲入蔗糖溶液（低水勢），毛細管液面<strong>上升</strong>。對照裝置內外皆為蒸餾水，液面幾乎不變。"
+    },
+    {
+      id: "isotonic",
+      title: "場景 5：等滲溶液中的細胞",
+      desc: "外液水勢與細胞質／細胞液水勢<strong>相等</strong>，稱為<strong>等滲</strong>。水分子進出速率相等，<strong>沒有淨移動</strong>。動物細胞與植物細胞形狀維持正常。"
+    },
+    {
+      id: "hypotonic",
+      title: "場景 6：低滲溶液中的細胞",
+      desc: "外液水勢<strong>高於</strong>細胞質，稱為<strong>低滲</strong>。水進入細胞。動物細胞膨脹終至<strong>爆裂</strong>（紅血球稱為<strong>溶血</strong>）。植物細胞因<strong>細胞壁</strong>支撐變成<strong>硬脹</strong>（膨壓），不會爆裂。"
+    },
+    {
+      id: "hypertonic",
+      title: "場景 7：高滲溶液中的細胞",
+      desc: "外液水勢<strong>低於</strong>細胞質，稱為<strong>高滲</strong>。水離開細胞。動物細胞<strong>萎縮／皺縮</strong>。植物細胞液泡收縮，細胞膜脫離細胞壁——<strong>質壁分離</strong>，細胞呈<strong>軟縮</strong>狀態。"
+    },
+    {
+      id: "rbc",
+      title: "場景 8：紅血球的滲透",
+      desc: "紅血球置於不同濃度氯化鈉溶液：<strong>0%</strong>（低滲）→ 溶血；<strong>0.9%</strong>（等滲）→ 保持雙凹圓盤；<strong>1.8%</strong>（高滲）→ 皺縮萎縮。對應實驗 4.3。"
+    },
+    {
+      id: "plant",
+      title: "場景 9：植物細胞與組織實驗",
+      desc: "紅洋蔥表皮：濃蔗糖→<strong>質壁分離</strong>；換蒸餾水→恢復（去質壁分離）。馬鈴薯條：蒸餾水中<strong>質量增加</strong>（水進入）；20% 蔗糖中<strong>質量減少</strong>（水離開）。"
+    },
+    {
+      id: "wpfind",
+      title: "場景 10：測定組織水勢與應用",
+      desc: "馬鈴薯條置於不同濃度蔗糖溶液，質量變化百分率對濃度作圖；與 x 軸交點（質量變化＝0）即<strong>等滲點</strong>，該濃度溶液水勢等於組織水勢。應用：高糖／鹽保藏食物；0.9% <strong>生理鹽水</strong>靜脈注射。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+  let particles = [];
+  let cells = [];
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    initScene();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+    initScene();
+  }
+
+  // --- Drawing helpers ---
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawMolecule(x, y, r, color) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    g.addColorStop(0, "#fff");
+    g.addColorStop(0.4, color);
+    g.addColorStop(1, color);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.18)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawCallout(x, y, text, color) {
+    ctx.font = "bold 22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 10;
+    roundRect(x - tw / 2 - pad, y - 16, tw + pad * 2, 32, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color || "#2c5aa0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = color || "#2c5aa0";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawAnnotationBox(x, y, lines, color) {
+    ctx.font = "18px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    let maxW = 0;
+    lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+    const pad = 12;
+    const lh = 24;
+    const boxH = lines.length * lh + pad * 2 - 4;
+    const boxW = maxW + pad * 2;
+    roundRect(x, y, boxW, boxH, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fill();
+    ctx.strokeStyle = color || "#2c5aa0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "left";
+    lines.forEach((l, i) => {
+      ctx.fillText(l, x + pad, y + pad + 16 + i * lh);
+    });
+  }
+
+  function drawArrow(x1, y1, x2, y2, color, width) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = width || 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2 - ux * 14, y2 - uy * 14);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - ux * 18 - uy * 9, y2 - uy * 18 + ux * 9);
+    ctx.lineTo(x2 - ux * 18 + uy * 9, y2 - uy * 18 - ux * 9);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawDashedMembrane(x, y0, y1) {
+    ctx.strokeStyle = "#7f8c8d";
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(x, y0);
+    ctx.lineTo(x, y1);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // pores hint
+    for (let y = y0 + 20; y < y1 - 10; y += 36) {
+      ctx.fillStyle = "rgba(52,152,219,0.35)";
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Yellow/blue bilayer (compact vertical strip used as membrane icon)
+  function drawMiniBilayer(cx, y0, y1, phase) {
+    const mid = (y0 + y1) / 2;
+    const hw = 28;
+    ctx.fillStyle = "rgba(91,155,213,0.12)";
+    ctx.fillRect(cx - hw - 4, y0, hw * 2 + 8, y1 - y0);
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const y = y0 + 18 + t * (y1 - y0 - 36);
+      // skip some for pores
+      if (i === 2 || i === 5) continue;
+      // heads
+      const g = ctx.createRadialGradient(cx - hw + 4, y - 2, 1, cx - hw + 6, y, 9);
+      g.addColorStop(0, "#ffd666");
+      g.addColorStop(1, "#f0b429");
+      ctx.beginPath();
+      ctx.arc(cx - hw + 6, y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + hw - 6, y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      // tails
+      ctx.strokeStyle = "#5b9bd5";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      const wave = Math.sin(phase + i) * 3;
+      ctx.beginPath();
+      ctx.moveTo(cx - hw + 14, y);
+      ctx.quadraticCurveTo(cx + wave, y + 2, cx + hw - 14, y);
+      ctx.stroke();
+    }
+  }
+
+  // --- Animal cell drawing ---
+  function drawAnimalCell(cx, cy, r, state, t) {
+    // state: normal | swell | burst | shrink
+    ctx.save();
+    if (state === "burst") {
+      // jagged burst
+      ctx.beginPath();
+      const spikes = 12;
+      for (let i = 0; i < spikes; i++) {
+        const a = (i / spikes) * Math.PI * 2 - Math.PI / 2;
+        const rr = r * (i % 2 === 0 ? 1.15 : 0.55);
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(232,160,160,0.55)";
+      ctx.fill();
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // spilled contents
+      for (let i = 0; i < 8; i++) {
+        const a = t * 0.8 + i;
+        drawMolecule(cx + Math.cos(a) * (r + 20 + i * 4), cy + Math.sin(a * 1.3) * (r + 10), 5, "#e8a0a0");
+      }
+    } else if (state === "shrink") {
+      // crenated / star-like
+      ctx.beginPath();
+      const spikes = 10;
+      for (let i = 0; i < spikes; i++) {
+        const a = (i / spikes) * Math.PI * 2;
+        const rr = r * (i % 2 === 0 ? 1.0 : 0.62);
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "#d98880";
+      ctx.fill();
+      ctx.strokeStyle = "#922b21";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // nucleus
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "#a93226";
+      ctx.fill();
+    } else {
+      const scale = state === "swell" ? 1.25 + Math.sin(t * 2) * 0.03 : 1;
+      const R = r * scale;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
+      g.addColorStop(0, "#fadbd8");
+      g.addColorStop(1, "#e8a0a0");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // nucleus
+      ctx.beginPath();
+      ctx.arc(cx - R * 0.1, cy, R * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "#922b21";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Plant cell drawing ---
+  function drawPlantCell(x, y, w, h, state, t) {
+    // state: normal | turgid | plasmolysed | flaccid
+    const wallPad = 6;
+    // cell wall
+    ctx.fillStyle = "#27ae60";
+    roundRect(x, y, w, h, 6);
+    ctx.fill();
+    ctx.fillStyle = "#d5f5e3";
+    roundRect(x + wallPad, y + wallPad, w - wallPad * 2, h - wallPad * 2, 4);
+    ctx.fill();
+
+    let protoX = x + wallPad + 4;
+    let protoY = y + wallPad + 4;
+    let protoW = w - wallPad * 2 - 8;
+    let protoH = h - wallPad * 2 - 8;
+
+    if (state === "plasmolysed") {
+      // shrink and detach
+      const shrink = 0.55;
+      protoW = protoW * shrink;
+      protoH = protoH * shrink;
+      protoX = x + (w - protoW) / 2;
+      protoY = y + (h - protoH) / 2 + 8;
+      // space label area
+      ctx.fillStyle = "rgba(52,152,219,0.12)";
+      roundRect(x + wallPad, y + wallPad, w - wallPad * 2, h - wallPad * 2, 4);
+      ctx.fill();
+    } else if (state === "flaccid") {
+      protoW *= 0.85;
+      protoH *= 0.85;
+      protoX = x + (w - protoW) / 2;
+      protoY = y + (h - protoH) / 2;
+    } else if (state === "turgid") {
+      // pressed against wall
+      protoX = x + wallPad + 2;
+      protoY = y + wallPad + 2;
+      protoW = w - wallPad * 2 - 4;
+      protoH = h - wallPad * 2 - 4;
+    }
+
+    // cytoplasm / membrane
+    ctx.fillStyle = "rgba(125,206,160,0.85)";
+    roundRect(protoX, protoY, protoW, protoH, 8);
+    ctx.fill();
+    ctx.strokeStyle = "#1e8449";
+    ctx.lineWidth = 2.5;
+    roundRect(protoX, protoY, protoW, protoH, 8);
+    ctx.stroke();
+
+    // vacuole
+    const vx = protoX + protoW * 0.12;
+    const vy = protoY + protoH * 0.18;
+    const vw = protoW * 0.76;
+    const vh = protoH * 0.64;
+    ctx.fillStyle = state === "plasmolysed" ? "rgba(241,148,138,0.9)" : "rgba(133,193,233,0.75)";
+    roundRect(vx, vy, vw, vh, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(40,116,166,0.5)";
+    ctx.lineWidth = 1.5;
+    roundRect(vx, vy, vw, vh, 10);
+    ctx.stroke();
+
+    // nucleus
+    ctx.beginPath();
+    ctx.arc(protoX + protoW * 0.22, protoY + protoH * 0.28, Math.min(protoW, protoH) * 0.1, 0, Math.PI * 2);
+    ctx.fillStyle = "#145a32";
+    ctx.fill();
+  }
+
+  // RBC disc
+  function drawRBC(cx, cy, r, state) {
+    ctx.save();
+    if (state === "ghost") {
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 1.3, r * 0.9, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = "#e74c3c";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (state === "crenated") {
+      ctx.beginPath();
+      const spikes = 14;
+      for (let i = 0; i < spikes; i++) {
+        const a = (i / spikes) * Math.PI * 2;
+        const rr = r * (i % 2 === 0 ? 1.05 : 0.55);
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr * 0.85;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "#922b21";
+      ctx.fill();
+    } else {
+      // biconcave
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 1.35, r * 0.9, 0, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.3);
+      g.addColorStop(0, "#f5b7b1");
+      g.addColorStop(0.45, "#e74c3c");
+      g.addColorStop(1, "#922b21");
+      ctx.fillStyle = g;
+      ctx.fill();
+      // central pallor
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 0.45, r * 0.28, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,220,220,0.55)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Init scene particles ---
+  function initScene() {
+    particles = [];
+    cells = [];
+    const id = scenes[sceneIndex].id;
+
+    if (id === "define" || id === "demo" || id === "waterpot") {
+      // Left: concentrated (many sucrose, fewer free water)
+      // Right: dilute
+      const leftSuc = id === "waterpot" ? 14 : 18;
+      const rightSuc = id === "waterpot" ? 5 : 4;
+      const leftWater = id === "waterpot" ? 22 : 18;
+      const rightWater = id === "waterpot" ? 45 : 50;
+
+      for (let i = 0; i < leftSuc; i++) {
+        particles.push({
+          kind: "sucrose", side: "L",
+          x: 60 + Math.random() * 480,
+          y: 120 + Math.random() * 520,
+          vx: (Math.random() - 0.5) * 30,
+          vy: (Math.random() - 0.5) * 30,
+          r: 16 + Math.random() * 4
+        });
+      }
+      for (let i = 0; i < rightSuc; i++) {
+        particles.push({
+          kind: "sucrose", side: "R",
+          x: 720 + Math.random() * 480,
+          y: 140 + Math.random() * 500,
+          vx: (Math.random() - 0.5) * 30,
+          vy: (Math.random() - 0.5) * 30,
+          r: 16 + Math.random() * 4
+        });
+      }
+      for (let i = 0; i < leftWater; i++) {
+        particles.push({
+          kind: "water", side: "L",
+          x: 60 + Math.random() * 480,
+          y: 120 + Math.random() * 520,
+          vx: (Math.random() - 0.5) * 70,
+          vy: (Math.random() - 0.5) * 70,
+          r: 5 + Math.random() * 2
+        });
+      }
+      for (let i = 0; i < rightWater; i++) {
+        particles.push({
+          kind: "water", side: "R",
+          x: 720 + Math.random() * 480,
+          y: 120 + Math.random() * 520,
+          vx: (Math.random() - 0.5) * 70,
+          vy: (Math.random() - 0.5) * 70,
+          r: 5 + Math.random() * 2
+        });
+      }
+    }
+
+    if (id === "dialysis") {
+      // water outside bag + sucrose inside
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          kind: "water", side: "out",
+          x: 180 + Math.random() * 400,
+          y: 280 + Math.random() * 380,
+          vx: (Math.random() - 0.5) * 50,
+          vy: (Math.random() - 0.5) * 50,
+          r: 5
+        });
+      }
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          kind: "sucrose", side: "in",
+          x: 280 + Math.random() * 160,
+          y: 340 + Math.random() * 200,
+          vx: (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 20,
+          r: 12
+        });
+      }
+      for (let i = 0; i < 12; i++) {
+        particles.push({
+          kind: "water", side: "in",
+          x: 280 + Math.random() * 160,
+          y: 340 + Math.random() * 200,
+          vx: (Math.random() - 0.5) * 40,
+          vy: (Math.random() - 0.5) * 40,
+          r: 5
+        });
+      }
+    }
+
+    if (id === "isotonic" || id === "hypotonic" || id === "hypertonic") {
+      // floating water molecules around cells
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          kind: "water",
+          x: 40 + Math.random() * (W - 80),
+          y: 100 + Math.random() * 600,
+          vx: (Math.random() - 0.5) * 60,
+          vy: (Math.random() - 0.5) * 60,
+          r: 4 + Math.random() * 2
+        });
+      }
+    }
+
+    if (id === "rbc") {
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          kind: "water",
+          x: 40 + Math.random() * (W - 80),
+          y: 180 + Math.random() * 500,
+          vx: (Math.random() - 0.5) * 40,
+          vy: (Math.random() - 0.5) * 40,
+          r: 4
+        });
+      }
+    }
+
+    if (id === "plant") {
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          kind: "water",
+          x: 40 + Math.random() * (W - 80),
+          y: 100 + Math.random() * 600,
+          vx: (Math.random() - 0.5) * 50,
+          vy: (Math.random() - 0.5) * 50,
+          r: 4
+        });
+      }
+    }
+
+    if (id === "wpfind") {
+      // no particles needed for graph scene
+    }
+  }
+
+  function clampParticle(p, midX, margin) {
+    const left = p.side === "L" || p.side === "in";
+    if (p.kind === "sucrose") {
+      if (p.side === "L" || p.side === "in") {
+        const maxX = midX - 20;
+        if (p.x > maxX) { p.x = maxX; p.vx *= -1; }
+        if (p.x < margin) { p.x = margin; p.vx *= -1; }
+      } else {
+        if (p.x < midX + 20) { p.x = midX + 20; p.vx *= -1; }
+        if (p.x > W - margin) { p.x = W - margin; p.vx *= -1; }
+      }
+    }
+    if (p.y < 100) { p.y = 100; p.vy *= -1; }
+    if (p.y > H - 60) { p.y = H - 60; p.vy *= -1; }
+  }
+
+  function updateParticles(dt) {
+    const id = scenes[sceneIndex].id;
+    const midX = W / 2;
+    const progress = Math.min(1, sceneT / 8); // osmosis progress over ~8s
+
+    particles.forEach(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // random jitter
+      p.vx += (Math.random() - 0.5) * 40 * dt;
+      p.vy += (Math.random() - 0.5) * 40 * dt;
+      const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      const maxSpd = p.kind === "sucrose" ? 40 : 90;
+      if (spd > maxSpd) {
+        p.vx = (p.vx / spd) * maxSpd;
+        p.vy = (p.vy / spd) * maxSpd;
+      }
+
+      if (id === "define" || id === "demo" || id === "waterpot") {
+        if (p.kind === "sucrose") {
+          clampParticle(p, midX, 50);
+          if (p.x < 50) { p.x = 50; p.vx *= -1; }
+          if (p.x > W - 50) { p.x = W - 50; p.vx *= -1; }
+        } else if (p.kind === "water") {
+          // can cross membrane with bias toward concentrated (left) side
+          if (Math.abs(p.x - midX) < 8) {
+            // crossing: prefer R→L (dilute → concentrated)
+            if (p.side === "R" && Math.random() < 0.55 + progress * 0.3) {
+              p.side = "L";
+              p.vx = -Math.abs(p.vx) - 20;
+            } else if (p.side === "L" && Math.random() < 0.25) {
+              p.side = "R";
+              p.vx = Math.abs(p.vx) + 10;
+            }
+          }
+          if (p.x < 50) { p.x = 50; p.vx *= -1; }
+          if (p.x > W - 50) { p.x = W - 50; p.vx *= -1; }
+          if (p.y < 100) { p.y = 100; p.vy *= -1; }
+          if (p.y > H - 60) { p.y = H - 60; p.vy *= -1; }
+        }
+      } else if (id === "dialysis") {
+        const bagL = 260, bagR = 460, bagT = 320, bagB = 560;
+        if (p.kind === "sucrose") {
+          if (p.x < bagL + 10) { p.x = bagL + 10; p.vx *= -1; }
+          if (p.x > bagR - 10) { p.x = bagR - 10; p.vx *= -1; }
+          if (p.y < bagT + 10) { p.y = bagT + 10; p.vy *= -1; }
+          if (p.y > bagB - 10) { p.y = bagB - 10; p.vy *= -1; }
+        } else {
+          // water can enter bag
+          const inBag = p.x > bagL && p.x < bagR && p.y > bagT && p.y < bagB;
+          if (p.side === "out" && inBag && Math.random() < 0.02) p.side = "in";
+          if (p.x < 160) { p.x = 160; p.vx *= -1; }
+          if (p.x > 580) { p.x = 580; p.vx *= -1; }
+          if (p.y < 260) { p.y = 260; p.vy *= -1; }
+          if (p.y > 680) { p.y = 680; p.vy *= -1; }
+        }
+      } else {
+        if (p.x < 30) { p.x = 30; p.vx *= -1; }
+        if (p.x > W - 30) { p.x = W - 30; p.vx *= -1; }
+        if (p.y < 90) { p.y = 90; p.vy *= -1; }
+        if (p.y > H - 40) { p.y = H - 40; p.vy *= -1; }
+      }
+    });
+  }
+
+  // ========== SCENE DRAWERS ==========
+
+  function drawSceneDefine(t) {
+    // chambers
+    roundRect(40, 90, W - 80, H - 150, 16);
+    ctx.fillStyle = "rgba(236,240,241,0.6)";
+    ctx.fill();
+    ctx.strokeStyle = "#b0bec5";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    drawDashedMembrane(W / 2, 100, H - 70);
+    drawCallout(W / 2, 70, "差異透性膜", "#7f8c8d");
+
+    drawCallout(W * 0.25, 130, "濃蔗糖溶液", "#d4920a");
+    drawCallout(W * 0.75, 130, "稀蔗糖溶液", "#2c5aa0");
+
+    particles.forEach(p => {
+      drawMolecule(p.x, p.y, p.r, p.kind === "sucrose" ? "#f1c40f" : "#3498db");
+    });
+
+    // net arrow R→L
+    const pulse = 0.7 + Math.sin(t * 3) * 0.3;
+    ctx.globalAlpha = pulse;
+    drawArrow(W * 0.62, H * 0.55, W * 0.38, H * 0.55, "#2980b9", 6);
+    ctx.globalAlpha = 1;
+    drawCallout(W / 2, H * 0.55 + 40, "水分子淨移動", "#2980b9");
+
+    drawAnnotationBox(50, H - 130, [
+      "水分子可通過膜",
+      "蔗糖分子不能通過",
+      "→ 滲透"
+    ], "#2c5aa0");
+  }
+
+  function drawSceneWaterPot(t) {
+    // Three beakers showing water potential scale
+    const beakers = [
+      { x: 100, label: "純水", wp: "水勢 = 0", sub: "最高", suc: 0, water: 28, color: "#2980b9" },
+      { x: 480, label: "稀蔗糖溶液", wp: "水勢較高", sub: "（負值較小）", suc: 4, water: 20, color: "#27ae60" },
+      { x: 860, label: "濃蔗糖溶液", wp: "水勢較低", sub: "（負值較大）", suc: 12, water: 10, color: "#c0392b" }
+    ];
+
+    beakers.forEach((b, bi) => {
+      const bw = 280, bh = 420;
+      const bx = b.x, by = 160;
+      // beaker
+      ctx.fillStyle = "rgba(174,214,241,0.35)";
+      roundRect(bx, by, bw, bh, 12);
+      ctx.fill();
+      ctx.strokeStyle = "#5d6d7e";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // molecules
+      const seed = bi * 17;
+      for (let i = 0; i < b.suc; i++) {
+        const sx = bx + 40 + ((i * 47 + seed) % (bw - 80));
+        const sy = by + 60 + ((i * 61 + seed * 3) % (bh - 120));
+        drawMolecule(sx, sy, 14, "#f1c40f");
+      }
+      for (let i = 0; i < b.water; i++) {
+        const sx = bx + 30 + ((i * 53 + seed * 2) % (bw - 60));
+        const sy = by + 50 + ((i * 41 + Math.floor(t * 20) + seed) % (bh - 100));
+        drawMolecule(sx, sy + Math.sin(t + i) * 3, 5, "#3498db");
+      }
+
+      drawCallout(bx + bw / 2, by - 30, b.label, b.color);
+      drawAnnotationBox(bx + 20, by + bh - 90, [b.wp, b.sub], b.color);
+    });
+
+    // arrow of decreasing WP
+    drawArrow(200, 720, 1080, 720, "#8e44ad", 5);
+    drawCallout(640, 750, "水勢遞減 ← 溶質濃度遞增", "#8e44ad");
+
+    // chemistry link: solute binds water
+    drawAnnotationBox(40, 40, ["溶質分子吸引水分子", "→ 自由水分子減少", "→ 水勢下降"], "#8e44ad");
+  }
+
+  function drawSceneDemo(t) {
+    const progress = Math.min(1, sceneT / 10);
+    const midX = W / 2;
+
+    // U-tube / split beaker with changing levels
+    const baseY = 650;
+    const leftLevel = 420 - progress * 80;  // rises visually: lower y = higher level... wait
+    // Actually liquid top Y: smaller Y = higher level
+    const leftTop = 280 - progress * 70; // level rises (top moves up)
+    const rightTop = 280 + progress * 70; // level falls
+
+    // container outline
+    ctx.strokeStyle = "#5d6d7e";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(80, 160);
+    ctx.lineTo(80, baseY);
+    ctx.lineTo(W - 80, baseY);
+    ctx.lineTo(W - 80, 160);
+    ctx.stroke();
+
+    // left liquid
+    ctx.fillStyle = "rgba(241,196,15,0.25)";
+    ctx.fillRect(82, leftTop, midX - 84, baseY - leftTop);
+    // right liquid
+    ctx.fillStyle = "rgba(52,152,219,0.2)";
+    ctx.fillRect(midX + 2, rightTop, W - 82 - midX - 2, baseY - rightTop);
+
+    // liquid surface lines
+    ctx.strokeStyle = "#d4920a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(82, leftTop);
+    ctx.lineTo(midX - 2, leftTop);
+    ctx.stroke();
+    ctx.strokeStyle = "#2980b9";
+    ctx.beginPath();
+    ctx.moveTo(midX + 2, rightTop);
+    ctx.lineTo(W - 82, rightTop);
+    ctx.stroke();
+
+    drawDashedMembrane(midX, 170, baseY - 10);
+    drawCallout(midX, 140, "差異透性膜", "#7f8c8d");
+
+    // particles constrained to liquid
+    particles.forEach(p => {
+      const top = p.side === "L" ? leftTop + 10 : rightTop + 10;
+      if (p.y < top) p.y = top + Math.random() * 10;
+      if (p.y > baseY - 15) p.y = baseY - 15;
+      if (p.side === "L" && p.x > midX - 15 && p.kind === "sucrose") p.x = midX - 20;
+      if (p.side === "R" && p.x < midX + 15 && p.kind === "sucrose") p.x = midX + 20;
+      drawMolecule(p.x, p.y, p.r, p.kind === "sucrose" ? "#f1c40f" : "#3498db");
+    });
+
+    drawCallout(W * 0.25, leftTop - 28, "濃蔗糖溶液（水勢低）", "#d4920a");
+    drawCallout(W * 0.75, rightTop - 28, "稀蔗糖溶液（水勢高）", "#2980b9");
+
+    ctx.globalAlpha = 0.7 + Math.sin(t * 3) * 0.3;
+    drawArrow(W * 0.65, (leftTop + rightTop) / 2 + 40, W * 0.35, (leftTop + rightTop) / 2 + 40, "#2980b9", 6);
+    ctx.globalAlpha = 1;
+
+    // level arrows
+    if (progress > 0.15) {
+      drawArrow(150, leftTop + 90, 150, leftTop + 20, "#27ae60", 4);
+      drawCallout(230, leftTop + 55, "液面上升", "#27ae60");
+      drawArrow(W - 150, rightTop - 10, W - 150, rightTop + 60, "#c0392b", 4);
+      drawCallout(W - 250, rightTop + 25, "液面下降", "#c0392b");
+    }
+
+    drawAnnotationBox(40, H - 100, [
+      "一段時間後：濃側液面↑ 稀側液面↓"
+    ], "#2c5aa0");
+  }
+
+  function drawSceneDialysis(t) {
+    const progress = Math.min(1, sceneT / 12);
+
+    // Title labels
+    drawCallout(320, 50, "實驗裝置", "#2c5aa0");
+    drawCallout(960, 50, "對照裝置", "#7f8c8d");
+
+    function drawSetup(ox, isExp, levelRise) {
+      // stand
+      ctx.strokeStyle = "#566573";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(ox + 40, 700);
+      ctx.lineTo(ox + 40, 100);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ox + 20, 700);
+      ctx.lineTo(ox + 200, 700);
+      ctx.stroke();
+
+      // beaker
+      const bx = ox + 100, by = 380, bw = 280, bh = 300;
+      ctx.fillStyle = "rgba(174,214,241,0.3)";
+      roundRect(bx, by, bw, bh, 8);
+      ctx.fill();
+      ctx.strokeStyle = "#5d6d7e";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      drawCallout(bx + bw / 2, by + bh + 30, "蒸餾水", "#2980b9");
+
+      // dialysis bag
+      const bagX = bx + 70, bagY = by + 40, bagW = 140, bagH = 200;
+      ctx.fillStyle = isExp ? "rgba(241,196,15,0.35)" : "rgba(174,214,241,0.4)";
+      roundRect(bagX, bagY, bagW, bagH, 40);
+      ctx.fill();
+      ctx.strokeStyle = "#95a5a6";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      roundRect(bagX, bagY, bagW, bagH, 40);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // capillary
+      const capX = bagX + bagW / 2 - 8;
+      const capBot = bagY;
+      const capTop = 120;
+      const liquidH = 40 + levelRise * 180;
+      ctx.fillStyle = "#ecf0f1";
+      ctx.fillRect(capX, capTop, 16, capBot - capTop);
+      ctx.strokeStyle = "#7f8c8d";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(capX, capTop, 16, capBot - capTop);
+      ctx.fillStyle = isExp ? "rgba(52,152,219,0.7)" : "rgba(174,214,241,0.7)";
+      ctx.fillRect(capX + 1, capBot - liquidH, 14, liquidH);
+
+      if (isExp) {
+        drawCallout(bagX + bagW / 2, bagY + bagH / 2, "20% 蔗糖", "#d4920a");
+        if (levelRise > 0.2) {
+          drawArrow(capX + 40, capBot - liquidH + 40, capX + 40, capBot - liquidH, "#27ae60", 3);
+          drawCallout(capX + 110, capBot - liquidH + 20, "液面上升", "#27ae60");
+        }
+      } else {
+        drawCallout(bagX + bagW / 2, bagY + bagH / 2, "蒸餾水", "#7f8c8d");
+        drawCallout(capX + 90, 200, "液面幾乎不變", "#7f8c8d");
+      }
+    }
+
+    drawSetup(40, true, progress);
+    drawSetup(680, false, 0.05);
+
+    // particles in experimental beaker only
+    particles.forEach(p => {
+      drawMolecule(p.x, p.y, p.r, p.kind === "sucrose" ? "#f1c40f" : "#3498db");
+    });
+
+    drawAnnotationBox(40, H - 90, [
+      "水：蒸餾水（高水勢）→ 蔗糖溶液（低水勢）"
+    ], "#2c5aa0");
+  }
+
+  function drawWaterArrowsAround(cx, cy, r, mode, t) {
+    // mode: equal | in | out
+    const n = 6;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + t * 0.3;
+      const x1 = cx + Math.cos(a) * (r + 50);
+      const y1 = cy + Math.sin(a) * (r + 50);
+      const x2 = cx + Math.cos(a) * (r + 15);
+      const y2 = cy + Math.sin(a) * (r + 15);
+      if (mode === "equal") {
+        drawArrow(x1, y1, x2, y2, "#3498db", 3);
+        drawArrow(x2 + Math.cos(a + 0.4) * 10, y2 + Math.sin(a + 0.4) * 10,
+                  x1 + Math.cos(a + 0.4) * 10, y1 + Math.sin(a + 0.4) * 10, "#e67e22", 3);
+      } else if (mode === "in") {
+        drawArrow(x1, y1, x2, y2, "#3498db", 4);
+      } else {
+        drawArrow(x2, y2, x1, y1, "#e67e22", 4);
+      }
+    }
+  }
+
+  function drawSceneIsotonic(t) {
+    drawCallout(W / 2, 50, "等滲溶液 — 水勢相等，沒有淨移動", "#2c5aa0");
+
+    // animal
+    drawAnimalCell(320, 380, 110, "normal", t);
+    drawWaterArrowsAround(320, 380, 110, "equal", t);
+    drawCallout(320, 560, "動物細胞", "#c0392b");
+    drawAnnotationBox(180, 600, ["細胞膜", "形狀正常"], "#c0392b");
+
+    // plant
+    drawPlantCell(740, 220, 340, 280, "normal", t);
+    drawWaterArrowsAround(910, 360, 160, "equal", t);
+    drawCallout(910, 560, "植物細胞", "#27ae60");
+    drawAnnotationBox(780, 600, ["細胞壁 · 細胞質 · 液泡", "維持正常"], "#27ae60");
+
+    particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
+  }
+
+  function drawSceneHypotonic(t) {
+    drawCallout(W / 2, 50, "低滲溶液 — 外液水勢較高，水進入細胞", "#2980b9");
+
+    const burst = sceneT > 6;
+    drawAnimalCell(300, 360, 100, burst ? "burst" : "swell", t);
+    drawWaterArrowsAround(300, 360, burst ? 100 : 120, "in", t);
+    drawCallout(300, 560, burst ? "爆裂（溶血）" : "膨脹中…", "#c0392b");
+    drawAnnotationBox(140, 600, ["動物細胞無細胞壁", "持續吸水 → 溶血"], "#c0392b");
+
+    drawPlantCell(720, 200, 360, 300, "turgid", t);
+    drawWaterArrowsAround(900, 350, 170, "in", t);
+    drawCallout(900, 560, "硬脹（膨壓）", "#27ae60");
+    drawAnnotationBox(760, 600, ["細胞壁阻止爆裂", "細胞變硬脹"], "#27ae60");
+
+    particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
+  }
+
+  function drawSceneHypertonic(t) {
+    drawCallout(W / 2, 50, "高滲溶液 — 外液水勢較低，水離開細胞", "#c0392b");
+
+    drawAnimalCell(300, 360, 100, "shrink", t);
+    drawWaterArrowsAround(300, 360, 90, "out", t);
+    drawCallout(300, 560, "萎縮／皺縮", "#c0392b");
+    drawAnnotationBox(150, 600, ["動物細胞失水", "體積縮小、表面皺縮"], "#c0392b");
+
+    const plas = sceneT > 3 ? "plasmolysed" : "flaccid";
+    drawPlantCell(720, 200, 360, 300, plas, t);
+    drawWaterArrowsAround(900, 350, 150, "out", t);
+    drawCallout(900, 560, plas === "plasmolysed" ? "質壁分離（軟縮）" : "軟縮中…", "#27ae60");
+    drawAnnotationBox(740, 600, ["液泡收縮", "細胞膜脫離細胞壁", "＝ 質壁分離"], "#27ae60");
+
+    particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
+  }
+
+  function drawSceneRBC(t) {
+    drawCallout(W / 2, 45, "實驗：紅血球在不同濃度氯化鈉溶液中", "#2c5aa0");
+
+    const panels = [
+      { x: 40, label: "溶液 A：0% NaCl", sub: "低滲", state: "ghost", note: "溶血", color: "#c0392b" },
+      { x: 440, label: "溶液 B：0.9% NaCl", sub: "等滲", state: "normal", note: "雙凹圓盤", color: "#27ae60" },
+      { x: 840, label: "溶液 C：1.8% NaCl", sub: "高滲", state: "crenated", note: "皺縮萎縮", color: "#d35400" }
+    ];
+
+    panels.forEach((p, pi) => {
+      roundRect(p.x, 90, 380, 580, 14);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fill();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      drawCallout(p.x + 190, 130, p.label, p.color);
+      drawCallout(p.x + 190, 175, p.sub, p.color);
+
+      // microscope field
+      ctx.beginPath();
+      ctx.arc(p.x + 190, 380, 140, 0, Math.PI * 2);
+      ctx.fillStyle = "#fef9e7";
+      ctx.fill();
+      ctx.strokeStyle = "#b0bec5";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      const positions = [
+        [0, -40], [50, 10], [-55, 20], [20, 55], [-30, -60],
+        [70, -30], [-70, -10], [0, 20]
+      ];
+      positions.forEach((off, i) => {
+        if (p.state === "ghost" && i > 3) return; // fewer ghosts
+        drawRBC(p.x + 190 + off[0], 380 + off[1], 22, p.state);
+      });
+
+      drawAnnotationBox(p.x + 50, 560, [p.note, "×450"], p.color);
+    });
+  }
+
+  function drawScenePlant(t) {
+    // Left: onion plasmolysis
+    drawCallout(320, 45, "紅洋蔥表皮細胞", "#8e44ad");
+
+    roundRect(40, 80, 560, 340, 12);
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fill();
+    ctx.strokeStyle = "#8e44ad";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    drawCallout(180, 115, "濃蔗糖 → 質壁分離", "#c0392b");
+    // mini plant cells plasmolysed
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        drawPlantCell(60 + col * 130, 150 + row * 120, 120, 100, "plasmolysed", t);
+      }
+    }
+
+    drawCallout(460, 115, "蒸餾水 → 恢復", "#27ae60");
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        drawPlantCell(340 + col * 120, 150 + row * 120, 110, 100, "turgid", t);
+      }
+    }
+
+    // Right / bottom: potato cylinders
+    drawCallout(960, 45, "馬鈴薯條實驗", "#d35400");
+
+    function drawTube(x, label, massChange, color) {
+      ctx.fillStyle = "rgba(174,214,241,0.35)";
+      roundRect(x, 100, 160, 280, 10);
+      ctx.fill();
+      ctx.strokeStyle = "#5d6d7e";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // potato strips
+      for (let i = 0; i < 2; i++) {
+        ctx.fillStyle = "#f5cba7";
+        roundRect(x + 40 + i * 45, 160, 35, 160, 6);
+        ctx.fill();
+        ctx.strokeStyle = "#d68910";
+        ctx.lineWidth = 2;
+        roundRect(x + 40 + i * 45, 160, 35, 160, 6);
+        ctx.stroke();
+      }
+      drawCallout(x + 80, 420, label, color);
+      drawCallout(x + 80, 465, massChange, color);
+    }
+
+    drawTube(660, "蒸餾水", "質量↑（水進入）", "#27ae60");
+    drawTube(900, "20% 蔗糖", "質量↓（水離開）", "#c0392b");
+
+    // cork borer hint
+    drawAnnotationBox(660, 520, [
+      "木塞鑽孔器切出薯條",
+      "量度質量變化百分率"
+    ], "#d35400");
+
+    drawAnnotationBox(40, 450, [
+      "質壁分離：細胞液水勢 > 外液",
+      "水離開 → 原生質體縮小脫壁",
+      "換蒸餾水可去質壁分離"
+    ], "#8e44ad");
+
+    particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
+  }
+
+  function drawSceneWPFind(t) {
+    drawCallout(W / 2, 40, "測定馬鈴薯組織水勢 · 滲透的應用", "#2c5aa0");
+
+    // Graph
+    const gx = 80, gy = 100, gw = 620, gh = 480;
+    ctx.fillStyle = "#fff";
+    roundRect(gx, gy, gw, gh, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#b0bec5";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // axes
+    const ox = gx + 70, oy = gy + gh / 2;
+    const plotW = gw - 120, plotH = gh - 100;
+    ctx.strokeStyle = "#1a2332";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ox, gy + 40);
+    ctx.lineTo(ox, gy + gh - 40);
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(ox + plotW, oy);
+    ctx.stroke();
+
+    ctx.font = "16px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "center";
+    ctx.fillText("蔗糖濃度 (M)", ox + plotW / 2, gy + gh - 15);
+    ctx.save();
+    ctx.translate(gx + 22, oy);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("質量變化百分率 (%)", 0, 0);
+    ctx.restore();
+
+    // data: 0,0.1,0.2,0.3,0.4,0.5 → 15.5,10,7.5,2,-4,-6
+    const data = [
+      [0, 15.5], [0.1, 10], [0.2, 7.5], [0.3, 2], [0.4, -4], [0.5, -6]
+    ];
+    const xMax = 0.55, yMax = 18;
+
+    function toX(c) { return ox + (c / xMax) * plotW; }
+    function toY(m) { return oy - (m / yMax) * (plotH / 2 - 20); }
+
+    // best fit line (approx through isotonic 0.35)
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(toX(0), toY(16));
+    ctx.lineTo(toX(0.55), toY(-8));
+    ctx.stroke();
+
+    // points
+    data.forEach(d => {
+      ctx.beginPath();
+      ctx.arc(toX(d[0]), toY(d[1]), 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#e74c3c";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    // isotonic point
+    const isoX = toX(0.35), isoY = toY(0);
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#27ae60";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(isoX, oy);
+    ctx.lineTo(isoX, gy + gh - 50);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(isoX, isoY, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "#27ae60";
+    ctx.fill();
+    drawCallout(isoX, gy + gh - 55, "等滲點 ≈ 0.35 M", "#27ae60");
+
+    drawAnnotationBox(gx + 20, gy + 50, [
+      "質量變化＝0 → 等滲",
+      "該濃度水勢＝組織水勢"
+    ], "#27ae60");
+
+    // Applications panel
+    roundRect(740, 100, 480, 560, 12);
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fill();
+    ctx.strokeStyle = "#8e44ad";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    drawCallout(980, 140, "滲透的應用", "#8e44ad");
+
+    // food
+    ctx.fillStyle = "#fdebd0";
+    roundRect(770, 180, 420, 160, 10);
+    ctx.fill();
+    drawCallout(980, 210, "食物保藏", "#d68910");
+    ctx.font = "18px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "left";
+    ctx.fillText("高濃度糖／鹽 → 微生物失水", 790, 255);
+    ctx.fillText("（滲透）→ 抑制生長", 790, 285);
+    ctx.fillText("例：果醬、醃菜", 790, 315);
+
+    // medical
+    ctx.fillStyle = "#d6eaf8";
+    roundRect(770, 370, 420, 160, 10);
+    ctx.fill();
+    drawCallout(980, 400, "醫療用途", "#2980b9");
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("0.9% 生理鹽水靜脈注射", 790, 445);
+    ctx.fillText("與血液等滲 → 防止溶血", 790, 475);
+    ctx.fillText("腎臟透析亦應用滲透原理", 790, 505);
+
+    // plant importance
+    drawAnnotationBox(770, 560, [
+      "植物：根吸水、膨壓支撐植株",
+      "人體：小腸吸收水分"
+    ], "#27ae60");
+  }
+
+  // --- Main loop ---
+  function draw(now) {
+    const dt = Math.min(0.05, (now - (draw.prev || now)) / 1000);
+    draw.prev = now;
+    if (playing) sceneT += dt;
+
+    ctx.clearRect(0, 0, W, H);
+    // soft bg
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#eef4fb");
+    bg.addColorStop(0.5, "#f8fafc");
+    bg.addColorStop(1, "#eef4fb");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (playing) updateParticles(dt);
+
+    const id = scenes[sceneIndex].id;
+    const t = sceneT;
+
+    if (id === "define") drawSceneDefine(t);
+    else if (id === "waterpot") drawSceneWaterPot(t);
+    else if (id === "demo") drawSceneDemo(t);
+    else if (id === "dialysis") drawSceneDialysis(t);
+    else if (id === "isotonic") drawSceneIsotonic(t);
+    else if (id === "hypotonic") drawSceneHypotonic(t);
+    else if (id === "hypertonic") drawSceneHypertonic(t);
+    else if (id === "rbc") drawSceneRBC(t);
+    else if (id === "plant") drawScenePlant(t);
+    else if (id === "wpfind") drawSceneWPFind(t);
+
+    // scene badge
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "rgba(44,90,160,0.85)";
+    ctx.textAlign = "right";
+    ctx.fillText((sceneIndex + 1) + " / " + scenes.length, W - 24, 28);
+
+    requestAnimationFrame(draw);
+  }
+
+  // Controls
+  document.getElementById("btnPlay").addEventListener("click", () => {
+    playing = !playing;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", () => goScene(sceneIndex - 1));
+  document.getElementById("btnNext").addEventListener("click", () => goScene(sceneIndex + 1));
+  document.getElementById("btnRestart").addEventListener("click", () => restartScene());
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      updateUI();
+    } else if (e.key === "r" || e.key === "R") {
+      e.preventDefault();
+      restartScene();
+    }
+  });
+
+  initScene();
+  updateUI();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
