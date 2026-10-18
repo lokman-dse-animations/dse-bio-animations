@@ -1674,19 +1674,19 @@
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Thin left / right vessel ends only (no scaffold / bracket)
+    // Vessel stubs match flow: left into U, right out of U
     const leftEnd = uCap(0);
     const rightEnd = uCap(1);
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(leftEnd.x - 6, leftEnd.y - 18);
+    ctx.moveTo(leftEnd.x - 28, leftEnd.y - 18);
     ctx.lineTo(leftEnd.x, leftEnd.y);
     ctx.strokeStyle = "#7b241c";
     ctx.lineWidth = CAP_W * 0.55;
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(rightEnd.x, rightEnd.y);
-    ctx.lineTo(rightEnd.x + 8, rightEnd.y - 20);
+    ctx.lineTo(rightEnd.x + 28, rightEnd.y - 18);
     ctx.strokeStyle = "#e74c3c";
     ctx.lineWidth = CAP_W * 0.55;
     ctx.stroke();
@@ -1790,22 +1790,27 @@
     ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
     ctx.fillText("紅血細胞隨血流移動", AX + 90, AY + AR + 95);
 
-    // Blood enter/leave — TOP corners only (no overlap with lower labels)
-    drawArrow(leftEnd.x - 40, leftEnd.y - 70, leftEnd.x - 4, leftEnd.y - 12, "#7b241c", 4);
+    // Blood flow: LEFT enters INTO vessel; RIGHT leaves OUT of vessel
+    // Labels sit beside arrows (mid-height at each end — not panel top)
+    // INLET (left): arrowhead on the vessel — blood comes in
+    drawArrow(leftEnd.x - 58, leftEnd.y - 28, leftEnd.x - 4, leftEnd.y + 2, "#7b241c", 4);
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("入口：來自肺動脈的缺氧血", 40, 100);
+    ctx.textAlign = "right";
+    ctx.fillText("缺氧血 → 入口", leftEnd.x - 62, leftEnd.y - 20);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧低 · 二氧化碳高）", 40, 118);
+    ctx.fillText("來自肺動脈", leftEnd.x - 62, leftEnd.y - 4);
+    ctx.fillText("（氧低 · CO₂高）", leftEnd.x - 62, leftEnd.y + 12);
 
-    drawArrow(rightEnd.x + 4, rightEnd.y - 12, rightEnd.x + 38, rightEnd.y - 70, "#e74c3c", 4);
+    // OUTLET (right): arrowhead away from vessel — blood goes out
+    drawArrow(rightEnd.x + 4, rightEnd.y + 2, rightEnd.x + 58, rightEnd.y - 28, "#e74c3c", 4);
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("出口：流往肺靜脈的含氧血", 630, 100);
+    ctx.textAlign = "left";
+    ctx.fillText("出口 → 含氧血", rightEnd.x + 62, rightEnd.y - 20);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧高 · 二氧化碳低）", 630, 118);
+    ctx.fillText("流往肺靜脈", rightEnd.x + 62, rightEnd.y - 4);
+    ctx.fillText("（氧高 · CO₂低）", rightEnd.x + 62, rightEnd.y + 12);
 
     drawAnnotationBox(40, 640, [
       "微血管 U 形沿氣囊外側環繞；底部小支氣管供空氣進出",
