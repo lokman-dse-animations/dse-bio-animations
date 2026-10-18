@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>物質穿越細胞膜 — 細胞膜差異透性</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --head: #f0b429;
+    --head-edge: #d4920a;
+    --tail: #5b9bd5;
+    --protein: #7b5ea7;
+    --protein-dark: #5a3d8a;
+    --carb: #e67e22;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 420px;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+  .swatch.rect {
+    border-radius: 3px;
+    width: 18px;
+    height: 12px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .scene-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+  .scene-desc {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .scene-desc strong { color: var(--accent); }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .step-btn {
+    text-align: left;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block;
+    width: 1.4em;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: #eef2f7;
+    color: var(--ink);
+  }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  footer {
+    text-align: center;
+    padding: 8px 16px 14px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>物質穿越細胞膜</h1>
+  <span class="sub">細胞膜差異透性 · 香港中學文憑試生物學 · 中四</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="物質穿越細胞膜動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#f0b429"></span>親水頭部</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#5b9bd5"></span>疏水尾部</span>
+      <span class="legend-item"><span class="swatch" style="background:#7b5ea7;border-radius:4px"></span>膜蛋白</span>
+      <span class="legend-item"><span class="swatch" style="background:#e74c3c"></span>氧氣 / 二氧化碳</span>
+      <span class="legend-item"><span class="swatch" style="background:#3498db"></span>水 / 礦物離子</span>
+      <span class="legend-item"><span class="swatch" style="background:#27ae60"></span>葡萄糖 / 氨基酸</span>
+      <span class="legend-item"><span class="swatch" style="background:#95a5a6;width:20px;border-radius:4px"></span>大分子</span>
+      <span class="legend-item"><span class="swatch" style="background:#f39c12;border-radius:3px;width:16px"></span>ATP</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：磷脂雙層結構</div>
+      <p class="scene-desc" id="sceneDesc">細胞膜主要由<strong>磷脂雙層</strong>組成。黃色圓球為<strong>親水頭部</strong>（面向細胞外液與細胞質），藍色彎曲線為<strong>疏水尾部</strong>（互相相對、避開水）。</p>
+    </div>
+
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重播本場景</button>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重播本場景<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應 DSE 生物「物質穿越細胞膜」· 教師：Lok Man Chan · 請離線以 Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Membrane geometry (shared across scenes)
+  const MEM_Y = H * 0.48;
+  const MEM_H = 208;
+  const HEAD_R = 18;
+  const COLS = 24;
+  const COL_GAP = (W - 80) / (COLS - 1);
+  const X0 = 40;
+
+  const scenes = [
+    {
+      id: "structure",
+      title: "場景 1：磷脂雙層結構",
+      desc: "細胞膜主要由<strong>磷脂雙層</strong>組成。黃色圓球為<strong>親水頭部</strong>（面向細胞外液與細胞質），藍色彎曲線為<strong>疏水尾部</strong>（互相相對、避開水）。標示<strong>細胞外</strong>與<strong>細胞內</strong>。"
+    },
+    {
+      id: "simple",
+      title: "場景 2：簡單擴散",
+      desc: "細小<strong>非極性／脂溶性</strong>物質（如氧氣、二氧化碳）可直接穿過磷脂雙層，由高濃度向低濃度擴散，無需膜蛋白。"
+    },
+    {
+      id: "channel",
+      title: "場景 3：通道蛋白",
+      desc: "極性的<strong>水</strong>、<strong>礦物離子</strong>被<strong>疏水尾部排斥</strong>，不能輕易穿過磷脂雙層；靠近雙層會「彈開」。須<strong>經通道蛋白</strong>中央親水孔道進入細胞。"
+    },
+    {
+      id: "carrier",
+      title: "場景 4：載體蛋白與 ATP",
+      desc: "<strong>主動運輸</strong>（例：<strong>葡萄糖</strong>、<strong>氨基酸</strong>）：載體先<strong>閉合</strong>（口袋向外）→ <strong>結合物質</strong> → <strong>接觸 ATP</strong> → 蛋白<strong>打開</strong>（朝向細胞內）→ 物質進入細胞。ATP 提供能量。"
+    },
+    {
+      id: "blocked",
+      title: "場景 5：大分子一般不能通過",
+      desc: "蛋白質等<strong>大分子</strong>通常無法直接穿越細胞膜（需胞吞／胞吐等其他機制，本動畫不展開）。對照左側小分子可自由擴散。"
+    },
+    {
+      id: "overview",
+      title: "場景 6：三種途徑總覽",
+      desc: "同一截面同時展示：<strong>簡單擴散</strong>（紅）、<strong>通道蛋白</strong>（藍）、<strong>載體蛋白</strong>（綠）。細胞膜具<strong>差異透性</strong>——不同物質循不同途徑進出。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+  let particles = [];
+  let carrierPhase = 0;
+  let rejectMarks = [];
+  let atpState = { x: 0, y: 0, mode: "idle" };
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    initParticles();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+    initParticles();
+  }
+
+  // --- Drawing helpers ---
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawHead(x, y) {
+    const g = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, HEAD_R);
+    g.addColorStop(0, "#ffd666");
+    g.addColorStop(0.7, "#f0b429");
+    g.addColorStop(1, "#d4920a");
+    ctx.beginPath();
+    ctx.arc(x, y, HEAD_R, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(180,120,20,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawTail(x, yTop, yBot, phase, flip) {
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.lineWidth = 4.4;
+    ctx.lineCap = "round";
+    for (let k = 0; k < 2; k++) {
+      const ox = (k === 0 ? -5.8 : 5.8);
+      ctx.beginPath();
+      const steps = 10;
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const y = yTop + (yBot - yTop) * u;
+        const wave = Math.sin(u * Math.PI * 2.2 + phase + k) * 4.7 * (flip ? -1 : 1);
+        const xx = x + ox + wave;
+        if (i === 0) ctx.moveTo(xx, y);
+        else ctx.lineTo(xx, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function phospholipidColumn(x, phase, skip) {
+    if (skip) return;
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    const botHeadY = MEM_Y + MEM_H / 2 - HEAD_R;
+    const mid = MEM_Y;
+    drawTail(x, topHeadY + HEAD_R * 0.6, mid - 2, phase, false);
+    drawTail(x, mid + 2, botHeadY - HEAD_R * 0.6, phase + 1.1, true);
+    drawHead(x, topHeadY);
+    drawHead(x, botHeadY);
+  }
+
+  function drawBilayer(phase, gaps) {
+    // soft membrane band
+    ctx.fillStyle = "rgba(91,155,213,0.08)";
+    ctx.fillRect(20, MEM_Y - MEM_H / 2 - 4, W - 40, MEM_H + 8);
+
+    for (let i = 0; i < COLS; i++) {
+      const x = X0 + i * COL_GAP;
+      let skip = false;
+      if (gaps) {
+        for (const g of gaps) {
+          if (x >= g.x0 && x <= g.x1) { skip = true; break; }
+        }
+      }
+      phospholipidColumn(x, phase + i * 0.35, skip);
+    }
+  }
+
+  function drawLabels() {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("細胞外", 36, 56);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（細胞外液）", 36, 76);
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("細胞內", 36, H - 60);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（細胞質）", 36, H - 24);
+  }
+
+  function drawCallout(x, y, text, color) {
+    ctx.font = "bold 26px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 10;
+    roundRect(x - tw / 2 - pad, y - 14, tw + pad * 2, 28, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawMolecule(x, y, r, color, label) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    g.addColorStop(0, "#fff");
+    g.addColorStop(0.35, color);
+    g.addColorStop(1, color);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (label) {
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x, y - r - 6);
+    }
+  }
+
+  function drawChannel(cx, open) {
+    const top = MEM_Y - MEM_H / 2 - 8;
+    const bot = MEM_Y + MEM_H / 2 + 8;
+    const hw = 52;
+    const pore = open ? 24 : 10;
+
+    // outer body
+    ctx.fillStyle = "#7b5ea7";
+    roundRect(cx - hw, top, hw * 2, bot - top, 14);
+    ctx.fill();
+    // darker rim
+    ctx.fillStyle = "#5a3d8a";
+    roundRect(cx - hw + 4, top + 4, hw * 2 - 8, bot - top - 8, 10);
+    ctx.fill();
+    // pore (cutout look)
+    ctx.fillStyle = "rgba(238,244,251,0.95)";
+    roundRect(cx - pore, top + 6, pore * 2, bot - top - 12, pore);
+    ctx.fill();
+
+    // highlight
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw + 8, top + 12);
+    ctx.lineTo(cx - hw + 8, bot - 12);
+    ctx.stroke();
+  }
+
+  function drawCarrier(cx, phase) {
+    // Textbook-like U carrier:
+    // phase low  = CLOSED pocket open toward 細胞外 (U facing up)
+    // after ATP  = OPENS toward 細胞內 (U facing down) and releases
+    // openAmt: 0 = fully closed-up, 1 = fully open-down
+    const openAmt = smoothstep(0.42, 0.62, phase);
+
+    const top = MEM_Y - MEM_H / 2 - 10;
+    const bot = MEM_Y + MEM_H / 2 + 10;
+    const h = bot - top;
+    const w = 114;
+
+    ctx.save();
+    ctx.translate(cx, MEM_Y);
+
+    // Morph: closed U (mouth up) → open U (mouth down)
+    const mouthUp = 1 - openAmt;   // opening at extracellular side
+    const mouthDown = openAmt;     // opening at intracellular side
+    const armIn = 10 + openAmt * 6;
+    const pocketDepth = 28 + openAmt * 8;
+
+    // Left and right lobes (purple)
+    function lobe(side) {
+      const s = side; // -1 left, +1 right
+      ctx.beginPath();
+      const x0 = s * (w / 2);
+      // outer wall
+      ctx.moveTo(s * 6, -h / 2);
+      ctx.bezierCurveTo(x0, -h / 2, x0, -h / 2 + 20, x0, 0);
+      ctx.bezierCurveTo(x0, h / 2 - 20, x0, h / 2, s * 6, h / 2);
+      // inner pocket wall
+      const innerTop = -h / 2 + (mouthUp > 0.2 ? 8 : pocketDepth);
+      const innerBot = h / 2 - (mouthDown > 0.2 ? 8 : pocketDepth);
+      ctx.lineTo(s * armIn, h / 2);
+      ctx.bezierCurveTo(s * (armIn + 4), innerBot, s * (armIn + 4), innerTop, s * armIn, -h / 2);
+      ctx.closePath();
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.strokeStyle = "#5a3d8a";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // lighter face
+      ctx.beginPath();
+      ctx.moveTo(s * 8, -h / 2 + 6);
+      ctx.bezierCurveTo(s * (w / 2 - 8), -h / 2 + 8, s * (w / 2 - 6), 0, s * (w / 2 - 8), h / 2 - 8);
+      ctx.lineTo(s * (armIn + 6), h / 2 - 10);
+      ctx.bezierCurveTo(s * (armIn + 8), 0, s * (armIn + 8), 0, s * (armIn + 6), -h / 2 + 10);
+      ctx.closePath();
+      ctx.fillStyle = "#8f73b8";
+      ctx.fill();
+    }
+    lobe(-1);
+    lobe(1);
+
+    // Bottom bridge (closed state) / top bridge (open-down state)
+    ctx.fillStyle = "#6a4f9a";
+    if (mouthUp > 0.5) {
+      // closed toward outside: solid floor of U at bottom half
+      roundRect(-armIn - 2, -4, (armIn + 2) * 2, h / 2 - 2, 8);
+      ctx.fill();
+    }
+    if (mouthDown > 0.5) {
+      // open toward inside: solid roof of U at top half
+      roundRect(-armIn - 2, -h / 2 + 2, (armIn + 2) * 2, h / 2 - 2, 8);
+      ctx.fill();
+    } else if (mouthUp <= 0.5 && mouthDown <= 0.5) {
+      // mid transition: both bridges thinning
+      roundRect(-armIn - 2, -h / 4, (armIn + 2) * 2, h / 2, 8);
+      ctx.fill();
+    }
+
+    // Binding pocket (U cavity) — top when closed, bottom when open
+    const pocketY = -h / 2 + 26 + openAmt * (h - 52);
+    const prx = 11 + mouthUp * 2;
+    const pry = 9 + mouthUp * 3;
+    ctx.fillStyle = "rgba(238,244,251,0.95)";
+    ctx.beginPath();
+    ctx.ellipse(0, pocketY, prx, pry, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Visual cue: “閉合” lips at top when closed
+    if (mouthUp > 0.6) {
+      ctx.strokeStyle = "#4a3270";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-14, -h / 2 + 4);
+      ctx.quadraticCurveTo(0, -h / 2 + 16, 14, -h / 2 + 4);
+      ctx.stroke();
+    }
+    // “打開” gap at bottom when open
+    if (mouthDown > 0.6) {
+      ctx.strokeStyle = "#4a3270";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-16, h / 2 - 2);
+      ctx.lineTo(-6, h / 2 - 14);
+      ctx.moveTo(16, h / 2 - 2);
+      ctx.lineTo(6, h / 2 - 14);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    return { pocketLocalY: pocketY, h: h, openAmt: openAmt };
+  }
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawBigMolecule(x, y, blocked) {
+    // stylized large polymer
+    ctx.save();
+    ctx.translate(x, y);
+    const parts = [
+      [0, 0, 31], [-34, 16, 23], [31, 18, 25], [-16, -26, 21], [26, -16, 20]
+    ];
+    parts.forEach(([px, py, r], i) => {
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fillStyle = i === 0 ? "#7f8c8d" : "#95a5a6";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.2)";
+      ctx.stroke();
+    });
+    ctx.restore();
+    if (blocked) {
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 36, y - 36);
+      ctx.lineTo(x + 36, y + 36);
+      ctx.moveTo(x + 36, y - 36);
+      ctx.lineTo(x - 36, y + 36);
+      ctx.stroke();
+    }
+  }
+
+  function drawAnnotationBox(x, y, lines, color) {
+    ctx.font = "20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    let maxW = 0;
+    lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+    const pad = 12;
+    const lh = 22;
+    const boxH = lines.length * lh + pad * 2 - 4;
+    const boxW = maxW + pad * 2;
+    roundRect(x, y, boxW, boxH, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color || "#2c5aa0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "left";
+    lines.forEach((l, i) => {
+      ctx.fillText(l, x + pad, y + pad + 14 + i * lh);
+    });
+  }
+
+
+  function drawATP(x, y, label, split) {
+    // hexagonal-ish energy molecule
+    ctx.save();
+    ctx.translate(x, y);
+    const col = split ? "#95a5a6" : "#f39c12";
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      const px = Math.cos(a) * 26;
+      const py = Math.sin(a) * 26;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label || "ATP", 0, 0);
+    ctx.textBaseline = "alphabetic";
+    ctx.restore();
+  }
+
+
+  function drawRejectMarks(marks) {
+    marks.forEach(m => {
+      const a = Math.max(0, 1 - m.age / 0.7);
+      if (a <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 3;
+      const s = 18;
+      ctx.beginPath();
+      ctx.moveTo(m.x - s, m.y - s);
+      ctx.lineTo(m.x + s, m.y + s);
+      ctx.moveTo(m.x + s, m.y - s);
+      ctx.lineTo(m.x - s, m.y + s);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  // --- Particles ---
+  function initParticles() {
+    particles = [];
+    const id = scenes[sceneIndex].id;
+
+    if (id === "simple" || id === "overview") {
+      for (let i = 0; i < 6; i++) {
+        particles.push({
+          kind: "gas",
+          x: 80 + Math.random() * 280,
+          y: 40 + Math.random() * 120,
+          r: 16 + Math.random() * 4,
+          speed: 0.35 + Math.random() * 0.25,
+          phase: Math.random() * Math.PI * 2,
+          label: i % 2 === 0 ? "氧氣" : "二氧化碳",
+          color: "#e74c3c",
+          delay: i * 0.35
+        });
+      }
+    }
+    if (id === "channel") {
+      const cx = W * 0.58;
+      rejectMarks = [];
+      // Water that will bounce off hydrophobic bilayer (away from channel)
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          kind: "waterBounce",
+          x: 80 + Math.random() * 280,
+          y: 20 + Math.random() * 90,
+          r: 14 + Math.random() * 3,
+          vx: (Math.random() - 0.5) * 20,
+          vy: 40 + Math.random() * 25,
+          phase: Math.random() * 10,
+          label: "水",
+          color: "#3498db",
+          delay: i * 0.25,
+          bounces: 0,
+          mode: "fall" // fall | bounce | seek | through | inside
+        });
+      }
+      // Water / ions that succeed via channel
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          kind: "waterChannel",
+          x: cx + (Math.random() - 0.5) * 90,
+          y: 15 + Math.random() * 70,
+          r: 13 + Math.random() * 3,
+          speed: 0.4 + Math.random() * 0.2,
+          phase: Math.random() * 10,
+          label: i % 2 === 0 ? "水" : "礦物離子",
+          color: "#3498db",
+          delay: 0.8 + i * 0.45,
+          channelX: cx,
+          mode: "approach"
+        });
+      }
+    }
+    if (id === "overview") {
+      const cx = W * 0.52;
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          kind: "ion",
+          x: cx + (Math.random() - 0.5) * 40,
+          y: 30 + Math.random() * 100,
+          r: 13 + Math.random() * 3,
+          speed: 0.45 + Math.random() * 0.2,
+          phase: Math.random() * 10,
+          label: i % 3 === 0 ? "水" : "礦物離子",
+          color: "#3498db",
+          delay: i * 0.28,
+          channelX: cx
+        });
+      }
+    }
+    if (id === "carrier") {
+      const cx = W * 0.48;
+      atpState = { x: cx + 110, y: MEM_Y - 20, mode: "ready", ox: cx + 110, oy: MEM_Y - 90 };
+      particles.push({
+        kind: "carrierCargo",
+        x: cx - 30,
+        y: 55,
+        r: 18,
+        color: "#27ae60",
+        label: "葡萄糖",
+        carrierX: cx,
+        state: 0
+      });
+      particles.push({
+        kind: "atpViz",
+        carrierX: cx
+      });
+    }
+    if (id === "overview") {
+      const cx = W * 0.78;
+      particles.push({
+        kind: "carrierCargo",
+        x: cx,
+        y: MEM_Y - MEM_H / 2 - 50,
+        r: 18,
+        color: "#27ae60",
+        label: "葡萄糖",
+        carrierX: cx,
+        state: 0
+      });
+      particles.push({
+        kind: "carrierCargo",
+        x: cx + 40,
+        y: 60,
+        r: 17,
+        color: "#1abc9c",
+        label: "氨基酸",
+        carrierX: cx,
+        state: -1,
+        wait: 2.2
+      });
+    }
+    if (id === "blocked") {
+      particles.push({
+        kind: "big",
+        x: W * 0.45,
+        y: 100,
+        bob: 0
+      });
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          kind: "gas",
+          x: 100 + i * 55,
+          y: 50 + (i % 2) * 30,
+          r: 16,
+          speed: 0.4,
+          phase: i,
+          label: i % 2 ? "二氧化碳" : "氧氣",
+          color: "#e74c3c",
+          delay: i * 0.4
+        });
+      }
+    }
+    if (id === "structure") {
+      // no particles; maybe subtle float labels later
+    }
+  }
+
+  function updateParticles(dt) {
+    const id = scenes[sceneIndex].id;
+    const topBound = MEM_Y - MEM_H / 2;
+    const botBound = MEM_Y + MEM_H / 2;
+    const channelCx = W * 0.58;
+    const channelHalf = 58;
+
+    // age reject marks
+    rejectMarks = rejectMarks.filter(m => {
+      m.age += dt;
+      return m.age < 0.75;
+    });
+
+    particles.forEach(p => {
+      if (p.kind === "gas") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        p.y += p.speed * 60 * dt;
+        p.x += Math.sin(sceneT * 2 + p.phase) * 0.4;
+        if (p.y > H - 40) {
+          p.y = 30 + Math.random() * 40;
+          p.x = 60 + Math.random() * 300;
+        }
+      } else if (p.kind === "waterBounce") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        if (p.mode === "fall" || p.mode === "bounce") {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          // hit hydrophobic region (not over channel)
+          const overChannel = Math.abs(p.x - channelCx) < channelHalf;
+          if (p.y >= topBound - 4 && p.y <= topBound + 18 && !overChannel) {
+            // REPELLED by hydrophobic tails
+            p.vy = -Math.abs(p.vy) * 0.85 - 15;
+            p.vx += (Math.random() - 0.5) * 80;
+            p.y = topBound - 6;
+            p.bounces = (p.bounces || 0) + 1;
+            p.mode = "bounce";
+            rejectMarks.push({ x: p.x, y: topBound - 8, age: 0 });
+            // after a bounce or two, seek the channel
+            if (p.bounces >= 1) {
+              p.mode = "seek";
+            }
+          }
+          // ceiling / sides
+          if (p.y < 20) { p.y = 20; p.vy = Math.abs(p.vy) * 0.5 + 20; }
+          if (p.x < 40) { p.x = 40; p.vx = Math.abs(p.vx); }
+          if (p.x > W - 360) { p.x = W - 360; p.vx = -Math.abs(p.vx); }
+          // gravity-ish after bounce
+          p.vy += 55 * dt;
+        } else if (p.mode === "seek") {
+          p.x += (channelCx - p.x) * 0.06;
+          p.y += (topBound - 30 - p.y) * 0.05;
+          if (Math.abs(p.x - channelCx) < 18 && p.y > topBound - 45) {
+            p.mode = "through";
+          }
+        } else if (p.mode === "through") {
+          p.x += (channelCx - p.x) * 0.2;
+          p.y += 90 * dt;
+          if (p.y > botBound + 10) p.mode = "inside";
+        } else if (p.mode === "inside") {
+          p.y += 50 * dt;
+          p.x += Math.sin(sceneT * 2 + p.phase) * 0.4;
+          if (p.y > H - 30) {
+            // respawn outside to bounce again
+            p.x = 80 + Math.random() * 260;
+            p.y = 20 + Math.random() * 50;
+            p.vx = (Math.random() - 0.5) * 30;
+            p.vy = 35 + Math.random() * 25;
+            p.bounces = 0;
+            p.mode = "fall";
+            p.delay = sceneT; // immediate
+          }
+        }
+      } else if (p.kind === "waterChannel") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        const cx = p.channelX;
+        if (p.mode === "approach") {
+          p.x += (cx - p.x) * 0.08;
+          p.y += p.speed * 55 * dt;
+          if (p.y >= topBound - 5) p.mode = "through";
+        } else if (p.mode === "through") {
+          p.x += (cx - p.x) * 0.3;
+          p.y += p.speed * 75 * dt;
+          if (p.y > botBound + 5) p.mode = "inside";
+        } else {
+          p.y += p.speed * 55 * dt;
+          p.x += Math.sin(sceneT * 3 + p.phase) * 0.5;
+          if (p.y > H - 30) {
+            p.y = 20 + Math.random() * 40;
+            p.x = cx + (Math.random() - 0.5) * 70;
+            p.mode = "approach";
+          }
+        }
+      } else if (p.kind === "ion") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        const cx = p.channelX;
+        if (p.y < topBound - 5) {
+          p.x += (cx - p.x) * 0.08;
+          p.y += p.speed * 55 * dt;
+        } else if (p.y < botBound + 5) {
+          p.x += (cx - p.x) * 0.25;
+          p.y += p.speed * 70 * dt;
+        } else {
+          p.y += p.speed * 55 * dt;
+          p.x += Math.sin(sceneT * 3 + p.phase) * 0.5;
+        }
+        if (p.y > H - 30) {
+          p.y = 25 + Math.random() * 50;
+          p.x = cx + (Math.random() - 0.5) * 60;
+        }
+      } else if (p.kind === "carrierCargo") {
+        if (p.state < 0) {
+          if (sceneT > (p.wait || 0)) p.state = 0;
+          else return;
+        }
+        const ph = carrierPhase;
+        const cx = p.carrierX;
+        // 閉合 → 結合物質 → 接觸 ATP → 打開 → 進入細胞
+        if (ph < 0.18) {
+          // approach closed pocket (outside)
+          const ty = MEM_Y - MEM_H / 2 - 22;
+          p.x += (cx - p.x) * 0.12;
+          p.y += (ty - p.y) * 0.1;
+        } else if (ph < 0.40) {
+          // sit in closed U pocket
+          p.x = cx;
+          p.y = MEM_Y - MEM_H / 2 + 8;
+        } else if (ph < 0.55) {
+          // still held while ATP contacts (pocket starts to flip)
+          const u = (ph - 0.40) / 0.15;
+          p.x = cx;
+          p.y = MEM_Y - MEM_H / 2 + 8 + u * (MEM_H * 0.45);
+        } else if (ph < 0.78) {
+          // open toward inside — release downward
+          const u = (ph - 0.55) / 0.23;
+          p.x = cx;
+          p.y = MEM_Y + u * (MEM_H / 2 + 70);
+        } else {
+          const u = (ph - 0.78) / 0.22;
+          p.x = cx + Math.sin(u * 3) * 6;
+          p.y = MEM_Y + MEM_H / 2 + 70 + u * 50;
+          if (ph > 0.93) {
+            p.y = 40 + Math.random() * 30;
+            p.x = cx + (Math.random() - 0.5) * 60;
+          }
+        }
+      } else if (p.kind === "atpViz") {
+        // visual state driven by carrierPhase — positions updated in draw
+      } else if (p.kind === "big") {
+        p.bob += dt;
+        const targetY = MEM_Y - MEM_H / 2 - 55 + Math.sin(p.bob * 2) * 12;
+        p.y += (targetY - p.y) * 0.1;
+        p.x = W * 0.45 + Math.sin(p.bob * 0.7) * 30;
+      }
+    });
+  }
+
+  function drawScene(phase) {
+    ctx.clearRect(0, 0, W, H);
+
+    // background wash
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#e8f0f8");
+    bg.addColorStop(0.45, "#f5f8fb");
+    bg.addColorStop(0.55, "#f5f8fb");
+    bg.addColorStop(1, "#e4edf5");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const id = scenes[sceneIndex].id;
+    let gaps = [];
+
+    if (id === "channel") {
+      gaps = [{ x0: W * 0.58 - 68, x1: W * 0.58 + 68 }];
+    } else if (id === "carrier") {
+      gaps = [{ x0: W * 0.48 - 72, x1: W * 0.48 + 72 }];
+    } else if (id === "overview") {
+      gaps = [
+        { x0: W * 0.52 - 68, x1: W * 0.52 + 68 },
+        { x0: W * 0.78 - 72, x1: W * 0.78 + 72 }
+      ];
+    } else if (id === "structure") {
+      gaps = [{ x0: W * 0.72 - 52, x1: W * 0.72 + 52 }];
+    }
+
+    drawBilayer(phase, gaps);
+    drawLabels();
+
+    // Structure annotations
+    if (id === "structure") {
+      // bracket for hydrophilic heads
+      const hx = W - 200;
+      drawCallout(W * 0.35, MEM_Y - MEM_H / 2 - 28, "親水頭部", "#d4920a");
+      drawCallout(W * 0.62, MEM_Y, "疏水尾部", "#3a7ab5");
+      drawCallout(W * 0.35, MEM_Y + MEM_H / 2 + 28, "親水頭部", "#d4920a");
+      drawAnnotationBox(W - 310, 100, [
+        "流動鑲嵌模型要點：",
+        "• 磷脂可側向移動（流動）",
+        "• 蛋白散佈其間（鑲嵌）",
+        "• 雙層使膜具差異透性"
+      ], "#2c5aa0");
+
+      const px = W * 0.72;
+      ctx.fillStyle = "#7b5ea7";
+      roundRect(px - 38, MEM_Y - 68, 76, 136, 16);
+      ctx.fill();
+      ctx.fillStyle = "#5a3d8a";
+      roundRect(px - 24, MEM_Y - 48, 48, 96, 12);
+      ctx.fill();
+      drawCallout(px, MEM_Y + 70, "膜蛋白（鑲嵌）", "#5a3d8a");
+    }
+
+    if (id === "simple") {
+      drawAnnotationBox(W - 340, 90, [
+        "簡單擴散",
+        "• 細小非極性／脂溶性",
+        "• 例：氧氣、二氧化碳",
+        "• 直接穿過磷脂雙層",
+        "• 由高濃度 → 低濃度"
+      ], "#c0392b");
+      drawCallout(220, MEM_Y - 70, "直接穿過雙層", "#c0392b");
+    }
+
+    if (id === "channel") {
+      const cx = W * 0.58;
+      drawChannel(cx, true);
+      drawCallout(cx, MEM_Y + MEM_H / 2 + 48, "通道蛋白", "#5a3d8a");
+      drawCallout(W * 0.28, MEM_Y - 8, "疏水尾部排斥", "#c0392b");
+      drawCallout(cx, MEM_Y - MEM_H / 2 - 36, "經通道蛋白進入", "#1e8449");
+      // highlight hydrophobic core band away from channel
+      ctx.fillStyle = "rgba(192, 57, 43, 0.08)";
+      ctx.fillRect(40, MEM_Y - 22, cx - 55, 44);
+      drawAnnotationBox(W - 350, 80, [
+        "為何需要通道蛋白？",
+        "• 例：水、礦物離子",
+        "• 它們是極性／帶電",
+        "• 疏水尾部會排斥它們",
+        "• 靠近雙層會被「彈開」",
+        "• 須經通道蛋白進入細胞"
+      ], "#2980b9");
+      drawRejectMarks(rejectMarks);
+    }
+
+    if (id === "carrier") {
+      const cx = W * 0.48;
+      // 閉合 → 結合物質 → 接觸 ATP → 打開 → 進入細胞
+      carrierPhase = (sceneT % 6) / 6;
+      drawCarrier(cx, carrierPhase);
+
+      const ph = carrierPhase;
+      // Dynamic state label on the protein
+      let stateLabel = "閉合";
+      let stateColor = "#5a3d8a";
+      if (ph < 0.18) { stateLabel = "閉合"; stateColor = "#5a3d8a"; }
+      else if (ph < 0.40) { stateLabel = "結合物質"; stateColor = "#1e8449"; }
+      else if (ph < 0.55) { stateLabel = "接觸 ATP"; stateColor = "#e67e22"; }
+      else if (ph < 0.78) { stateLabel = "打開"; stateColor = "#2c5aa0"; }
+      else { stateLabel = "物質進入細胞"; stateColor = "#1e8449"; }
+
+      drawCallout(cx, MEM_Y + MEM_H / 2 + 56, "載體蛋白（" + stateLabel + "）", stateColor);
+      drawCallout(cx + 170, MEM_Y - MEM_H / 2 - 50, "主動運輸", "#c0392b");
+
+      let atpX = cx + 130, atpY = MEM_Y - 85, atpLabel = "ATP", showAtp = true;
+      if (ph < 0.35) {
+        atpX = cx + 135; atpY = MEM_Y - 90;
+        atpLabel = "ATP";
+      } else if (ph < 0.55) {
+        const u = (ph - 0.35) / 0.20;
+        atpX = cx + 135 - u * 58;
+        atpY = MEM_Y - 90 + u * 70;
+        atpLabel = "接觸 ATP";
+      } else if (ph < 0.82) {
+        atpX = cx + 78; atpY = MEM_Y - 12;
+        atpLabel = "ATP 提供能量";
+      } else {
+        const u = (ph - 0.82) / 0.18;
+        atpX = cx + 145; atpY = MEM_Y - 100;
+        atpLabel = "ATP";
+        if (u < 0.3) showAtp = false; // brief gap before next ATP
+      }
+      if (showAtp) drawATP(atpX, atpY, atpLabel, false);
+
+      if (ph >= 0.50 && ph < 0.78) {
+        ctx.fillStyle = "#e67e22";
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("打開 → 物質進入細胞內", cx + 100, MEM_Y + 12);
+      }
+
+      drawAnnotationBox(W - 340, 80, [
+        "載體蛋白（主動運輸）",
+        "例：葡萄糖、氨基酸",
+        "① 閉合（口袋向外）",
+        "② 結合物質",
+        "③ 接觸 ATP",
+        "④ 打開（朝向細胞內）",
+        "⑤ 物質進入細胞",
+        "ATP 提供能量（不講水解）"
+      ], "#1e8449");
+    }
+
+    if (id === "blocked") {
+      drawAnnotationBox(W - 340, 90, [
+        "大分子一般不能通過",
+        "• 體積太大，無法穿過",
+        "  雙層或一般通道／載體",
+        "• 對照：小分子可簡單擴散",
+        "• （胞吞／胞吐另述）"
+      ], "#7f8c8d");
+      drawCallout(W * 0.45, MEM_Y - MEM_H / 2 - 90, "大分子 ✕", "#c0392b");
+    }
+
+    if (id === "overview") {
+      drawChannel(W * 0.52, true);
+      carrierPhase = (sceneT % 4) / 4;
+      drawCarrier(W * 0.78, carrierPhase);
+      drawCallout(160, MEM_Y - MEM_H / 2 - 36, "① 簡單擴散", "#c0392b");
+      drawCallout(W * 0.52, MEM_Y + MEM_H / 2 + 48, "② 通道蛋白", "#2980b9");
+      drawCallout(W * 0.78, MEM_Y + MEM_H / 2 + 48, "③ 載體蛋白", "#1e8449");
+      drawAnnotationBox(W - 300, 40, [
+        "差異透性",
+        "不同物質循不同途徑",
+        "穿越同一細胞膜"
+      ], "#2c5aa0");
+    }
+
+    // Particles on top
+    particles.forEach(p => {
+      if (p.kind === "gas" || p.kind === "ion" || p.kind === "waterChannel") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        drawMolecule(p.x, p.y, p.r, p.color, p.label);
+      } else if (p.kind === "waterBounce") {
+        const age = sceneT - (p.delay || 0);
+        if (age < 0) return;
+        drawMolecule(p.x, p.y, p.r, p.color, p.label);
+      } else if (p.kind === "carrierCargo") {
+        if (p.state < 0) return;
+        if (carrierPhase > 0.92) return;
+        drawMolecule(p.x, p.y, p.r, p.color, carrierPhase < 0.2 || carrierPhase > 0.7 ? p.label : "");
+      } else if (p.kind === "atpViz") {
+        // drawn in carrier scene block
+      } else if (p.kind === "big") {
+        drawBigMolecule(p.x, p.y, true);
+        ctx.fillStyle = "#1a2332";
+        ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("大分子（如蛋白質）", p.x, p.y + 42);
+      }
+    });
+
+    if (id === "channel") {
+      drawRejectMarks(rejectMarks);
+    }
+
+    // Scene progress dots
+    const dotY = 18;
+    const dotX0 = W / 2 - (scenes.length - 1) * 12;
+    scenes.forEach((_, i) => {
+      ctx.beginPath();
+      ctx.arc(dotX0 + i * 24, dotY, i === sceneIndex ? 5 : 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = i === sceneIndex ? "#2c5aa0" : "#b0bec8";
+      ctx.fill();
+    });
+  }
+
+  // Auto-advance for overview loop feel — optional: stay on scene until user advances
+  // Keep scenes manual; particles loop within scene.
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (playing) {
+      sceneT += dt;
+      if (scenes[sceneIndex].id === "carrier") {
+        carrierPhase = (sceneT % 6) / 6;
+      } else if (scenes[sceneIndex].id === "overview") {
+        carrierPhase = (sceneT % 4) / 4;
+      }
+      updateParticles(dt);
+    }
+    const phase = sceneT * 1.2;
+    drawScene(phase);
+    requestAnimationFrame(frame);
+  }
+
+  // Controls
+  btnPlay.addEventListener("click", () => {
+    playing = !playing;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", () => goScene(sceneIndex - 1));
+  document.getElementById("btnNext").addEventListener("click", () => goScene(sceneIndex + 1));
+  document.getElementById("btnRestart").addEventListener("click", restartScene);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.key === " " || e.code === "Space") { e.preventDefault(); playing = !playing; updateUI(); }
+    else if (e.key === "r" || e.key === "R") { restartScene(); }
+  });
+
+  initParticles();
+  updateUI();
+
+  // Deep-link: #1 .. #6 or #structure etc.
+  function applyHash() {
+    const h = (location.hash || "").replace(/^#/, "");
+    if (!h) return;
+    const n = parseInt(h, 10);
+    if (n >= 1 && n <= scenes.length) { goScene(n - 1); return; }
+    const idx = scenes.findIndex(s => s.id === h);
+    if (idx >= 0) goScene(idx);
+  }
+  window.addEventListener("hashchange", applyHash);
+  applyHash();
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

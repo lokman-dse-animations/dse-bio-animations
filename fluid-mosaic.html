@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流動鑲嵌模型 — 細胞膜結構</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --head: #f0b429;
+    --head-edge: #d4920a;
+    --tail: #5b9bd5;
+    --protein: #7b5ea7;
+    --protein-dark: #5a3d8a;
+    --carb: #e67e22;
+    --chol: #3d9b6e;
+    --ok: #2e7d4f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 420px;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+  .swatch.rect {
+    border-radius: 3px;
+    width: 18px;
+    height: 12px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .scene-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+  .scene-desc {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .scene-desc strong { color: var(--accent); }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .step-btn {
+    text-align: left;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block;
+    width: 1.4em;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: #eef2f7;
+    color: var(--ink);
+  }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  footer {
+    text-align: center;
+    padding: 8px 16px 14px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>流動鑲嵌模型</h1>
+  <span class="sub">細胞膜結構 · 香港中學文憑試生物學 · 中四</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="流動鑲嵌模型動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#f0b429"></span>親水頭部</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#5b9bd5"></span>疏水尾部</span>
+      <span class="legend-item"><span class="swatch" style="background:#7b5ea7;border-radius:4px"></span>膜蛋白</span>
+      <span class="legend-item"><span class="swatch" style="background:#e67e22"></span>碳水化合物</span>
+      <span class="legend-item"><span class="swatch" style="background:#3d9b6e;border-radius:3px;width:10px;height:16px"></span>膽固醇</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：磷脂雙層結構</div>
+      <p class="scene-desc" id="sceneDesc">細胞膜主要由<strong>磷脂雙層</strong>組成。黃色圓球為<strong>親水頭部</strong>，藍色彎曲線為<strong>疏水尾部</strong>。</p>
+    </div>
+
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重播本場景</button>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重播本場景<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應 DSE 生物「流動鑲嵌模型」· 教師：Lok Man Chan · 請離線以 Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const MEM_Y = H * 0.48;
+  const MEM_H = 200;
+  const HEAD_R = 17;
+  const COLS = 22;
+  const COL_GAP = (W - 100) / (COLS - 1);
+  const X0 = 50;
+
+  const scenes = [
+    {
+      id: "structure",
+      title: "場景 1：磷脂雙層結構",
+      desc: "細胞膜主要由<strong>磷脂雙層</strong>組成。黃色圓球＝<strong>親水頭部</strong>（面向細胞外液與細胞質）；藍色彎曲線＝<strong>疏水尾部</strong>（互相相對、避開水）。標示<strong>細胞外</strong>與<strong>細胞內</strong>。"
+    },
+    {
+      id: "lateral",
+      title: "場景 2：磷脂橫向移動",
+      desc: "磷脂分子<strong>沒有被強化學鍵固定</strong>，可在同一層內<strong>橫向滑動</strong>（旁側移動）。請留意黃色頭部在膜內左右「漂移」——這就是膜具<strong>流動性</strong>的關鍵證據。"
+    },
+    {
+      id: "proteins",
+      title: "場景 3：膜蛋白如冰山漂浮",
+      desc: "紫色的<strong>膜蛋白</strong>鑲嵌在磷脂雙層中；若空間允許，它們也能<strong>橫向移動</strong>，像<strong>冰山漂浮在海上</strong>。糖蛋白外側有橙色<strong>碳水化合物</strong>鏈。"
+    },
+    {
+      id: "naming",
+      title: "場景 4：為何稱「流動鑲嵌」",
+      desc: "<strong>流動</strong>：磷脂與部分蛋白可橫向移動，膜像液體般流動。<strong>鑲嵌</strong>：蛋白分子散佈在磷脂之間，俯視如<strong>馬賽克／鑲嵌圖案</strong>。合稱<strong>流動鑲嵌模型</strong>。"
+    },
+    {
+      id: "cholesterol",
+      title: "場景 5：膽固醇維持流動性",
+      desc: "動物細胞膜含<strong>膽固醇</strong>（綠色）。高溫時限制磷脂過度移動，避免膜過稀；低溫時阻止磷脂排得太密，保持柔韌——幫助<strong>維持適當流動性</strong>。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+  let lastTs = performance.now();
+
+  // Phospholipid lateral positions (per column index) — allow sliding
+  let lipidOffsets = [];   // top layer x offsets from base
+  let lipidOffsetsBot = [];
+  let lipidVel = [];
+  let lipidVelBot = [];
+  let lipidPhase = [];
+
+  // Membrane proteins that can drift
+  let proteins = [];
+
+  // Mosaic tiles for scene 4
+  let mosaicTiles = [];
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    lastTs = performance.now();
+    initScene();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+    lastTs = performance.now();
+    initScene();
+  }
+
+  function initScene() {
+    lipidOffsets = [];
+    lipidOffsetsBot = [];
+    lipidVel = [];
+    lipidVelBot = [];
+    lipidPhase = [];
+    proteins = [];
+    mosaicTiles = [];
+
+    for (let i = 0; i < COLS; i++) {
+      lipidOffsets[i] = 0;
+      lipidOffsetsBot[i] = 0;
+      lipidVel[i] = 0;
+      lipidVelBot[i] = 0;
+      lipidPhase[i] = Math.random() * Math.PI * 2;
+    }
+
+    const id = scenes[sceneIndex].id;
+
+    if (id === "lateral" || id === "proteins" || id === "naming" || id === "cholesterol") {
+      // Give each lipid a small random lateral velocity for continuous sliding
+      for (let i = 0; i < COLS; i++) {
+        lipidVel[i] = (Math.random() - 0.5) * 28;
+        lipidVelBot[i] = (Math.random() - 0.5) * 28;
+        lipidOffsets[i] = (Math.random() - 0.5) * COL_GAP * 0.4;
+        lipidOffsetsBot[i] = (Math.random() - 0.5) * COL_GAP * 0.4;
+      }
+    }
+
+    if (id === "proteins" || id === "naming" || id === "cholesterol") {
+      // Channel protein (transmembrane)
+      proteins.push({
+        kind: "channel",
+        x: W * 0.32,
+        vx: 12,
+        w: 56,
+        label: "通道蛋白",
+        showCarb: false
+      });
+      // Carrier-like / receptor with glycoprotein
+      proteins.push({
+        kind: "glyco",
+        x: W * 0.58,
+        vx: -9,
+        w: 48,
+        label: "糖蛋白",
+        showCarb: true
+      });
+      // Peripheral / enzyme-like on inner side
+      proteins.push({
+        kind: "peripheral",
+        x: W * 0.78,
+        vx: 7,
+        w: 40,
+        label: "酶",
+        showCarb: false
+      });
+    }
+
+    if (id === "naming") {
+      // Mosaic tiles for top-down inset
+      const colors = ["#7b5ea7", "#f0b429", "#5b9bd5", "#8f73b8", "#e8c547", "#6aa3d5", "#9b7bb8", "#d4a017"];
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 7; c++) {
+          mosaicTiles.push({
+            r, c,
+            color: colors[(r * 7 + c) % colors.length],
+            isProtein: (r * 7 + c) % 3 === 0
+          });
+        }
+      }
+    }
+  }
+
+  // --- Drawing helpers ---
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawHead(x, y, highlight) {
+    const g = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, HEAD_R);
+    g.addColorStop(0, highlight ? "#ffe08a" : "#ffd666");
+    g.addColorStop(0.7, "#f0b429");
+    g.addColorStop(1, "#d4920a");
+    ctx.beginPath();
+    ctx.arc(x, y, HEAD_R, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(180,120,20,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawTail(x, yTop, yBot, phase, flip) {
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.lineWidth = 4.2;
+    ctx.lineCap = "round";
+    for (let k = 0; k < 2; k++) {
+      const ox = (k === 0 ? -5.5 : 5.5);
+      ctx.beginPath();
+      const steps = 10;
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const y = yTop + (yBot - yTop) * u;
+        const wave = Math.sin(u * Math.PI * 2.2 + phase + k) * 4.5 * (flip ? -1 : 1);
+        const xx = x + ox + wave;
+        if (i === 0) ctx.moveTo(xx, y);
+        else ctx.lineTo(xx, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawSinglePhospholipid(x, layer, phase, highlight) {
+    // layer: "top" (heads up) or "bot" (heads down)
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    const botHeadY = MEM_Y + MEM_H / 2 - HEAD_R;
+    const mid = MEM_Y;
+    if (layer === "top") {
+      drawTail(x, topHeadY + HEAD_R * 0.55, mid - 2, phase, false);
+      drawHead(x, topHeadY, highlight);
+    } else {
+      drawTail(x, mid + 2, botHeadY - HEAD_R * 0.55, phase + 1.1, true);
+      drawHead(x, botHeadY, highlight);
+    }
+  }
+
+  function proteinGap(x) {
+    // returns true if this x overlaps a protein
+    for (const p of proteins) {
+      const half = (p.w || 48) + 8;
+      if (Math.abs(x - p.x) < half) return true;
+    }
+    return false;
+  }
+
+  function drawBilayerWithOffsets(phase, animateLateral) {
+    // soft membrane band
+    ctx.fillStyle = "rgba(91,155,213,0.08)";
+    ctx.fillRect(20, MEM_Y - MEM_H / 2 - 4, W - 40, MEM_H + 8);
+
+    // Draw phospholipids with lateral offsets; skip those overlapping proteins
+    // Sort by x so overlapping looks ok
+    const topItems = [];
+    const botItems = [];
+    for (let i = 0; i < COLS; i++) {
+      const baseX = X0 + i * COL_GAP;
+      const tx = baseX + (animateLateral ? lipidOffsets[i] : 0);
+      const bx = baseX + (animateLateral ? lipidOffsetsBot[i] : 0);
+      topItems.push({ x: tx, i, phase: phase + i * 0.35 });
+      botItems.push({ x: bx, i, phase: phase + i * 0.35 + 0.8 });
+    }
+    topItems.sort((a, b) => a.x - b.x);
+    botItems.sort((a, b) => a.x - b.x);
+
+    topItems.forEach(it => {
+      if (it.x < 30 || it.x > W - 30) return;
+      if (proteinGap(it.x)) return;
+      const hl = animateLateral && Math.abs(lipidVel[it.i]) > 8;
+      drawSinglePhospholipid(it.x, "top", it.phase, hl);
+    });
+    botItems.forEach(it => {
+      if (it.x < 30 || it.x > W - 30) return;
+      if (proteinGap(it.x)) return;
+      const hl = animateLateral && Math.abs(lipidVelBot[it.i]) > 8;
+      drawSinglePhospholipid(it.x, "bot", it.phase, hl);
+    });
+  }
+
+  function drawStaticBilayer(phase) {
+    ctx.fillStyle = "rgba(91,155,213,0.08)";
+    ctx.fillRect(20, MEM_Y - MEM_H / 2 - 4, W - 40, MEM_H + 8);
+    for (let i = 0; i < COLS; i++) {
+      const x = X0 + i * COL_GAP;
+      drawSinglePhospholipid(x, "top", phase + i * 0.35, false);
+      drawSinglePhospholipid(x, "bot", phase + i * 0.35 + 0.8, false);
+    }
+  }
+
+  function drawLabels() {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("細胞外", 36, 56);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（細胞外液）", 36, 90);
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("細胞內", 36, H - 56);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（細胞質）", 36, H - 22);
+  }
+
+  function drawCallout(x, y, text, color) {
+    ctx.font = "bold 24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 10;
+    roundRect(x - tw / 2 - pad, y - 16, tw + pad * 2, 32, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawArrow(x1, y1, x2, y2, color) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    const ah = 12;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - ux * ah - uy * ah * 0.45, y2 - uy * ah + ux * ah * 0.45);
+    ctx.lineTo(x2 - ux * ah + uy * ah * 0.45, y2 - uy * ah - ux * ah * 0.45);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawAnnotationBox(x, y, lines, color) {
+    ctx.font = "20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    let maxW = 0;
+    lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+    const pad = 12;
+    const lh = 24;
+    const boxH = lines.length * lh + pad * 2 - 4;
+    const boxW = maxW + pad * 2;
+    roundRect(x, y, boxW, boxH, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color || "#2c5aa0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "left";
+    lines.forEach((l, i) => {
+      ctx.fillText(l, x + pad, y + pad + 16 + i * lh);
+    });
+  }
+
+  function drawChannelProtein(cx) {
+    const top = MEM_Y - MEM_H / 2 - 6;
+    const bot = MEM_Y + MEM_H / 2 + 6;
+    const hw = 50;
+    const pore = 20;
+
+    ctx.fillStyle = "#7b5ea7";
+    roundRect(cx - hw, top, hw * 2, bot - top, 14);
+    ctx.fill();
+    ctx.fillStyle = "#5a3d8a";
+    roundRect(cx - hw + 4, top + 4, hw * 2 - 8, bot - top - 8, 10);
+    ctx.fill();
+    ctx.fillStyle = "rgba(238,244,251,0.95)";
+    roundRect(cx - pore, top + 6, pore * 2, bot - top - 12, pore);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw + 8, top + 12);
+    ctx.lineTo(cx - hw + 8, bot - 12);
+    ctx.stroke();
+  }
+
+  function drawGlycoProtein(cx) {
+    const top = MEM_Y - MEM_H / 2 - 4;
+    const bot = MEM_Y + MEM_H / 2 + 4;
+    const hw = 42;
+
+    // transmembrane body
+    ctx.fillStyle = "#7b5ea7";
+    roundRect(cx - hw, top, hw * 2, bot - top, 12);
+    ctx.fill();
+    ctx.fillStyle = "#8f73b8";
+    roundRect(cx - hw + 6, top + 8, hw * 2 - 12, bot - top - 16, 8);
+    ctx.fill();
+
+    // carbohydrate chains (orange branches) on extracellular side
+    const carbY = top - 8;
+    ctx.strokeStyle = "#e67e22";
+    ctx.fillStyle = "#e67e22";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    const branches = [-18, 0, 18];
+    branches.forEach((bx, bi) => {
+      ctx.beginPath();
+      ctx.moveTo(cx + bx * 0.3, top + 4);
+      ctx.quadraticCurveTo(cx + bx, top - 10, cx + bx, carbY - 20 - bi * 4);
+      ctx.stroke();
+      // sugar blobs
+      for (let s = 0; s < 3; s++) {
+        const t = 0.35 + s * 0.25;
+        const sx = cx + bx * t;
+        const sy = top + 4 + (carbY - 20 - bi * 4 - top - 4) * t;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }
+
+  function drawPeripheralProtein(cx) {
+    // enzyme-like attached to inner surface
+    const bot = MEM_Y + MEM_H / 2 - 4;
+    const w = 56, h = 44;
+    ctx.fillStyle = "#7b5ea7";
+    roundRect(cx - w / 2, bot - 8, w, h, 10);
+    ctx.fill();
+    ctx.fillStyle = "#9b7bb8";
+    roundRect(cx - w / 2 + 6, bot - 2, w - 12, h - 14, 6);
+    ctx.fill();
+  }
+
+  function drawProteins() {
+    proteins.forEach(p => {
+      if (p.kind === "channel") drawChannelProtein(p.x);
+      else if (p.kind === "glyco") drawGlycoProtein(p.x);
+      else if (p.kind === "peripheral") drawPeripheralProtein(p.x);
+
+      if (p.label) {
+        const ly = p.kind === "peripheral"
+          ? MEM_Y + MEM_H / 2 + 55
+          : MEM_Y - MEM_H / 2 - (p.kind === "glyco" ? 58 : 28);
+        drawCallout(p.x, ly, p.label, "#5a3d8a");
+      }
+    });
+  }
+
+  function drawCholesterol(x, inTop) {
+    // green multi-ring stylized molecule between tails
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    const botHeadY = MEM_Y + MEM_H / 2 - HEAD_R;
+    const mid = MEM_Y;
+    const cy = inTop
+      ? (topHeadY + mid) / 2 + 8
+      : (mid + botHeadY) / 2 - 8;
+
+    ctx.save();
+    ctx.translate(x, cy);
+    ctx.fillStyle = "#3d9b6e";
+    // four fused rings as rounded rects / ellipses
+    roundRect(-10, -16, 14, 18, 3);
+    ctx.fill();
+    roundRect(2, -14, 12, 16, 3);
+    ctx.fill();
+    roundRect(-8, 0, 12, 14, 3);
+    ctx.fill();
+    roundRect(2, 2, 10, 12, 3);
+    ctx.fill();
+    // short tail
+    ctx.strokeStyle = "#2e7d4f";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(10, 10);
+    ctx.lineTo(16, 18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMosaicInset() {
+    // Top-down mosaic view in upper-right corner
+    const ix = W - 340;
+    const iy = 28;
+    const iw = 300;
+    const ih = 200;
+
+    roundRect(ix, iy, iw, ih, 12);
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("俯視：鑲嵌圖案", ix + iw / 2, iy + 28);
+
+    const gridX = ix + 24;
+    const gridY = iy + 44;
+    const tw = 36;
+    const th = 28;
+    mosaicTiles.forEach(t => {
+      const x = gridX + t.c * (tw + 4);
+      const y = gridY + t.r * (th + 4);
+      if (t.isProtein) {
+        roundRect(x, y, tw, th, 6);
+        ctx.fillStyle = "#7b5ea7";
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x + tw / 2, y + th / 2, 11, 0, Math.PI * 2);
+        ctx.fillStyle = "#f0b429";
+        ctx.fill();
+        // tiny blue hint of tail
+        ctx.fillStyle = "#5b9bd5";
+        ctx.fillRect(x + tw / 2 - 2, y + th / 2 + 4, 4, 6);
+      }
+    });
+
+    // legend under mosaic
+    ctx.font = "16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#7b5ea7";
+    roundRect(ix + 20, iy + ih - 36, 14, 14, 3);
+    ctx.fill();
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("蛋白", ix + 40, iy + ih - 24);
+    ctx.beginPath();
+    ctx.arc(ix + 100, iy + ih - 29, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#f0b429";
+    ctx.fill();
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("磷脂", ix + 114, iy + ih - 24);
+  }
+
+  function drawLateralArrows() {
+    // Animated double arrows showing sideways motion on top layer
+    const y = MEM_Y - MEM_H / 2 - 42;
+    const pulse = 0.5 + 0.5 * Math.sin(sceneT * 3);
+    ctx.save();
+    ctx.globalAlpha = 0.55 + pulse * 0.4;
+
+    // left-pointing group
+    drawArrow(W * 0.42, y, W * 0.28, y, "#c0392b");
+    // right-pointing group
+    drawArrow(W * 0.58, y, W * 0.72, y, "#c0392b");
+
+    ctx.restore();
+    drawCallout(W * 0.5, y - 28, "橫向移動 ← →", "#c0392b");
+  }
+
+  function drawIcebergCaption() {
+    drawAnnotationBox(W - 360, H - 130, [
+      "比喻：膜蛋白如冰山",
+      "漂浮在磷脂「海」上，",
+      "可緩慢橫向移動"
+    ], "#5a3d8a");
+  }
+
+  // --- Update lateral motion ---
+  function updateLipids(dt) {
+    const id = scenes[sceneIndex].id;
+    if (id === "structure") return;
+
+    const minX = X0 - COL_GAP * 0.3;
+    const maxX = X0 + (COLS - 1) * COL_GAP + COL_GAP * 0.3;
+
+    for (let i = 0; i < COLS; i++) {
+      // occasional velocity nudge for organic feel
+      if (Math.random() < 0.02) {
+        lipidVel[i] += (Math.random() - 0.5) * 20;
+        lipidVelBot[i] += (Math.random() - 0.5) * 20;
+      }
+      // damping
+      lipidVel[i] *= 0.992;
+      lipidVelBot[i] *= 0.992;
+      // clamp speed
+      lipidVel[i] = Math.max(-40, Math.min(40, lipidVel[i]));
+      lipidVelBot[i] = Math.max(-40, Math.min(40, lipidVelBot[i]));
+
+      lipidOffsets[i] += lipidVel[i] * dt;
+      lipidOffsetsBot[i] += lipidVelBot[i] * dt;
+
+      // wrap: keep within membrane span by wrapping offset relative to base
+      const base = X0 + i * COL_GAP;
+      let tx = base + lipidOffsets[i];
+      if (tx < minX) lipidOffsets[i] += (maxX - minX);
+      if (tx > maxX) lipidOffsets[i] -= (maxX - minX);
+      let bx = base + lipidOffsetsBot[i];
+      if (bx < minX) lipidOffsetsBot[i] += (maxX - minX);
+      if (bx > maxX) lipidOffsetsBot[i] -= (maxX - minX);
+
+      // soft repulsion between neighboring lipids in same layer
+      for (let j = i + 1; j < COLS; j++) {
+        const dTop = (base + lipidOffsets[i]) - (X0 + j * COL_GAP + lipidOffsets[j]);
+        if (Math.abs(dTop) < HEAD_R * 2.1) {
+          const push = (HEAD_R * 2.1 - Math.abs(dTop)) * 0.5 * Math.sign(dTop || 1);
+          lipidOffsets[i] += push * dt * 8;
+          lipidOffsets[j] -= push * dt * 8;
+        }
+        const dBot = (base + lipidOffsetsBot[i]) - (X0 + j * COL_GAP + lipidOffsetsBot[j]);
+        if (Math.abs(dBot) < HEAD_R * 2.1) {
+          const push = (HEAD_R * 2.1 - Math.abs(dBot)) * 0.5 * Math.sign(dBot || 1);
+          lipidOffsetsBot[i] += push * dt * 8;
+          lipidOffsetsBot[j] -= push * dt * 8;
+        }
+      }
+    }
+  }
+
+  function updateProteins(dt) {
+    const id = scenes[sceneIndex].id;
+    if (id !== "proteins" && id !== "naming" && id !== "cholesterol") return;
+
+    const margin = 100;
+    proteins.forEach(p => {
+      // bounce off other proteins
+      proteins.forEach(q => {
+        if (p === q) return;
+        const dx = p.x - q.x;
+        const minD = (p.w + q.w) / 2 + 20;
+        if (Math.abs(dx) < minD) {
+          const push = (minD - Math.abs(dx)) * 0.5;
+          p.vx += Math.sign(dx || 1) * push * 0.8;
+          q.vx -= Math.sign(dx || 1) * push * 0.8;
+        }
+      });
+      // damping + clamp
+      p.vx *= 0.995;
+      p.vx = Math.max(-22, Math.min(22, p.vx));
+      if (Math.abs(p.vx) < 4) p.vx += (Math.random() - 0.5) * 3;
+
+      p.x += p.vx * dt;
+      if (p.x < margin) { p.x = margin; p.vx = Math.abs(p.vx); }
+      if (p.x > W - margin) { p.x = W - margin; p.vx = -Math.abs(p.vx); }
+    });
+  }
+
+  // --- Scene renderers ---
+  function renderStructure(phase) {
+    drawStaticBilayer(phase);
+    drawLabels();
+
+    // Callouts for head / tail
+    const sampleX = X0 + 8 * COL_GAP;
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    const midY = MEM_Y;
+
+    // Leader lines
+    ctx.strokeStyle = "#d4920a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sampleX + HEAD_R + 4, topHeadY);
+    ctx.lineTo(sampleX + 110, topHeadY - 50);
+    ctx.stroke();
+    drawCallout(sampleX + 170, topHeadY - 50, "親水頭部", "#d4920a");
+
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.beginPath();
+    ctx.moveTo(sampleX + 8, midY - 30);
+    ctx.lineTo(sampleX + 120, midY - 70);
+    ctx.stroke();
+    drawCallout(sampleX + 190, midY - 70, "疏水尾部", "#3a7aad");
+
+    // bilayer label
+    drawCallout(W * 0.72, MEM_Y, "磷脂雙層", "#2c5aa0");
+
+    drawAnnotationBox(W - 380, H - 140, [
+      "頭部親水 → 朝向水中",
+      "尾部疏水 → 相對排列",
+      "自動形成雙層結構"
+    ], "#2c5aa0");
+  }
+
+  function renderLateral(phase) {
+    drawBilayerWithOffsets(phase, true);
+    drawLabels();
+    drawLateralArrows();
+
+    // Highlight one lipid with a trail marker
+    const hi = 10;
+    const hx = X0 + hi * COL_GAP + lipidOffsets[hi];
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    ctx.save();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(hx, topHeadY, HEAD_R + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // motion trail dots
+    const trailDir = Math.sign(lipidVel[hi] || 1);
+    for (let t = 1; t <= 4; t++) {
+      ctx.beginPath();
+      ctx.arc(hx - trailDir * t * 14, topHeadY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(192,57,43," + (0.5 - t * 0.1) + ")";
+      ctx.fill();
+    }
+
+    drawAnnotationBox(36, H - 160, [
+      "重點：同一層內左右滑動",
+      "＝ 橫向移動（流動性）",
+      "磷脂之間無強化學鍵固定"
+    ], "#c0392b");
+  }
+
+  function renderProteins(phase) {
+    drawBilayerWithOffsets(phase, true);
+    drawProteins();
+    drawLabels();
+    drawIcebergCaption();
+
+    // small carb label
+    const glyco = proteins.find(p => p.kind === "glyco");
+    if (glyco) {
+      drawCallout(glyco.x + 70, MEM_Y - MEM_H / 2 - 90, "碳水化合物", "#e67e22");
+    }
+
+    // tiny sideways arrows near proteins
+    proteins.forEach(p => {
+      if (p.kind === "peripheral") return;
+      const y = MEM_Y;
+      const dir = Math.sign(p.vx || 1);
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      drawArrow(p.x - dir * 10, y - MEM_H / 2 - 70,
+                p.x + dir * 36, y - MEM_H / 2 - 70, "#5a3d8a");
+      ctx.restore();
+    });
+  }
+
+  function renderNaming(phase) {
+    drawBilayerWithOffsets(phase, true);
+    drawProteins();
+    drawLabels();
+    drawMosaicInset();
+
+    // Two big concept badges
+    const badgeY = H - 120;
+    // 流動
+    roundRect(40, badgeY, 200, 80, 12);
+    ctx.fillStyle = "rgba(192,57,43,0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 32px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("流動", 140, badgeY + 36);
+    ctx.font = "18px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("磷脂／蛋白可移動", 140, badgeY + 62);
+
+    // 鑲嵌
+    roundRect(260, badgeY, 200, 80, 12);
+    ctx.fillStyle = "rgba(123,94,167,0.12)";
+    ctx.fill();
+    ctx.strokeStyle = "#7b5ea7";
+    ctx.stroke();
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 32px 'Noto Sans TC', sans-serif";
+    ctx.fillText("鑲嵌", 360, badgeY + 36);
+    ctx.font = "18px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("蛋白散佈如馬賽克", 360, badgeY + 62);
+
+    // Combined title pulse
+    const pulse = 0.85 + 0.15 * Math.sin(sceneT * 2.5);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("→ 流動鑲嵌模型", 560, badgeY + 48);
+    ctx.restore();
+  }
+
+  function renderCholesterol(phase) {
+    drawBilayerWithOffsets(phase, true);
+
+    // Draw cholesterol between tails at several positions
+    const cholXs = [X0 + 3 * COL_GAP, X0 + 7 * COL_GAP, X0 + 12 * COL_GAP, X0 + 16 * COL_GAP, X0 + 19 * COL_GAP];
+    cholXs.forEach((x, i) => {
+      // avoid protein gaps
+      if (proteinGap(x)) return;
+      drawCholesterol(x + lipidOffsets[i % COLS] * 0.3, i % 2 === 0);
+    });
+
+    drawProteins();
+    drawLabels();
+
+    drawCallout(W * 0.45, MEM_Y - 10, "膽固醇分子", "#2e7d4f");
+
+    drawAnnotationBox(W - 400, 40, [
+      "膽固醇的作用（中四層次）：",
+      "· 高溫 → 限制過度流動",
+      "· 低溫 → 防止排得太密",
+      "→ 維持膜的適當流動性"
+    ], "#2e7d4f");
+
+    // temperature icons
+    const tx = 50;
+    const ty = H - 150;
+    roundRect(tx, ty, 160, 100, 10);
+    ctx.fillStyle = "rgba(231,76,60,0.1)";
+    ctx.fill();
+    ctx.strokeStyle = "#e74c3c";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#e74c3c";
+    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("高溫", tx + 80, ty + 36);
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "17px 'Noto Sans TC', sans-serif";
+    ctx.fillText("膽固醇「穩住」", tx + 80, ty + 64);
+    ctx.fillText("不讓膜過稀", tx + 80, ty + 86);
+
+    roundRect(tx + 180, ty, 160, 100, 10);
+    ctx.fillStyle = "rgba(52,152,219,0.1)";
+    ctx.fill();
+    ctx.strokeStyle = "#3498db";
+    ctx.stroke();
+    ctx.fillStyle = "#3498db";
+    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.fillText("低溫", tx + 260, ty + 36);
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "17px 'Noto Sans TC', sans-serif";
+    ctx.fillText("膽固醇「隔開」", tx + 260, ty + 64);
+    ctx.fillText("保持柔韌", tx + 260, ty + 86);
+  }
+
+  // --- Main loop ---
+  function frame(ts) {
+    const dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    if (playing) {
+      sceneT += dt;
+      updateLipids(dt);
+      updateProteins(dt);
+    }
+
+    // clear
+    ctx.clearRect(0, 0, W, H);
+    // background gradient wash
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#e8f0fa");
+    bg.addColorStop(0.45, "#f7f9fc");
+    bg.addColorStop(1, "#e8f0fa");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const phase = sceneT * 1.6;
+    const id = scenes[sceneIndex].id;
+
+    if (id === "structure") renderStructure(phase);
+    else if (id === "lateral") renderLateral(phase);
+    else if (id === "proteins") renderProteins(phase);
+    else if (id === "naming") renderNaming(phase);
+    else if (id === "cholesterol") renderCholesterol(phase);
+
+    requestAnimationFrame(frame);
+  }
+
+  // Controls
+  document.getElementById("btnPlay").addEventListener("click", () => {
+    playing = !playing;
+    lastTs = performance.now();
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", () => goScene(sceneIndex - 1));
+  document.getElementById("btnNext").addEventListener("click", () => goScene(sceneIndex + 1));
+  document.getElementById("btnRestart").addEventListener("click", () => restartScene());
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.code === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.code === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.code === "Space") { e.preventDefault(); playing = !playing; lastTs = performance.now(); updateUI(); }
+    else if (e.code === "KeyR") { e.preventDefault(); restartScene(); }
+  });
+
+  initScene();
+  updateUI();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
