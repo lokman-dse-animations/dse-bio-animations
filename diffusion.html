@@ -903,60 +903,59 @@
           r: 9
         });
       }
-      // Right panel: RBCs flowing left → right in microvessel
-      for (let i = 0; i < 6; i++) {
-        const u0 = i / 6;
+      // Right panel: fewer RBCs, slower flow
+      for (let i = 0; i < 4; i++) {
+        const u0 = i / 4;
         particles.push({
           kind: "tisRBC",
-          t: u0 * 4.5,
-          period: 4.5,
+          t: u0 * 7.5,
+          period: 7.5,
           lane: i,
-          r: 15 + (i % 3),
-          x: 760 + u0 * 420,
-          y: 188 + (i % 2) * 6,
+          r: 15,
+          x: 780 + u0 * 380,
+          y: 190,
           oxygenated: u0 < 0.45
         });
       }
-      // Tissue: O2 / nutrients out of capillary into cells
-      for (let i = 0; i < 7; i++) {
+      // Fewer tissue molecules, slower for clarity
+      for (let i = 0; i < 3; i++) {
         particles.push({
           kind: "tisO2",
-          t: Math.random() * 3.5,
-          period: 3.2 + Math.random() * 0.6,
+          t: Math.random() * 5,
+          period: 5.5 + Math.random() * 0.8,
           lane: i,
           color: "#1a5276",
           label: "氧",
           r: 9
         });
       }
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 2; i++) {
         particles.push({
           kind: "tisNut",
-          t: Math.random() * 3.5,
-          period: 3.4 + Math.random() * 0.5,
+          t: Math.random() * 5,
+          period: 6.0 + Math.random() * 0.5,
           lane: i,
           color: "#27ae60",
           label: "營養素",
           r: 10
         });
       }
-      // Tissue: CO2 / wastes from cells into blood
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 3; i++) {
         particles.push({
           kind: "tisCO2",
-          t: Math.random() * 3.5,
-          period: 3.2 + Math.random() * 0.6,
+          t: Math.random() * 5,
+          period: 5.5 + Math.random() * 0.8,
           lane: i,
           color: "#d68910",
           label: "二氧化碳",
           r: 9
         });
       }
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 2; i++) {
         particles.push({
           kind: "tisWaste",
-          t: Math.random() * 3.5,
-          period: 3.5 + Math.random() * 0.5,
+          t: Math.random() * 5,
+          period: 6.0 + Math.random() * 0.5,
           lane: i,
           color: "#7f8c8d",
           label: "廢物",
@@ -1270,10 +1269,10 @@
           p.x = AX + Math.cos(ang) * r + jig;
           p.y = AY + Math.sin(ang) * r * 0.95 + jig * 0.4;
         } else if (p.kind === "tisRBC") {
-          // Flow left → right inside right-panel capillary band
-          p.x = 760 + u * 420;
-          p.y = 188 + Math.sin(p.t * 3 + p.lane) * 4;
-          p.oxygenated = u < 0.5; // still oxygenated on arterial side, then give O2
+          // Flow left → right (slower period set at init)
+          p.x = 780 + u * 380;
+          p.y = 190 + Math.sin(p.t * 1.2 + p.lane) * 3;
+          p.oxygenated = u < 0.5;
         } else if (p.kind === "tisO2") {
           // Capillary (top) → tissue fluid → body cell
           const x0 = 720 + (p.lane % 5) * 70;
@@ -1764,24 +1763,19 @@
     ctx.textAlign = "left";
     ctx.fillText("小支氣管", bx + 28, by0 + 40);
 
-    ctx.fillStyle = "#7b241c";
-    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("紅血細胞（隨血流移動）", AX + AR + 55, AY + AR + 55);
-
-    // Teaching arrows: O2 / CO2 (kept clear of labels)
-    drawArrow(AX + 55, AY + 20, AX + AR + 10, AY + 55, "#1a5276", 3);
+    // O2 / CO2 cues — mid height, clear of blood labels
+    drawArrow(AX + 50, AY - 10, AX + AR + 5, AY + 25, "#1a5276", 3);
     ctx.fillStyle = "#1a5276";
     ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText("氧 → 紅血細胞", AX + AR + 18, AY + 50);
+    ctx.fillText("氧 → 紅血細胞", AX + AR + 12, AY + 20);
 
-    drawArrow(AX - AR - 5, AY + 55, AX - 50, AY + 15, "#d68910", 3);
+    drawArrow(AX - AR, AY + 25, AX - 45, AY - 10, "#d68910", 3);
     ctx.fillStyle = "#b9770e";
     ctx.textAlign = "right";
-    ctx.fillText("二氧化碳 → 氣囊", AX - AR - 10, AY + 70);
+    ctx.fillText("二氧化碳 → 氣囊", AX - AR - 8, AY + 40);
 
-    // Inhale / exhale via 小支氣管
+    // Inhale / exhale near 小支氣管 (bottom only)
     drawArrow(bx - 55, by1 - 10, bx - 22, by1 - 30, "#1a5276", 3);
     ctx.fillStyle = "#1a5276";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
@@ -1792,27 +1786,26 @@
     ctx.fillStyle = "#b9770e";
     ctx.fillText("呼出空氣", bx + 70, by1 + 8);
 
-    // Blood-flow arrows AT capillary inlet (left) and outlet (right)
-    // Inlet → into U
-    drawArrow(leftEnd.x - 55, leftEnd.y - 45, leftEnd.x - 8, leftEnd.y - 8, "#7b241c", 4);
+    ctx.fillStyle = "#7b241c";
+    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    ctx.fillText("紅血細胞隨血流移動", AX + 90, AY + AR + 95);
+
+    // Blood enter/leave — TOP corners only (no overlap with lower labels)
+    drawArrow(leftEnd.x - 40, leftEnd.y - 70, leftEnd.x - 4, leftEnd.y - 12, "#7b241c", 4);
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("來自肺動脈的缺氧血", leftEnd.x - 70, leftEnd.y - 58);
+    ctx.textAlign = "left";
+    ctx.fillText("入口：來自肺動脈的缺氧血", 40, 100);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧低 · 二氧化碳高）", leftEnd.x - 70, leftEnd.y - 42);
-    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("入口 ↓", leftEnd.x - 40, leftEnd.y + 18);
+    ctx.fillText("（氧低 · 二氧化碳高）", 40, 118);
 
-    // Outlet ← out of U
-    drawArrow(rightEnd.x + 6, rightEnd.y - 6, rightEnd.x + 50, rightEnd.y - 42, "#e74c3c", 4);
+    drawArrow(rightEnd.x + 4, rightEnd.y - 12, rightEnd.x + 38, rightEnd.y - 70, "#e74c3c", 4);
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText("流往肺靜脈的含氧血", rightEnd.x + 70, rightEnd.y - 55);
+    ctx.textAlign = "right";
+    ctx.fillText("出口：流往肺靜脈的含氧血", 630, 100);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧高 · 二氧化碳低）", rightEnd.x + 70, rightEnd.y - 39);
-    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("出口 ↑", rightEnd.x + 40, rightEnd.y + 18);
+    ctx.fillText("（氧高 · 二氧化碳低）", 630, 118);
 
     drawAnnotationBox(40, 640, [
       "微血管 U 形沿氣囊外側環繞；底部小支氣管供空氣進出",
@@ -1919,9 +1912,7 @@
     particles.forEach(p => {
       const kinds = ["alvO2","alvCO2","tisO2","tisNut","tisCO2","tisWaste"];
       if (kinds.indexOf(p.kind) >= 0) {
-        const show = (p.kind === "alvO2" || p.kind === "alvCO2")
-          ? (p.lane === 0)
-          : (p.lane % 4 === 0);
+        const show = (p.lane === 0); // one label per kind only
         drawMolecule(p.x, p.y, p.r, p.color, show ? p.label : null);
       }
     });
