@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主動轉運 — 物質穿越細胞膜</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --head: #f0b429;
+    --head-edge: #d4920a;
+    --tail: #5b9bd5;
+    --protein: #7b5ea7;
+    --protein-dark: #5a3d8a;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+    --cargo: #e67e22;
+    --atp: #f39c12;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub { font-size: 0.9rem; color: var(--muted); }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) { .main { grid-template-columns: 1fr; } }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 420px;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .swatch.rect { border-radius: 3px; width: 18px; height: 12px; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .scene-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .scene-desc { font-size: 0.92rem; line-height: 1.55; color: var(--ink); }
+  .scene-desc strong { color: var(--accent); }
+  .steps { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+  .step-btn {
+    text-align: left; border: 1px solid var(--border); background: #fff;
+    border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 0.88rem;
+    cursor: pointer; color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.4em; opacity: 0.7; font-variant-numeric: tabular-nums;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font: inherit;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #eef2f7; color: var(--ink); }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-top: 10px; }
+  footer {
+    text-align: center; padding: 8px 16px 14px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: #fff;
+    font-family: ui-monospace, monospace; font-size: 0.85em;
+  }
+
+  a.back-link {
+    color: var(--accent, #1e6b4f);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+  a.back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="f4-l4-membrane.html">← 返回課次目錄</a>
+  <h1>主動轉運</h1>
+  <span class="sub">物質穿越細胞膜 · 香港中學文憑試生物學 · 中四</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="主動轉運動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#f0b429"></span>親水頭部</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#5b9bd5"></span>疏水尾部</span>
+      <span class="legend-item"><span class="swatch" style="background:#7b5ea7;border-radius:4px"></span>載體蛋白</span>
+      <span class="legend-item"><span class="swatch" style="background:#e67e22"></span>運送物質</span>
+      <span class="legend-item"><span class="swatch" style="background:#f39c12;border-radius:3px;width:16px"></span>ATP／能量</span>
+      <span class="legend-item"><span class="swatch" style="background:#27ae60"></span>細胞內高濃度</span>
+      <span class="legend-item"><span class="swatch" style="background:#3498db"></span>細胞外低濃度</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：甚麼是主動轉運？</div>
+      <p class="scene-desc" id="sceneDesc"></p>
+    </div>
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重播本場景</button>
+      </div>
+      <p class="hint">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重播本場景<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應 DSE 生物「主動轉運」· · 請離線以 Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const MEM_Y = H * 0.48;
+  const MEM_H = 208;
+  const HEAD_R = 18;
+  const COLS = 24;
+  const COL_GAP = (W - 80) / (COLS - 1);
+  const X0 = 40;
+
+  const scenes = [
+    {
+      id: "define",
+      title: "場景 1：甚麼是主動轉運？",
+      desc: "<strong>主動轉運</strong>是物質<strong>逆濃度梯度</strong>（由低濃度→高濃度）穿越細胞膜的過程。須<strong>載體蛋白</strong>協助，並消耗<strong>呼吸作用</strong>釋放的能量（ATP）。"
+    },
+    {
+      id: "gradient",
+      title: "場景 2：逆濃度梯度",
+      desc: "被動過程（擴散／滲透）只能由<strong>高→低</strong>。主動轉運則把物質由<strong>低濃度區</strong>運入<strong>高濃度區</strong>，因此必須消耗能量。箭頭標示運送方向與濃度差。"
+    },
+    {
+      id: "ions",
+      title: "場景 3：淡水植物細胞的離子濃度",
+      desc: "淡水植物細胞內多種離子（Na⁺、K⁺、Mg²⁺、Ca²⁺、Cl⁻）濃度<strong>遠高於</strong>周圍水。細胞須以主動轉運<strong>逆梯度攝取</strong>離子，以維持代謝所需濃度。"
+    },
+    {
+      id: "mechanism",
+      title: "場景 4：載體蛋白機制",
+      desc: "載體蛋白先<strong>閉合</strong>（口袋向外）→ <strong>結合物質</strong> → <strong>接觸 ATP</strong> → 蛋白<strong>打開</strong>（朝向細胞內）→ 物質釋放進入細胞。載體對物質具<strong>專一性</strong>。"
+    },
+    {
+      id: "energy",
+      title: "場景 5：能量與活細胞",
+      desc: "主動轉運<strong>只發生於活細胞</strong>，因需呼吸作用供能。進行主動轉運的細胞通常含較多<strong>線粒體</strong>。缺氧或代謝抑制劑會使轉運速率下降。"
+    },
+    {
+      id: "factors",
+      title: "場景 6：影響轉運速率的因素",
+      desc: "促進呼吸的因素（如<strong>適當升溫</strong>）可加快主動轉運；抑制呼吸的因素（如<strong>缺氧</strong>、<strong>低溫</strong>）則減慢。速率亦受載體蛋白數量限制。"
+    },
+    {
+      id: "examples",
+      title: "場景 7：生物學例子",
+      desc: "<strong>根毛細胞</strong>從土壤水吸收礦物離子；<strong>腎小管</strong>重吸收葡萄糖與氨基酸；<strong>小腸上皮</strong>吸收葡萄糖、氨基酸、維生素進入血液。三者皆逆梯度，需能量。"
+    },
+    {
+      id: "compare",
+      title: "場景 8：主動轉運 vs 被動轉運",
+      desc: "對照重點：主動轉運＝逆梯度＋載體＋能量；被動轉運（簡單擴散／易化擴散／滲透）＝順梯度、不耗能。氣體交換（肺泡）屬擴散，<strong>不是</strong>主動轉運。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+  let particles = [];
+  let carrierPhase = 0;
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    initParticles();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+    initParticles();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawHead(x, y) {
+    const g = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, HEAD_R);
+    g.addColorStop(0, "#ffd666");
+    g.addColorStop(0.7, "#f0b429");
+    g.addColorStop(1, "#d4920a");
+    ctx.beginPath();
+    ctx.arc(x, y, HEAD_R, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(180,120,20,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawTail(x, yTop, yBot, phase, flip) {
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.lineWidth = 4.4;
+    ctx.lineCap = "round";
+    for (let k = 0; k < 2; k++) {
+      const ox = (k === 0 ? -5.8 : 5.8);
+      ctx.beginPath();
+      const steps = 10;
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const y = yTop + (yBot - yTop) * u;
+        const wave = Math.sin(u * Math.PI * 2.2 + phase + k) * 4.7 * (flip ? -1 : 1);
+        const xx = x + ox + wave;
+        if (i === 0) ctx.moveTo(xx, y);
+        else ctx.lineTo(xx, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function phospholipidColumn(x, phase, skip) {
+    if (skip) return;
+    const topHeadY = MEM_Y - MEM_H / 2 + HEAD_R;
+    const botHeadY = MEM_Y + MEM_H / 2 - HEAD_R;
+    const mid = MEM_Y;
+    drawTail(x, topHeadY + HEAD_R * 0.6, mid - 2, phase, false);
+    drawTail(x, mid + 2, botHeadY - HEAD_R * 0.6, phase + 1.1, true);
+    drawHead(x, topHeadY);
+    drawHead(x, botHeadY);
+  }
+
+  function drawBilayer(phase, gaps) {
+    ctx.fillStyle = "rgba(91,155,213,0.08)";
+    ctx.fillRect(20, MEM_Y - MEM_H / 2 - 4, W - 40, MEM_H + 8);
+    for (let i = 0; i < COLS; i++) {
+      const x = X0 + i * COL_GAP;
+      let skip = false;
+      if (gaps) {
+        for (const g of gaps) {
+          if (x >= g.x0 && x <= g.x1) { skip = true; break; }
+        }
+      }
+      phospholipidColumn(x, phase + i * 0.35, skip);
+    }
+  }
+
+  function drawLabels() {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("細胞外", 36, 56);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（低濃度區）", 36, 86);
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 38px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("細胞內", 36, H - 60);
+    ctx.font = "24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("（高濃度區）", 36, H - 30);
+  }
+
+  function drawCallout(x, y, text, color) {
+    ctx.font = "bold 26px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 10;
+    roundRect(x - tw / 2 - pad, y - 14, tw + pad * 2, 28, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawMolecule(x, y, r, color, label) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    g.addColorStop(0, "#fff");
+    g.addColorStop(0.35, color);
+    g.addColorStop(1, color);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (label) {
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x, y - r - 6);
+    }
+  }
+
+  function drawATP(x, y, label) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#f39c12";
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      const px = Math.cos(a) * 26;
+      const py = Math.sin(a) * 26;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label || "ATP", 0, 0);
+    ctx.textBaseline = "alphabetic";
+    ctx.restore();
+  }
+
+  function drawCarrier(cx, phase) {
+    const openAmt = smoothstep(0.42, 0.62, phase);
+    const top = MEM_Y - MEM_H / 2 - 10;
+    const bot = MEM_Y + MEM_H / 2 + 10;
+    const h = bot - top;
+    const w = 114;
+
+    ctx.save();
+    ctx.translate(cx, MEM_Y);
+
+    const mouthUp = 1 - openAmt;
+    const mouthDown = openAmt;
+    const armIn = 10 + openAmt * 6;
+    const pocketDepth = 28 + openAmt * 8;
+
+    function lobe(side) {
+      const s = side;
+      ctx.beginPath();
+      const x0 = s * (w / 2);
+      ctx.moveTo(s * 6, -h / 2);
+      ctx.bezierCurveTo(x0, -h / 2, x0, -h / 2 + 20, x0, 0);
+      ctx.bezierCurveTo(x0, h / 2 - 20, x0, h / 2, s * 6, h / 2);
+      const innerTop = -h / 2 + (mouthUp > 0.2 ? 8 : pocketDepth);
+      const innerBot = h / 2 - (mouthDown > 0.2 ? 8 : pocketDepth);
+      ctx.lineTo(s * armIn, h / 2);
+      ctx.bezierCurveTo(s * (armIn + 4), innerBot, s * (armIn + 4), innerTop, s * armIn, -h / 2);
+      ctx.closePath();
+      ctx.fillStyle = "#7b5ea7";
+      ctx.fill();
+      ctx.strokeStyle = "#5a3d8a";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * 8, -h / 2 + 6);
+      ctx.bezierCurveTo(s * (w / 2 - 8), -h / 2 + 8, s * (w / 2 - 6), 0, s * (w / 2 - 8), h / 2 - 8);
+      ctx.lineTo(s * (armIn + 6), h / 2 - 10);
+      ctx.bezierCurveTo(s * (armIn + 8), 0, s * (armIn + 8), 0, s * (armIn + 6), -h / 2 + 10);
+      ctx.closePath();
+      ctx.fillStyle = "#8f73b8";
+      ctx.fill();
+    }
+    lobe(-1);
+    lobe(1);
+
+    ctx.fillStyle = "#6a4f9a";
+    if (mouthUp > 0.5) {
+      roundRect(-armIn - 2, -4, (armIn + 2) * 2, h / 2 - 2, 8);
+      ctx.fill();
+    }
+    if (mouthDown > 0.5) {
+      roundRect(-armIn - 2, -h / 2 + 2, (armIn + 2) * 2, h / 2 - 2, 8);
+      ctx.fill();
+    } else if (mouthUp <= 0.5 && mouthDown <= 0.5) {
+      roundRect(-armIn - 2, -h / 4, (armIn + 2) * 2, h / 2, 8);
+      ctx.fill();
+    }
+
+    const pocketY = -h / 2 + 26 + openAmt * (h - 52);
+    const prx = 11 + mouthUp * 2;
+    const pry = 9 + mouthUp * 3;
+    ctx.fillStyle = "rgba(238,244,251,0.95)";
+    ctx.beginPath();
+    ctx.ellipse(0, pocketY, prx, pry, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (mouthUp > 0.6) {
+      ctx.strokeStyle = "#4a3270";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-14, -h / 2 + 4);
+      ctx.quadraticCurveTo(0, -h / 2 + 16, 14, -h / 2 + 4);
+      ctx.stroke();
+    }
+    if (mouthDown > 0.6) {
+      ctx.strokeStyle = "#4a3270";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-16, h / 2 - 2);
+      ctx.lineTo(-6, h / 2 - 14);
+      ctx.moveTo(16, h / 2 - 2);
+      ctx.lineTo(6, h / 2 - 14);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    return { pocketLocalY: pocketY, h: h, openAmt: openAmt };
+  }
+
+  function drawAnnotationBox(x, y, lines, color) {
+    ctx.font = "20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    let maxW = 0;
+    lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+    const pad = 12;
+    const lh = 24;
+    const boxH = lines.length * lh + pad * 2 - 4;
+    const boxW = maxW + pad * 2;
+    roundRect(x, y, boxW, boxH, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color || "#2c5aa0";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#1a2332";
+    ctx.textAlign = "left";
+    lines.forEach((l, i) => {
+      ctx.fillText(l, x + pad, y + pad + 16 + i * lh);
+    });
+  }
+
+  function drawArrow(x1, y1, x2, y2, color, lw) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lw || 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2 - ux * 14, y2 - uy * 14);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - ux * 18 - uy * 10, y2 - uy * 18 + ux * 10);
+    ctx.lineTo(x2 - ux * 18 + uy * 10, y2 - uy * 18 - ux * 10);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function initParticles() {
+    particles = [];
+    const id = scenes[sceneIndex].id;
+    if (id === "define" || id === "gradient" || id === "mechanism" || id === "energy") {
+      const cx = W * 0.48;
+      particles.push({
+        kind: "cargo",
+        x: cx - 20, y: 70, r: 18,
+        color: "#e67e22", label: "離子／葡萄糖",
+        carrierX: cx, state: -1
+      });
+      // background density dots
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          kind: "bgHigh",
+          x: 120 + Math.random() * (W - 240),
+          y: MEM_Y + MEM_H / 2 + 40 + Math.random() * 160,
+          r: 10 + Math.random() * 4,
+          phase: Math.random() * 10
+        });
+      }
+      for (let i = 0; i < 2; i++) {
+        particles.push({
+          kind: "bgLow",
+          x: 140 + Math.random() * (W - 280),
+          y: 50 + Math.random() * 100,
+          r: 10 + Math.random() * 3,
+          phase: Math.random() * 10
+        });
+      }
+    }
+  }
+
+  function drawBarChart(t) {
+    const ions = [
+      { name: "鈉", inC: 0.92, outC: 0.18 },
+      { name: "鉀", inC: 0.85, outC: 0.12 },
+      { name: "鎂", inC: 0.70, outC: 0.20 },
+      { name: "鈣", inC: 0.55, outC: 0.15 },
+      { name: "氯", inC: 0.78, outC: 0.22 }
+    ];
+    const left = 160, top = 120, chartW = W - 320, chartH = 480;
+    const maxBar = chartH - 80;
+    const groupW = chartW / ions.length;
+
+    // axes
+    ctx.strokeStyle = "#5a6a7a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(left, top + chartH);
+    ctx.lineTo(left + chartW + 20, top + chartH);
+    ctx.stroke();
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("淡水植物細胞內外離子濃度比較", W / 2, 70);
+
+    const reveal = Math.min(1, t / 1.2);
+
+    ions.forEach((ion, i) => {
+      const gx = left + i * groupW + groupW * 0.15;
+      const bw = groupW * 0.28;
+      const inH = ion.inC * maxBar * reveal;
+      const outH = ion.outC * maxBar * reveal;
+
+      // inside (dark green)
+      ctx.fillStyle = "#1e8449";
+      roundRect(gx, top + chartH - inH, bw, inH, 4);
+      ctx.fill();
+      // outside (light blue)
+      ctx.fillStyle = "#85c1e9";
+      roundRect(gx + bw + 8, top + chartH - outH, bw, outH, 4);
+      ctx.fill();
+
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(ion.name, gx + bw + 4, top + chartH + 32);
+    });
+
+    // legend
+    ctx.fillStyle = "#1e8449";
+    roundRect(left + chartW - 200, top + 10, 18, 18, 3);
+    ctx.fill();
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "20px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("細胞內", left + chartW - 174, top + 26);
+
+    ctx.fillStyle = "#85c1e9";
+    roundRect(left + chartW - 200, top + 40, 18, 18, 3);
+    ctx.fill();
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("周圍水", left + chartW - 174, top + 56);
+
+    if (t > 1.5) {
+      drawCallout(W / 2, top + 60, "細胞內濃度 ≫ 周圍水 → 須主動轉運攝取", "#c0392b");
+    }
+  }
+
+  function drawScene() {
+    const id = scenes[sceneIndex].id;
+    const phase = sceneT * 0.8;
+
+    // background
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#e8f1fa");
+    bg.addColorStop(0.45, "#f5f8fc");
+    bg.addColorStop(1, "#e6f0e9");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // scene counter
+    ctx.fillStyle = "#5a6a7a";
+    ctx.font = "20px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText((sceneIndex + 1) + " / " + scenes.length, W - 24, 28);
+
+    if (id === "ions") {
+      drawBarChart(sceneT);
+      return;
+    }
+
+    if (id === "examples") {
+      drawExamples(sceneT);
+      return;
+    }
+
+    if (id === "factors") {
+      drawFactors(sceneT);
+      return;
+    }
+
+    if (id === "compare") {
+      drawCompare(sceneT);
+      return;
+    }
+
+    // membrane scenes
+    const cx = W * 0.48;
+    const gap = { x0: cx - 70, x1: cx + 70 };
+    drawBilayer(phase, [gap]);
+    drawLabels();
+
+    if (id === "define" || id === "gradient") {
+      // few outside, many inside (concentration contrast)
+      particles.forEach(p => {
+        if (p.kind === "bgHigh") {
+          const jx = Math.sin(sceneT * 1.5 + p.phase) * 3;
+          drawMolecule(p.x + jx, p.y, p.r, "#e67e22", null);
+        } else if (p.kind === "bgLow") {
+          const jx = Math.sin(sceneT * 1.2 + p.phase) * 4;
+          drawMolecule(p.x + jx, p.y, p.r, "#e67e22", null);
+        }
+      });
+
+      // animated cargo: closed → bind → open → release (single drawCarrier per frame)
+      const cycle = (sceneT % 7) / 7;
+      let cargoX = cx, cargoY = 80;
+      let cPhase = 0.15;
+      if (cycle < 0.22) {
+        cPhase = 0.15;
+        cargoY = 80 + cycle / 0.22 * (MEM_Y - MEM_H / 2 - 50 - 80);
+      } else if (cycle < 0.42) {
+        cPhase = 0.22;
+        const info = { pocketLocalY: -MEM_H / 2 + 26 };
+        // approximate pocket while closed
+        cargoY = MEM_Y + info.pocketLocalY;
+      } else if (cycle < 0.62) {
+        cPhase = 0.22 + (cycle - 0.42) / 0.2 * 0.7;
+        cargoY = MEM_Y + (-MEM_H / 2 + 26 + ((cycle - 0.42) / 0.2) * (MEM_H - 52));
+      } else {
+        cPhase = 0.95;
+        cargoY = MEM_Y + MEM_H / 2 + 30 + (cycle - 0.62) / 0.38 * 140;
+      }
+      const info = drawCarrier(cx, cPhase);
+      if (cycle >= 0.22 && cycle < 0.42) cargoY = MEM_Y + info.pocketLocalY;
+      else if (cycle >= 0.42 && cycle < 0.62) cargoY = MEM_Y + info.pocketLocalY;
+
+      drawMolecule(cargoX, cargoY, 18, "#e67e22", cycle < 0.28 ? "物質" : null);
+      if (cycle > 0.35 && cycle < 0.7) drawATP(cx + 120, MEM_Y - 70, "ATP");
+
+      drawArrow(cx + 160, MEM_Y - 100, cx + 160, MEM_Y + 100, "#c0392b", 5);
+      drawCallout(cx + 160, MEM_Y - 130, "逆濃度梯度", "#c0392b");
+      drawCallout(cx - 200, MEM_Y, "載體蛋白", "#5a3d8a");
+
+      if (id === "define") {
+        drawAnnotationBox(W - 360, 100, [
+          "主動轉運三要素：",
+          "① 逆濃度梯度",
+          "② 載體蛋白",
+          "③ 消耗能量（ATP）"
+        ], "#c0392b");
+      } else {
+        drawAnnotationBox(W - 380, 90, [
+          "低濃度（細胞外）",
+          "        ↓ 主動轉運",
+          "高濃度（細胞內）",
+          "",
+          "≠ 擴散（高→低）"
+        ], "#2c5aa0");
+      }
+    }
+
+    if (id === "mechanism") {
+      carrierPhase = (sceneT % 6) / 6;
+      const ph = carrierPhase;
+      const info = drawCarrier(cx, ph);
+
+      let stateLabel = "① 閉合（口袋向外）";
+      let stateColor = "#7b5ea7";
+      let cargoX = cx, cargoY = 70;
+      let showAtp = false, atpX = cx + 140, atpY = MEM_Y - 90, atpLabel = "ATP";
+
+      if (ph < 0.18) {
+        stateLabel = "① 閉合（口袋向外）";
+        cargoY = 70 + (ph / 0.18) * (MEM_Y - MEM_H / 2 - 30 - 70);
+      } else if (ph < 0.35) {
+        stateLabel = "② 結合物質";
+        stateColor = "#e67e22";
+        cargoY = MEM_Y + info.pocketLocalY;
+      } else if (ph < 0.55) {
+        stateLabel = "③ 接觸 ATP";
+        stateColor = "#e67e22";
+        cargoY = MEM_Y + info.pocketLocalY;
+        showAtp = true;
+        atpX = cx + 130 - (ph - 0.35) / 0.2 * 40;
+        atpY = MEM_Y - 90 + (ph - 0.35) / 0.2 * 40;
+        atpLabel = "接觸 ATP";
+      } else if (ph < 0.72) {
+        stateLabel = "④ 打開（朝向細胞內）";
+        stateColor = "#27ae60";
+        cargoY = MEM_Y + info.pocketLocalY;
+        showAtp = true;
+        atpLabel = "ATP 提供能量";
+        atpX = cx + 90;
+        atpY = MEM_Y - 50;
+      } else {
+        stateLabel = "⑤ 物質進入細胞";
+        stateColor = "#27ae60";
+        const u = (ph - 0.72) / 0.28;
+        cargoY = MEM_Y + MEM_H / 2 + 20 + u * 140;
+        showAtp = u < 0.5;
+        atpLabel = "能量";
+        atpX = cx + 100;
+        atpY = MEM_Y - 40;
+      }
+
+      drawMolecule(cargoX, cargoY, 18, "#e67e22", ph < 0.2 ? "物質" : null);
+      if (showAtp) drawATP(atpX, atpY, atpLabel);
+      drawCallout(cx, MEM_Y - MEM_H / 2 - 48, stateLabel, stateColor);
+      drawCallout(cx + 200, MEM_Y + 20, "主動轉運", "#c0392b");
+      drawAnnotationBox(36, H - 200, [
+        "載體蛋白具專一性",
+        "閉合 → 結合 → ATP",
+        "→ 打開 → 釋放"
+      ], "#5a3d8a");
+    }
+
+    if (id === "energy") {
+      carrierPhase = (sceneT % 5) / 5;
+      drawCarrier(cx, carrierPhase);
+      // mitochondria cluster
+      drawMitochondria(W - 280, H - 220, sceneT);
+      drawATP(cx + 120, MEM_Y - 70, "ATP");
+      drawArrow(W - 280, H - 180, cx + 150, MEM_Y - 40, "#f39c12", 3);
+      drawCallout(W - 220, H - 280, "線粒體（呼吸作用）", "#c0392b");
+      drawAnnotationBox(40, 100, [
+        "只發生於活細胞",
+        "能量來自呼吸作用",
+        "缺氧 → 轉運減慢",
+        "線粒體較多的細胞",
+        "主動轉運較旺盛"
+      ], "#c0392b");
+
+      // cargo brief
+      const ph = carrierPhase;
+      const cy = ph < 0.5
+        ? 80 + ph / 0.5 * (MEM_Y - 40)
+        : MEM_Y + 40 + (ph - 0.5) / 0.5 * 160;
+      drawMolecule(cx, cy, 16, "#e67e22", null);
+    }
+  }
+
+  function drawMitochondria(x, y, t) {
+    ctx.save();
+    ctx.translate(x, y);
+    for (let i = 0; i < 3; i++) {
+      const ox = (i - 1) * 70;
+      const oy = Math.sin(t * 2 + i) * 4;
+      ctx.beginPath();
+      ctx.ellipse(ox, oy, 42, 26, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#e74c3c";
+      ctx.fill();
+      ctx.strokeStyle = "#922b21";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // cristae
+      ctx.strokeStyle = "#f5b7b1";
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) {
+        ctx.beginPath();
+        ctx.moveTo(ox - 22, oy - 10 + k * 10);
+        ctx.quadraticCurveTo(ox, oy - 4 + k * 10, ox + 22, oy - 10 + k * 10);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawExamples(t) {
+    const cards = [
+      { title: "根毛細胞", body: "從土壤水吸收", body2: "礦物離子", icon: "root" },
+      { title: "腎小管", body: "重吸收葡萄糖", body2: "與氨基酸", icon: "kidney" },
+      { title: "小腸上皮", body: "吸收葡萄糖、", body2: "氨基酸、維生素", icon: "gut" }
+    ];
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 32px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("主動轉運的生物學例子", W / 2, 70);
+
+    cards.forEach((c, i) => {
+      const appear = smoothstep(i * 0.4, i * 0.4 + 0.5, t);
+      if (appear <= 0) return;
+      const x = 100 + i * 380;
+      const y = 160;
+      ctx.globalAlpha = appear;
+      roundRect(x, y, 340, 420, 16);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.strokeStyle = "#2c5aa0";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // icon area
+      ctx.fillStyle = "#e8f0fa";
+      roundRect(x + 30, y + 30, 280, 180, 12);
+      ctx.fill();
+
+      if (c.icon === "root") drawRootIcon(x + 170, y + 120);
+      else if (c.icon === "kidney") drawKidneyIcon(x + 170, y + 120);
+      else drawGutIcon(x + 170, y + 120);
+
+      ctx.fillStyle = "#2c5aa0";
+      ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(c.title, x + 170, y + 260);
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "22px 'Noto Sans TC', sans-serif";
+      ctx.fillText(c.body, x + 170, y + 310);
+      ctx.fillText(c.body2, x + 170, y + 340);
+      ctx.fillStyle = "#c0392b";
+      ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+      ctx.fillText("逆梯度 · 需能量", x + 170, y + 390);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawRootIcon(x, y) {
+    ctx.strokeStyle = "#27ae60";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x, y - 50);
+    ctx.quadraticCurveTo(x - 10, y, x, y + 55);
+    ctx.stroke();
+    // hairs
+    for (let i = 0; i < 5; i++) {
+      const a = -0.6 + i * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 10 + i * 8);
+      ctx.quadraticCurveTo(x + Math.cos(a) * 20, y + 10 + i * 8 + 10, x + Math.cos(a) * 40, y + i * 8);
+      ctx.stroke();
+    }
+    // ions approaching
+    drawMolecule(x + 55, y + 20, 10, "#e67e22", null);
+    drawMolecule(x + 70, y + 45, 8, "#e67e22", null);
+  }
+
+  function drawKidneyIcon(x, y) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, 50, 70, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#e8a0a0";
+    ctx.fill();
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x - 10, y, 20, 35, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#f5d0d0";
+    ctx.fill();
+    drawMolecule(x + 60, y - 10, 10, "#27ae60", null);
+    drawMolecule(x + 55, y + 25, 9, "#27ae60", null);
+  }
+
+  function drawGutIcon(x, y) {
+    ctx.strokeStyle = "#e67e22";
+    ctx.lineWidth = 14;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - 40, y - 40);
+    ctx.bezierCurveTo(x + 40, y - 50, x - 40, y + 10, x + 40, y + 20);
+    ctx.bezierCurveTo(x + 80, y + 30, x - 20, y + 50, x + 30, y + 55);
+    ctx.stroke();
+    drawMolecule(x - 20, y - 10, 9, "#27ae60", null);
+    drawMolecule(x + 10, y + 25, 9, "#3498db", null);
+  }
+
+  function drawFactors(t) {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 30px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("影響主動轉運速率的因素", W / 2, 60);
+
+    // two panels
+    const panels = [
+      {
+        x: 80, title: "促進（速率↑）", color: "#27ae60",
+        items: ["適當提高溫度", "充足氧氣", "足夠葡萄糖（呼吸底物）", "較多載體蛋白／線粒體"]
+      },
+      {
+        x: 680, title: "抑制（速率↓）", color: "#c0392b",
+        items: ["低溫／過熱（酶變性）", "缺氧", "代謝抑制劑", "載體蛋白飽和"]
+      }
+    ];
+
+    panels.forEach((p, pi) => {
+      const appear = smoothstep(pi * 0.3, pi * 0.3 + 0.4, t);
+      ctx.globalAlpha = appear;
+      roundRect(p.x, 100, 520, 560, 16);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = p.color;
+      ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(p.title, p.x + 260, 160);
+
+      // thermometer / O2 icon hint
+      if (pi === 0) {
+        drawThermo(p.x + 260, 250, true, t);
+      } else {
+        drawThermo(p.x + 260, 250, false, t);
+      }
+
+      p.items.forEach((item, i) => {
+        const iy = 360 + i * 55;
+        const ia = smoothstep(0.5 + i * 0.15, 0.7 + i * 0.15, t);
+        ctx.globalAlpha = appear * ia;
+        ctx.fillStyle = "#1a2332";
+        ctx.font = "24px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("•  " + item, p.x + 50, iy);
+      });
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawThermo(x, y, hot, t) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#ecf0f1";
+    roundRect(-14, -70, 28, 100, 14);
+    ctx.fill();
+    ctx.strokeStyle = "#7f8c8d";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 50, 28, 0, Math.PI * 2);
+    ctx.fillStyle = hot ? "#e74c3c" : "#3498db";
+    ctx.fill();
+    const h = hot ? 60 + Math.sin(t * 3) * 8 : 25;
+    ctx.fillStyle = hot ? "#e74c3c" : "#3498db";
+    roundRect(-8, 40 - h, 16, h, 8);
+    ctx.fill();
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(hot ? "升溫／有氧" : "低溫／缺氧", 0, 100);
+    ctx.restore();
+  }
+
+  function drawCompare(t) {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 30px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("主動轉運 與 被動轉運 對照", W / 2, 55);
+
+    const rows = [
+      ["比較項目", "主動轉運", "被動轉運"],
+      ["濃度梯度", "逆梯度（低→高）", "順梯度（高→低）"],
+      ["能量", "需要（ATP）", "不需要"],
+      ["膜蛋白", "載體蛋白", "無／通道／載體"],
+      ["活細胞", "必須", "死細胞亦可"],
+      ["例子", "根毛吸離子；小腸吸葡萄糖", "肺泡氣體交換；滲透"]
+    ];
+
+    const left = 60, top = 90, colW = [220, 460, 460], rowH = 95;
+    rows.forEach((row, ri) => {
+      const appear = smoothstep(ri * 0.18, ri * 0.18 + 0.35, t);
+      ctx.globalAlpha = appear;
+      let x = left;
+      row.forEach((cell, ci) => {
+        const w = colW[ci];
+        const y = top + ri * rowH;
+        if (ri === 0) {
+          ctx.fillStyle = ci === 0 ? "#2c5aa0" : (ci === 1 ? "#8e44ad" : "#2980b9");
+          roundRect(x, y, w - 8, rowH - 10, 8);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
+        } else {
+          ctx.fillStyle = ri % 2 === 0 ? "#f4f7fb" : "#fff";
+          roundRect(x, y, w - 8, rowH - 10, 8);
+          ctx.fill();
+          ctx.strokeStyle = "#d0dae6";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.fillStyle = ci === 0 ? "#2c5aa0" : "#1a2332";
+          ctx.font = (ci === 0 ? "bold " : "") + "22px 'Noto Sans TC', sans-serif";
+        }
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        // wrap long text
+        const lines = cell.length > 14 ? [cell.slice(0, 12), cell.slice(12)] : [cell];
+        lines.forEach((ln, li) => {
+          ctx.fillText(ln, x + (w - 8) / 2, y + (rowH - 10) / 2 + (li - (lines.length - 1) / 2) * 26);
+        });
+        x += w;
+      });
+      ctx.globalAlpha = 1;
+    });
+
+    if (t > 1.8) {
+      drawCallout(W / 2, H - 40, "注意：肺泡氣體交換是擴散，不是主動轉運", "#c0392b");
+    }
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function loop(now) {
+    if (playing) {
+      sceneT = (now - t0) / 1000;
+    } else {
+      t0 = now - sceneT * 1000;
+    }
+    drawScene();
+    requestAnimationFrame(loop);
+  }
+
+  btnPlay.addEventListener("click", () => {
+    playing = !playing;
+    if (playing) t0 = performance.now() - sceneT * 1000;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", () => goScene(sceneIndex - 1));
+  document.getElementById("btnNext").addEventListener("click", () => goScene(sceneIndex + 1));
+  document.getElementById("btnRestart").addEventListener("click", restartScene);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.code === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      if (playing) t0 = performance.now() - sceneT * 1000;
+      updateUI();
+    } else if (e.code === "KeyR") { restartScene(); }
+  });
+
+  initParticles();
+  updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

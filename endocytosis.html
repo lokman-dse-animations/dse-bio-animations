@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吞噬作用 — 物質穿越細胞膜</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub { font-size: 0.9rem; color: var(--muted); }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) { .main { grid-template-columns: 1fr; } }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 420px;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .scene-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .scene-desc { font-size: 0.92rem; line-height: 1.55; color: var(--ink); }
+  .scene-desc strong { color: var(--accent); }
+  .phase-list { display: flex; flex-direction: column; gap: 5px; }
+  .phase-item {
+    font-size: 0.84rem;
+    padding: 6px 10px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .phase-item:hover { background: var(--accent-soft); color: var(--ink); }
+  .phase-item.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .phase-item .num { opacity: 0.65; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font: inherit;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #eef2f7; color: var(--ink); }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-top: 10px; }
+  .progress-wrap {
+    margin-top: 10px;
+    height: 8px;
+    background: #e8eef5;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 4px;
+  }
+  footer {
+    text-align: center; padding: 8px 16px 14px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: #fff;
+    font-family: ui-monospace, monospace; font-size: 0.85em;
+  }
+
+  a.back-link {
+    color: var(--accent, #1e6b4f);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+  a.back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="f4-l4-membrane.html">← 返回課次目錄</a>
+  <h1>吞噬作用</h1>
+  <span class="sub">物質穿越細胞膜 · 香港中學文憑試生物學 · 中四</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="吞噬作用連續動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#7eb8e8"></span>吞噬細胞（一個完整細胞）</span>
+      <span class="legend-item"><span class="swatch" style="background:#5dade2;border-radius:4px;width:22px;height:10px"></span>兩條偽足</span>
+      <span class="legend-item"><span class="swatch" style="background:#e67e22"></span>外來粒子</span>
+      <span class="legend-item"><span class="swatch" style="background:#3498db"></span>吞噬泡</span>
+      <span class="legend-item"><span class="swatch" style="background:#e74c3c"></span>消化酶</span>
+      <span class="legend-item"><span class="swatch" style="background:#27ae60"></span>分解產物</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="phaseTitle">察覺外來粒子</div>
+      <p class="scene-desc" id="phaseDesc"></p>
+      <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    </div>
+    <div class="card">
+      <h2>連續過程（同一動畫）</h2>
+      <div class="phase-list" id="phaseList"></div>
+    </div>
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnRestart" type="button">重播</button>
+      </div>
+      <p class="hint">
+        鍵盤：<kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重播<br>
+        點選步驟可跳到<strong>同一連續動畫</strong>的該時段。<br>
+        流程對應：察覺 → 伸出偽足包圍 → 形成吞噬泡 → 酶分解中和。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應 DSE 生物「吞噬作用」· · 請離線以 Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Continuous clip aligned to explainer flow:
+  // notice → reach/extend two pseudopodia → surround → vesicle → enzymes digest
+  const DURATION = 18;
+
+  const phases = [
+    {
+      t0: 0, t1: 3.2,
+      title: "1. 察覺外來粒子",
+      desc: "吞噬細胞（如白血球）發現<strong>不屬於體內</strong>的外來粒子。細胞膜開始<strong>朝粒子方向緩緩伸出</strong>——與下一步連續過渡，沒有突然跳轉。"
+    },
+    {
+      t0: 3.2, t1: 7.5,
+      title: "2. 伸出兩條偽足",
+      desc: "同一段動畫中，隆起的細胞膜順勢向上、下長成<strong>兩條平滑偽足</strong>，逐漸<strong>包圍</strong>外來粒子。仍是<strong>同一個完整細胞</strong>。"
+    },
+    {
+      t0: 7.5, t1: 11.0,
+      title: "3. 包圍並吞入",
+      desc: "兩條偽足<strong>合攏</strong>，把粒子完全包圍，並<strong>吞入細胞內</strong>。"
+    },
+    {
+      t0: 11.0, t1: 14.0,
+      title: "4. 形成吞噬泡",
+      desc: "進入細胞後，粒子被<strong>膜包圍</strong>，形成<strong>吞噬泡</strong>（小泡／phagosome）。細胞外形恢復完整。"
+    },
+    {
+      t0: 14.0, t1: 18.0,
+      title: "5. 酶分解／中和",
+      desc: "細胞釋放<strong>消化酶</strong>（來自溶酶體）進入吞噬泡，把外來粒子<strong>分解、中和</strong>。產物可被細胞利用。"
+    }
+  ];
+
+  let playing = true;
+  let clock0 = performance.now();
+  let animT = 0;
+
+  const titleEl = document.getElementById("phaseTitle");
+  const descEl = document.getElementById("phaseDesc");
+  const btnPlay = document.getElementById("btnPlay");
+  const progressBar = document.getElementById("progressBar");
+  const phaseList = document.getElementById("phaseList");
+
+  phases.forEach((p, i) => {
+    const el = document.createElement("div");
+    el.className = "phase-item" + (i === 0 ? " active" : "");
+    el.innerHTML = '<span class="num"></span>' + p.title;
+    el.addEventListener("click", () => seekTo(p.t0 + 0.08));
+    phaseList.appendChild(el);
+  });
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function updateUI() {
+    let idx = 0;
+    for (let i = 0; i < phases.length; i++) {
+      if (animT >= phases[i].t0) idx = i;
+    }
+    const p = phases[idx];
+    titleEl.textContent = p.title;
+    descEl.innerHTML = p.desc;
+    [...phaseList.children].forEach((el, i) => el.classList.toggle("active", i === idx));
+    btnPlay.textContent = playing ? "暫停" : "播放";
+    progressBar.style.width = (Math.min(1, animT / DURATION) * 100).toFixed(1) + "%";
+  }
+
+  function seekTo(t) {
+    animT = Math.max(0, Math.min(DURATION - 0.02, t));
+    clock0 = performance.now() - animT * 1000;
+    updateUI();
+  }
+  function restart() {
+    animT = 0;
+    clock0 = performance.now();
+    updateUI();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawCallout(x, y, text, color) {
+    ctx.font = "bold 24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 12;
+    roundRect(x - tw / 2 - pad, y - 15, tw + pad * 2, 30, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawParticle(x, y, r, label, broken) {
+    const spoil = broken || 0;
+    ctx.beginPath();
+    ctx.arc(x, y, r * (1 - spoil * 0.55), 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
+    if (spoil > 0.4) {
+      g.addColorStop(0, "#d5f5e3");
+      g.addColorStop(0.5, "#7dcea0");
+      g.addColorStop(1, "#27ae60");
+    } else {
+      g.addColorStop(0, "#ffe0b8");
+      g.addColorStop(0.45, "#e67e22");
+      g.addColorStop(1, "#d35400");
+    }
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if (spoil > 0.25) {
+      // cracks / breaking apart
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.3, y - r * 0.2);
+      ctx.lineTo(x + r * 0.2, y + r * 0.35);
+      ctx.moveTo(x + r * 0.15, y - r * 0.35);
+      ctx.lineTo(x - r * 0.1, y + r * 0.15);
+      ctx.stroke();
+    }
+    if (label) {
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x, y - r - 12);
+    }
+  }
+
+  function drawNucleus(x, y) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, 54, 46, -0.12, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - 10, y - 8, 6, x, y, 54);
+    g.addColorStop(0, "#c39bd3");
+    g.addColorStop(1, "#8e44ad");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "#6c3483";
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("核", x, y + 1);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawEnzyme(x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, r);
+    g.addColorStop(0, "#f5b7b1");
+    g.addColorStop(1, "#c0392b");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "#922b21";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("酶", x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawAttentionRays(cx, cy, px, py, amt) {
+    if (amt <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.35 * Math.sin(animT * 5);
+    ctx.strokeStyle = "#f39c12";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(cx + 180, cy);
+    ctx.lineTo(px - 50, py);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = amt;
+    // "notice" rings on particle
+    for (let i = 0; i < 2; i++) {
+      const rr = 48 + i * 16 + (animT * 40) % 20;
+      ctx.beginPath();
+      ctx.arc(px, py, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(243,156,18," + (0.45 - i * 0.15) + ")";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * ONE continuous morphing silhouette (notice bulge → two smooth pseudopodia → settle).
+   * Always returns a dense point ring; fillCell strokes it with Catmull–Rom curves
+   * so the membrane has no sharp corners.
+   */
+  function buildCell(cx, cy, rx, ry, reach, surround, settle, noticeAmt, partX, partY, partR) {
+    const wobT = animT * 1.1;
+    function ellipsePt(a) {
+      const wob = 1 + 0.018 * Math.sin(a * 3 + wobT);
+      return [cx + Math.cos(a) * rx * wob, cy + Math.sin(a) * ry * wob];
+    }
+
+    // Continuous arm strength: notice already seeds a soft C-opening that
+    // blends into full reach — no hard switch between phase 1 and 2.
+    const R = Math.max(reach, noticeAmt * 0.22);
+    const openSeed = noticeAmt * (1 - smoothstep(0.15, 0.55, reach)); // fades as real arms grow
+
+    const spread = lerp(58, 20, surround);
+    const thick = lerp(50, 40, surround) * lerp(0.55, 1, smoothstep(0.05, 0.45, R));
+
+    // Attachment roots (smoothly migrate outward as arms grow)
+    const rootSpread = lerp(0.22, 0.44, smoothstep(0, 0.5, R));
+    const rootUX = cx + rx * lerp(0.78, 0.50, smoothstep(0, 0.6, R));
+    const rootUY = cy - ry * rootSpread;
+    const rootLX = cx + rx * lerp(0.78, 0.50, smoothstep(0, 0.6, R));
+    const rootLY = cy + ry * rootSpread;
+
+    // Soft U-mouth between arms (rounded, never a V corner)
+    const mouthX = cx + rx * lerp(0.98, 0.66, smoothstep(0.05, 0.85, R));
+    const mouthGap = (lerp(18, 44, smoothstep(0.05, 0.5, R)) * (1 - surround * 0.85) + openSeed * 16) * (1 - settle);
+
+    const uMidX = lerp(rootUX, partX - 10, 0.48 * Math.max(R, 0.15));
+    const uMidY = lerp(rootUY, partY - (partR + spread + 8), 0.72 * Math.max(R, 0.15));
+    const lMidX = lerp(rootLX, partX - 10, 0.48 * Math.max(R, 0.15));
+    const lMidY = lerp(rootLY, partY + (partR + spread + 8), 0.72 * Math.max(R, 0.15));
+
+    let uTipAng = lerp(-1.2, -0.06, surround);
+    let lTipAng = lerp(1.2, 0.06, surround);
+    let uTipX = partX + Math.cos(uTipAng) * (partR + lerp(30, 10, surround));
+    let uTipY = partY + Math.sin(uTipAng) * (partR + lerp(26, 9, surround));
+    let lTipX = partX + Math.cos(lTipAng) * (partR + lerp(30, 10, surround));
+    let lTipY = partY + Math.sin(lTipAng) * (partR + lerp(26, 9, surround));
+
+    const meetX = partX + lerp(partR + 26, 2, surround);
+    const meetY = partY;
+    const mk = smoothstep(0.35, 1, surround);
+    uTipX = lerp(uTipX, meetX, mk);
+    uTipY = lerp(uTipY, meetY - 1.5, mk);
+    lTipX = lerp(lTipX, meetX, mk);
+    lTipY = lerp(lTipY, meetY + 1.5, mk);
+
+    // When R is tiny (early notice), tips stay near body right edge — soft lobes only
+    if (R < 0.35) {
+      const k = R / 0.35;
+      const nearUX = cx + rx * 0.95 + openSeed * 20;
+      const nearUY = cy - 28 - openSeed * 22;
+      const nearLX = cx + rx * 0.95 + openSeed * 20;
+      const nearLY = cy + 28 + openSeed * 22;
+      uTipX = lerp(nearUX, uTipX, k);
+      uTipY = lerp(nearUY, uTipY, k);
+      lTipX = lerp(nearLX, lTipX, k);
+      lTipY = lerp(nearLY, lTipY, k);
+    }
+
+    function armCenter(side, t) {
+      const midX = side < 0 ? uMidX : lMidX;
+      const midY = side < 0 ? uMidY : lMidY;
+      const tipX = side < 0 ? uTipX : lTipX;
+      const tipY = side < 0 ? uTipY : lTipY;
+      const rootX = side < 0 ? rootUX : rootLX;
+      const rootY = side < 0 ? rootUY : rootLY;
+      const omt = 1 - t;
+      return [
+        omt * omt * rootX + 2 * omt * t * midX + t * t * tipX,
+        omt * omt * rootY + 2 * omt * t * midY + t * t * tipY
+      ];
+    }
+
+    function armNormal(side, t) {
+      const midX = side < 0 ? uMidX : lMidX;
+      const midY = side < 0 ? uMidY : lMidY;
+      const tipX = side < 0 ? uTipX : lTipX;
+      const tipY = side < 0 ? uTipY : lTipY;
+      const rootX = side < 0 ? rootUX : rootLX;
+      const rootY = side < 0 ? rootUY : rootLY;
+      const tx = 2 * (1 - t) * (midX - rootX) + 2 * t * (tipX - midX);
+      const ty = 2 * (1 - t) * (midY - rootY) + 2 * t * (tipY - midY);
+      const len = Math.hypot(tx, ty) || 1;
+      let nx = -ty / len, ny = tx / len;
+      if (side < 0 && ny > 0) { nx = -nx; ny = -ny; }
+      if (side > 0 && ny < 0) { nx = -nx; ny = -ny; }
+      return [nx, ny];
+    }
+
+    function armPt(side, t, outer) {
+      const [x0, y0] = armCenter(side, t);
+      const [nx, ny] = armNormal(side, t);
+      // Soft tip rounding: thickness → 0 at tip (no pointed corners)
+      const tipRound = Math.sin(Math.min(1, t) * Math.PI); // 0 at root&tip ends of sin… wait we want fat mid, round tip
+      // Use: full thick in middle, taper smoothly near tip
+      const taper = Math.pow(Math.sin(Math.min(0.999, t) * Math.PI * 0.92 + 0.04), 0.65);
+      const th = thick * (0.55 + 0.45 * taper);
+      const s = outer ? 1 : -1;
+      const inset = outer ? 1 : 0.9;
+      return [x0 + nx * th * 0.5 * s * inset, y0 + ny * th * 0.5 * s * inset];
+    }
+
+    // Rounded semicircular tip samples (smooth caps, no sharp tip points)
+    function tipCap(side) {
+      const tipX = side < 0 ? uTipX : lTipX;
+      const tipY = side < 0 ? uTipY : lTipY;
+      const [nx, ny] = armNormal(side, 0.98);
+      // Tangent along arm at tip
+      const tx = -ny, ty = nx;
+      const capR = Math.max(6, thick * 0.28 * (1 - surround * 0.4));
+      const pts = [];
+      const n = 8;
+      // Sweep from outer normal to inner normal around tip
+      for (let i = 0; i <= n; i++) {
+        const u = i / n;
+        const ang = -Math.PI / 2 + u * Math.PI; // -90° → +90° in tip frame
+        // local frame: +tangent = forward, +normal = outer
+        const lx = Math.sin(ang) * capR;      // along tangent
+        const ly = Math.cos(ang) * capR;      // along outer normal
+        pts.push([
+          tipX + tx * lx + nx * ly,
+          tipY + ty * lx + ny * ly
+        ]);
+      }
+      return pts;
+    }
+
+    // Smooth U-shaped mouth cleft (half-ellipse), no hard corners
+    function mouthArc() {
+      const pts = [];
+      const n = 14;
+      const depth = 12 + 18 * smoothstep(0.1, 0.7, R);
+      for (let i = 0; i <= n; i++) {
+        const u = i / n; // 0 at upper mouth lip → 1 at lower
+        const ang = -Math.PI / 2 + u * Math.PI; // top → bottom via left (into cell)
+        pts.push([
+          mouthX + Math.cos(ang) * depth,
+          cy + Math.sin(ang) * mouthGap
+        ]);
+      }
+      return pts;
+    }
+
+    const pts = [];
+    // 1) Left body arc (smooth ellipse) — denser for curve quality
+    const aLo = 1.05, aUp = -1.05;
+    const bodyN = 40;
+    const span1 = Math.PI - aLo;
+    const span2 = Math.PI + aUp;
+    const total = span1 + span2;
+    for (let i = 0; i <= bodyN; i++) {
+      const d = (i / bodyN) * total;
+      const a = d <= span1 ? aLo + d : -Math.PI + (d - span1);
+      let [px, py] = ellipsePt(a);
+      // Continuous notice bulge on right-ish body before arms dominate
+      if (openSeed > 0.01 && Math.cos(a) > 0.2) {
+        const w = Math.pow(Math.cos(a), 1.2) * openSeed;
+        px += w * 22;
+        py += Math.sin(a) * w * 14;
+      }
+      pts.push([px, py]);
+    }
+
+    // If essentially no arms yet, close with a soft right-side bulge only
+    if (R < 0.06) {
+      // Continue right hemisphere to close the oval smoothly (aUp → 0 → aLo)
+      for (let i = 1; i < 20; i++) {
+        const t = i / 20;
+        const ang = aUp + t * ((aLo + Math.PI * 2) - aUp);
+        const a2 = ang > Math.PI ? ang - Math.PI * 2 : ang;
+        let [px, py] = ellipsePt(a2);
+        if (openSeed > 0.01 && Math.cos(a2) > 0.2) {
+          const w = Math.pow(Math.max(0, Math.cos(a2)), 1.2) * openSeed;
+          px += w * 22;
+          py += Math.sin(a2) * w * 14;
+        }
+        pts.push([px, py]);
+      }
+    } else {
+      const armN = 18;
+      const armLen = Math.max(0.08, R);
+
+      // Smooth blend from body end into upper-arm outer (avoid kink at root)
+      const blendN = 5;
+      const bodyEnd = pts[pts.length - 1];
+      const armStart = armPt(-1, 0, true);
+      for (let i = 1; i <= blendN; i++) {
+        const u = i / (blendN + 1);
+        // smoothstep blend
+        const s = u * u * (3 - 2 * u);
+        pts.push([
+          lerp(bodyEnd[0], armStart[0], s),
+          lerp(bodyEnd[1], armStart[1], s)
+        ]);
+      }
+
+      // Upper outer
+      for (let i = 0; i <= armN; i++) pts.push(armPt(-1, (i / armN) * armLen, true));
+      // Rounded tip cap (outer → inner)
+      tipCap(-1).forEach(p => pts.push(p));
+      // Upper inner back
+      for (let i = armN; i >= 0; i--) pts.push(armPt(-1, (i / armN) * armLen, false));
+
+      // Smooth U mouth
+      mouthArc().forEach(p => pts.push(p));
+
+      // Lower inner → tip → lower outer
+      for (let i = 0; i <= armN; i++) pts.push(armPt(1, (i / armN) * armLen, false));
+      tipCap(1).forEach(p => pts.push(p));
+      for (let i = armN; i >= 0; i--) pts.push(armPt(1, (i / armN) * armLen, true));
+
+      // Blend lower-arm outer root back toward body start
+      const bodyStart = pts[0];
+      const armEnd = pts[pts.length - 1];
+      for (let i = 1; i <= blendN; i++) {
+        const u = i / (blendN + 1);
+        const s = u * u * (3 - 2 * u);
+        pts.push([
+          lerp(armEnd[0], bodyStart[0], s),
+          lerp(armEnd[1], bodyStart[1], s)
+        ]);
+      }
+    }
+
+    // Settle toward ellipse
+    if (settle > 0.01) {
+      const n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI + (i / n) * Math.PI * 2;
+        const [bx, by] = ellipsePt(a);
+        pts[i][0] = lerp(pts[i][0], bx, settle);
+        pts[i][1] = lerp(pts[i][1], by, settle);
+      }
+    }
+
+    // Chaikin-ish pre-smooth on the point ring (reduces residual corners)
+    function chaikin(input, iters) {
+      let cur = input;
+      for (let k = 0; k < iters; k++) {
+        const out = [];
+        const n = cur.length;
+        for (let i = 0; i < n; i++) {
+          const p0 = cur[i];
+          const p1 = cur[(i + 1) % n];
+          out.push([
+            0.75 * p0[0] + 0.25 * p1[0],
+            0.75 * p0[1] + 0.25 * p1[1]
+          ]);
+          out.push([
+            0.25 * p0[0] + 0.75 * p1[0],
+            0.25 * p0[1] + 0.75 * p1[1]
+          ]);
+        }
+        cur = out;
+      }
+      return cur;
+    }
+    const smoothPts = chaikin(pts, R > 0.06 ? 2 : 1);
+
+    const show = R > 0.28 && settle < 0.4;
+    let upLbl = null, loLbl = null;
+    if (show) {
+      upLbl = armPt(-1, 0.55, true); upLbl[1] -= 30;
+      loLbl = armPt(1, 0.55, true); loLbl[1] += 38;
+    }
+    return { pts: smoothPts, upLbl: upLbl, loLbl: loLbl };
+  }
+
+  /** Stroke/fill a closed ring with Catmull–Rom → cubic Beziers (no sharp corners). */
+  function fillCell(pts, cx, cy) {
+    const n = pts.length;
+    if (n < 4) return;
+
+    function crBezier(p0, p1, p2, p3) {
+      // Catmull-Rom to cubic Bezier (tension 1)
+      return {
+        cp1x: p1[0] + (p2[0] - p0[0]) / 6,
+        cp1y: p1[1] + (p2[1] - p0[1]) / 6,
+        cp2x: p2[0] - (p3[0] - p1[0]) / 6,
+        cp2y: p2[1] - (p3[1] - p1[1]) / 6
+      };
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n];
+      const p1 = pts[i];
+      const p2 = pts[(i + 1) % n];
+      const p3 = pts[(i + 2) % n];
+      const b = crBezier(p0, p1, p2, p3);
+      ctx.bezierCurveTo(b.cp1x, b.cp1y, b.cp2x, b.cp2y, p2[0], p2[1]);
+    }
+    ctx.closePath();
+
+    const g = ctx.createRadialGradient(cx - 50, cy - 30, 40, cx, cy, 310);
+    g.addColorStop(0, "#d5f0e8");
+    g.addColorStop(0.45, "#a8d4ea");
+    g.addColorStop(1, "#6aabd4");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "#3a7eab";
+    ctx.lineWidth = 6;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+
+  function drawVesicle(x, y, r, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(52,152,219,0.28)";
+    ctx.fill();
+    ctx.strokeStyle = "#2471a3";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    // membrane double-line hint
+    ctx.beginPath();
+    ctx.arc(x, y, r - 5, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(36,113,163,0.35)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFrame() {
+    const t = animT;
+
+    // Timeline morphs — notice overlaps into reach for a continuous morph
+    const notice = smoothstep(0.5, 2.0, t) * (1 - smoothstep(3.2, 5.0, t));
+    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(11.2, 13.5, t));
+    const surround = smoothstep(6.2, 10.2, t);
+    const pullIn = smoothstep(9.5, 11.5, t);       // bring particle inside
+    const vesicle = smoothstep(11.0, 12.8, t);      // membrane-bound vesicle
+    const settle = smoothstep(11.5, 13.8, t);       // cell outline rounds again
+    const enzyme = smoothstep(14.0, 16.0, t);
+    const digest = smoothstep(15.2, 17.8, t);
+
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#eaf2fa");
+    bg.addColorStop(0.55, "#f7fafc");
+    bg.addColorStop(1, "#e8f5ee");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "#5a6a7a";
+    ctx.font = "20px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("細胞外", W - 130, 42);
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    ctx.fillText("吞噬細胞（一個完整細胞）", 32, H - 32);
+
+    const cx = 500, cy = 400, rx = 220, ry = 195;
+    const partR = 40;
+
+    // Particle position across the story
+    let partX, partY;
+    if (t < 11.2) {
+      const approach = smoothstep(2.5, 9.8, t);
+      partX = lerp(960, cx + rx * 0.7 + 110, approach);
+      partY = cy;
+    } else {
+      // brought inside → vesicle center
+      partX = lerp(cx + 130, cx + 105, smoothstep(11.2, 13.0, t));
+      partY = cy;
+    }
+
+    // Attention during notice phase
+    if (notice > 0.05) drawAttentionRays(cx, cy, partX, partY, notice);
+
+    const cell = buildCell(cx, cy, rx, ry, reach, surround, settle, notice, partX, partY, partR);
+    fillCell(cell.pts, cx, cy);
+    drawNucleus(cx - 75, cy + 6);
+
+    if (cell.upLbl) drawCallout(cell.upLbl[0], cell.upLbl[1], "偽足", "#1a5276");
+    if (cell.loLbl) drawCallout(cell.loLbl[0], cell.loLbl[1], "偽足", "#1a5276");
+
+    // Particle outside / being enclosed
+    const showOutsideParticle = vesicle < 0.55;
+    if (showOutsideParticle) {
+      drawParticle(partX, partY, partR, t < 3.2 ? "外來粒子" : null, 0);
+    }
+
+    // Phagosome (membrane-bound vesicle) inside
+    if (vesicle > 0.05) {
+      const vx = cx + 108;
+      const vy = cy;
+      const vr = lerp(partR + 16, partR + 30, vesicle);
+      drawVesicle(vx, vy, vr, Math.min(1, vesicle * 1.3));
+      if (vesicle > 0.35) {
+        drawParticle(vx, vy, partR * lerp(1, 0.55, digest), null, digest);
+      }
+      if (vesicle > 0.6 && digest < 0.3) {
+        drawCallout(vx, vy - vr - 28, "吞噬泡", "#2471a3");
+      }
+    }
+
+    // Enzymes released into vesicle
+    if (enzyme > 0) {
+      const vx = cx + 108, vy = cy;
+      const starts = [
+        [cx - 30, cy - 120],
+        [cx + 40, cy + 140],
+        [cx - 100, cy + 90],
+        [cx + 10, cy - 150]
+      ];
+      starts.forEach((s, i) => {
+        const ang = i * 1.4;
+        const tx = vx + Math.cos(ang) * 28;
+        const ty = vy + Math.sin(ang) * 22;
+        const ex = lerp(s[0], tx, enzyme);
+        const ey = lerp(s[1], ty, enzyme);
+        drawEnzyme(ex, ey, 18 - enzyme * 4);
+      });
+      if (enzyme > 0.3 && digest < 0.7) {
+        drawCallout(cx - 40, cy - 160, "釋放消化酶", "#c0392b");
+      }
+    }
+
+    // Breakdown products leave vesicle into cytoplasm
+    if (digest > 0.35) {
+      const vx = cx + 108, vy = cy;
+      for (let i = 0; i < 7; i++) {
+        const ang = i * 0.95 + animT * 0.8;
+        const dist = 40 + (digest - 0.35) * 90;
+        ctx.beginPath();
+        ctx.arc(vx + Math.cos(ang) * dist, vy + Math.sin(ang) * dist, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#27ae60";
+        ctx.fill();
+      }
+      if (digest > 0.55) {
+        drawCallout(cx + 220, cy + 130, "分解／中和", "#1e8449");
+      }
+    }
+
+    // Energy badge
+    roundRect(W - 200, H - 82, 168, 46, 8);
+    ctx.fillStyle = "#fef9e7";
+    ctx.fill();
+    ctx.strokeStyle = "#f39c12";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#d68910";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("需要能量", W - 116, H - 59);
+    ctx.textBaseline = "alphabetic";
+
+    // Top stage callout — matches video beats
+    let msg = "察覺不屬於體內的粒子";
+    let col = "#d68910";
+    if (t >= 14) { msg = "釋放酶 → 分解／中和"; col = "#c0392b"; }
+    else if (t >= 11) { msg = "膜包圍粒子 → 形成吞噬泡"; col = "#2471a3"; }
+    else if (t >= 7.5) { msg = "兩條偽足合攏 · 吞入細胞"; col = "#1a5276"; }
+    else if (t >= 3) { msg = "伸出兩條偽足 · 包圍粒子"; col = "#1a5276"; }
+    drawCallout(W / 2, 48, msg, col);
+
+    // Side teaching card early
+    if (t < 5.5) {
+      roundRect(28, 78, 360, 100, 10);
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.fill();
+      ctx.strokeStyle = "#2c5aa0";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "20px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("流程：察覺 → 伸出偽足", 44, 112);
+      ctx.fillText("→ 包圍吞入 → 吞噬泡", 44, 140);
+      ctx.fillText("→ 酶分解／中和", 44, 168);
+    }
+  }
+
+  function loop(now) {
+    if (playing) {
+      animT = (now - clock0) / 1000;
+      if (animT >= DURATION) {
+        if (animT >= DURATION + 2.2) {
+          animT = 0;
+          clock0 = now;
+        } else animT = DURATION;
+      }
+    } else {
+      clock0 = now - animT * 1000;
+    }
+    drawFrame();
+    updateUI();
+    requestAnimationFrame(loop);
+  }
+
+  btnPlay.addEventListener("click", () => {
+    playing = !playing;
+    if (playing) clock0 = performance.now() - animT * 1000;
+    updateUI();
+  });
+  document.getElementById("btnRestart").addEventListener("click", restart);
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      if (playing) clock0 = performance.now() - animT * 1000;
+      updateUI();
+    } else if (e.code === "KeyR") {
+      e.preventDefault();
+      restart();
+    }
+  });
+
+  updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
