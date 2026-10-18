@@ -880,28 +880,27 @@
           oxygenated: u0 > 0.48
         });
       }
-      // Alveolus O2: air → blood (into RBCs)
-      for (let i = 0; i < 9; i++) {
+      // Alveolus O2 / CO2 — few particles so labels stay clear
+      for (let i = 0; i < 4; i++) {
         particles.push({
           kind: "alvO2",
           t: Math.random() * 4,
-          period: 3.5 + Math.random() * 0.8,
+          period: 3.8 + Math.random() * 0.6,
           lane: i,
           color: "#1a5276",
           label: "氧",
-          r: 10
+          r: 9
         });
       }
-      // Alveolus CO2: blood → air
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 3; i++) {
         particles.push({
           kind: "alvCO2",
           t: Math.random() * 4,
-          period: 3.5 + Math.random() * 0.8,
+          period: 3.8 + Math.random() * 0.6,
           lane: i,
           color: "#d68910",
           label: "二氧化碳",
-          r: 10
+          r: 9
         });
       }
       // Tissue: O2 / nutrients out of capillary into cells
@@ -1657,67 +1656,23 @@
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Left / right vessel stubs (pulmonary artery in / vein out)
+    // Thin left / right vessel ends only (no scaffold / bracket)
     const leftEnd = uCap(0);
     const rightEnd = uCap(1);
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(leftEnd.x - 12, leftEnd.y - 30);
-    ctx.lineTo(leftEnd.x - 2, leftEnd.y + 6);
-    ctx.strokeStyle = "#7b241c";
-    ctx.lineWidth = CAP_W * 0.8;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(rightEnd.x + 2, rightEnd.y + 6);
-    ctx.lineTo(rightEnd.x + 14, rightEnd.y - 32);
-    ctx.strokeStyle = "#e74c3c";
-    ctx.lineWidth = CAP_W * 0.8;
-    ctx.stroke();
-    ctx.lineCap = "butt";
-
-    // --- 小支血管 at TOP: thin branch linking left↔right arms (closes open top) ---
-    const brY = AY - AR - 18;           // just above alveolus
-    const brX0 = leftEnd.x + 6;
-    const brX1 = rightEnd.x - 6;
-    const brW = 18;                     // thinner than main U capillary
-    // lumen fill (slightly arched)
-    ctx.beginPath();
-    ctx.moveTo(brX0, brY - brW / 2);
-    ctx.quadraticCurveTo(AX, brY - brW / 2 - 14, brX1, brY - brW / 2);
-    ctx.lineTo(brX1, brY + brW / 2);
-    ctx.quadraticCurveTo(AX, brY + brW / 2 - 14, brX0, brY + brW / 2);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(192, 57, 43, 0.38)";
-    ctx.fill();
-    // walls
-    ctx.beginPath();
-    ctx.moveTo(brX0, brY - brW / 2);
-    ctx.quadraticCurveTo(AX, brY - brW / 2 - 14, brX1, brY - brW / 2);
-    ctx.strokeStyle = "#922b21";
-    ctx.lineWidth = 2.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(brX0, brY + brW / 2);
-    ctx.quadraticCurveTo(AX, brY + brW / 2 - 14, brX1, brY + brW / 2);
-    ctx.stroke();
-    // join stubs to U ends
-    ctx.strokeStyle = "#922b21";
-    ctx.lineWidth = brW * 0.9;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(brX0, brY);
+    ctx.moveTo(leftEnd.x - 6, leftEnd.y - 18);
     ctx.lineTo(leftEnd.x, leftEnd.y);
+    ctx.strokeStyle = "#7b241c";
+    ctx.lineWidth = CAP_W * 0.55;
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(brX1, brY);
-    ctx.lineTo(rightEnd.x, rightEnd.y);
+    ctx.moveTo(rightEnd.x, rightEnd.y);
+    ctx.lineTo(rightEnd.x + 8, rightEnd.y - 20);
+    ctx.strokeStyle = "#e74c3c";
+    ctx.lineWidth = CAP_W * 0.55;
     ctx.stroke();
     ctx.lineCap = "butt";
-
-    ctx.fillStyle = "#922b21";
-    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("小支血管", AX, brY - brW / 2 - 22);
 
     // --- ONE large alveolus (氣囊) ---
     ctx.beginPath();
@@ -1764,62 +1719,80 @@
     ctx.fillStyle = "#922b21";
     ctx.fillText("微血管壁", AX + AR + CAP_GAP + CAP_W + 8, AY + 20);
 
-    // Animated RBCs (drawn from particles — flowing along U)
+    // Animated RBCs (skip bottom gap where 小支氣管 sits)
     particles.forEach(p => {
       if (p.kind === "alvRBC") {
+        if (Math.abs(p.x - AX) < 28 && p.y > AY + AR - 20) return;
         drawRBC(p.x, p.y, p.r, !!p.oxygenated);
       }
     });
 
+    // --- 小支氣管 at BOTTOM (airway into 氣囊) ---
+    const bx = AX, by0 = AY + AR - 8, by1 = AY + AR + 78;
+    // tube body
+    roundRect(bx - 18, by0, 36, by1 - by0, 8);
+    ctx.fillStyle = "#f5cba7";
+    ctx.fill();
+    ctx.strokeStyle = "#d68910";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // lumen hint
+    roundRect(bx - 8, by0 + 4, 16, by1 - by0 - 8, 5);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fill();
+    ctx.fillStyle = "#a04000";
+    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("小支氣管", bx + 28, by0 + 40);
+
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    const midBot = uCap(0.5);
-    ctx.fillText("紅血細胞（隨血流移動）", midBot.x, midBot.y + 42);
+    ctx.fillText("紅血細胞（隨血流移動）", AX + AR + 55, AY + AR + 55);
 
-    // Teaching arrows: O2 / CO2
-    drawArrow(AX + 40, AY + 50, AX + 70, AY + AR + 8, "#1a5276", 3);
+    // Teaching arrows: O2 / CO2 (kept clear of labels)
+    drawArrow(AX + 55, AY + 20, AX + AR + 10, AY + 55, "#1a5276", 3);
     ctx.fillStyle = "#1a5276";
     ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText("氧 → 紅血細胞", AX + 75, AY + AR + 20);
+    ctx.fillText("氧 → 紅血細胞", AX + AR + 18, AY + 50);
 
-    drawArrow(AX - 75, AY + AR + 5, AX - 45, AY + 45, "#d68910", 3);
+    drawArrow(AX - AR - 5, AY + 55, AX - 50, AY + 15, "#d68910", 3);
     ctx.fillStyle = "#b9770e";
     ctx.textAlign = "right";
-    ctx.fillText("二氧化碳 → 氣囊", AX - 80, AY + AR + 20);
+    ctx.fillText("二氧化碳 → 氣囊", AX - AR - 10, AY + 70);
 
-    // Inhale / exhale (into air sac, not through vessel)
-    drawArrow(AX - 50, AY - AR - 55, AX - 20, AY - AR + 5, "#1a5276", 3);
+    // Inhale / exhale via 小支氣管
+    drawArrow(bx - 55, by1 - 10, bx - 22, by1 - 30, "#1a5276", 3);
     ctx.fillStyle = "#1a5276";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("吸入空氣（含氧）", AX - 90, AY - AR - 62);
+    ctx.fillText("吸入空氣", bx - 70, by1 + 8);
 
-    drawArrow(AX + 25, AY - AR + 5, AX + 55, AY - AR - 50, "#d68910", 3);
+    drawArrow(bx + 22, by1 - 30, bx + 55, by1 - 10, "#d68910", 3);
     ctx.fillStyle = "#b9770e";
-    ctx.fillText("呼出（含二氧化碳）", AX + 100, AY - AR - 58);
+    ctx.fillText("呼出空氣", bx + 70, by1 + 8);
 
-    // Blood flow labels
+    // Blood flow labels (upper sides — clear of 小支氣管)
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    drawArrow(AX - AR - 70, AY - 10, AX - AR - 40, AY + 30, "#7b241c", 3);
-    ctx.fillText("來自肺動脈的缺氧血", AX - AR - 55, AY + 55);
+    drawArrow(AX - AR - 55, AY - 50, AX - AR - 25, AY - 10, "#7b241c", 3);
+    ctx.fillText("來自肺動脈的缺氧血", AX - AR - 50, AY - 70);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧低 · 二氧化碳高）", AX - AR - 55, AY + 72);
+    ctx.fillText("（氧低 · 二氧化碳高）", AX - AR - 50, AY - 53);
 
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    drawArrow(AX + AR + 35, AY + 20, AX + AR + 65, AY - 25, "#e74c3c", 3);
-    ctx.fillText("流往肺靜脈的含氧血", AX + AR + 70, AY - 40);
+    drawArrow(AX + AR + 25, AY - 10, AX + AR + 55, AY - 50, "#e74c3c", 3);
+    ctx.fillText("流往肺靜脈的含氧血", AX + AR + 60, AY - 70);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧高 · 二氧化碳低）", AX + AR + 70, AY - 23);
+    ctx.fillText("（氧高 · 二氧化碳低）", AX + AR + 60, AY - 53);
 
-    drawAnnotationBox(40, 620, [
-      "微血管 U 形環繞氣囊；頂部為小支血管相連",
+    drawAnnotationBox(40, 640, [
+      "微血管 U 形沿氣囊外側環繞；底部小支氣管供空氣進出",
       "紅血細胞沿微血管流動（左缺氧 → 右含氧）",
-      "氧入紅血細胞；二氧化碳進入氣囊後呼出"
+      "氧入紅血細胞；二氧化碳進入氣囊後經小支氣管呼出"
     ], "#2c5aa0");
 
     // ========== RIGHT PANEL (unchanged layered layout) ==========
@@ -1917,7 +1890,9 @@
     particles.forEach(p => {
       const kinds = ["alvO2","alvCO2","tisO2","tisNut","tisCO2","tisWaste"];
       if (kinds.indexOf(p.kind) >= 0) {
-        const show = (p.lane % 4 === 0);
+        const show = (p.kind === "alvO2" || p.kind === "alvCO2")
+          ? (p.lane === 0)
+          : (p.lane % 4 === 0);
         drawMolecule(p.x, p.y, p.r, p.color, show ? p.label : null);
       }
     });
