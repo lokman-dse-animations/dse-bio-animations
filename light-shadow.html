@@ -102,6 +102,29 @@
     white-space: nowrap;
   }
   a.back-link:hover { text-decoration: underline; }
+
+  html, body { max-width: 100%; }
+  header, main, aside, footer, #stage { max-width: 100%; min-width: 0; }
+  header h1, header .sub, #conclusion, #formula { min-width: 0; overflow-wrap: anywhere; }
+  #stage { overflow: hidden; }
+  #stage canvas { max-width: 100%; }
+
+  @media (max-width: 900px) {
+    html, body { overflow-x: hidden; }
+    header { padding: 8px 10px; gap: 8px; }
+    header h1 { font-size: clamp(18px, 5vw, 24px); }
+    header .sub { font-size: clamp(14px, 3.8vw, 18px); }
+    header button, aside button, .step-btn { min-height: 44px; }
+    main { width: 100%; }
+    #stage {
+      width: 100%;
+      height: min(62vh, 520px);
+      max-height: 62vh;
+    }
+    aside { width: 100%; padding: 12px 10px; }
+    aside > * { flex-basis: 100%; }
+    footer { padding: 8px 10px 12px; }
+  }
 </style>
 </head>
 <body>
