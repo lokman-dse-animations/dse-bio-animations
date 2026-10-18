@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>生物科動畫 — DSE Biology</title>
+<title>教學動畫 — 年級與科目</title>
 <style>
   :root {
     --bg: #f0f4f8;
@@ -13,7 +13,7 @@
     --accent: #1e6b4f;
     --accent-soft: #e6f4ee;
     --border: #d0dae6;
-    --chip: #2c5aa0;
+    --disabled: #9aa8b5;
   }
   * { box-sizing: border-box; }
   body {
@@ -28,7 +28,7 @@
     min-height: 100vh;
   }
   header {
-    padding: 2.75rem 1.25rem 1.75rem;
+    padding: 2.75rem 1.25rem 1.5rem;
     text-align: center;
   }
   .badge {
@@ -59,21 +59,25 @@
     padding: 0 1.25rem 2.5rem;
   }
   h2.section {
-    margin: 0 0 0.85rem;
+    margin: 1.25rem 0 0.85rem;
     font-size: 1.05rem;
     color: var(--muted);
     font-weight: 700;
   }
   .grid {
     display: grid;
-    gap: 1rem;
+    gap: 0.85rem;
+    grid-template-columns: 1fr;
   }
-  a.card {
+  @media (min-width: 560px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  a.card, .card.disabled {
     display: block;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 1.3rem 1.45rem;
+    padding: 1.2rem 1.35rem;
     text-decoration: none;
     color: inherit;
     box-shadow: 0 1px 2px rgba(26, 35, 50, 0.04);
@@ -84,31 +88,28 @@
     box-shadow: 0 8px 24px rgba(30, 107, 79, 0.12);
     transform: translateY(-1px);
   }
-  a.card h3 {
-    margin: 0 0 0.35rem;
-    font-size: 1.22rem;
+  .card h3 {
+    margin: 0 0 0.3rem;
+    font-size: 1.15rem;
     color: var(--accent);
   }
-  a.card p {
+  .card p {
     margin: 0;
-    color: var(--muted);
-    font-size: 0.96rem;
-  }
-  .meta {
-    margin-top: 0.85rem;
-    font-size: 0.82rem;
-    color: var(--chip);
-    font-weight: 600;
-  }
-  .note {
-    margin-top: 1.5rem;
-    padding: 1rem 1.15rem;
-    background: #fff;
-    border: 1px dashed var(--border);
-    border-radius: 12px;
     color: var(--muted);
     font-size: 0.92rem;
   }
+  .card.disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+  }
+  .card.disabled h3 { color: var(--disabled); }
+  .meta {
+    margin-top: 0.7rem;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .card.disabled .meta { color: var(--disabled); }
   footer {
     text-align: center;
     color: var(--muted);
@@ -119,26 +120,68 @@
 </head>
 <body>
   <header>
-    <div class="badge">香港 DSE 生物科</div>
-    <h1>生物科動畫</h1>
-    <p>互動示意，方便課堂演示與學生自學。用 Chrome 或 Safari 打開效果最佳。</p>
+    <div class="badge">教學動畫</div>
+    <h1>揀年級與科目</h1>
+    <p>先揀對應年級科目，再打開動畫。之後會陸續加入更多內容。</p>
   </header>
   <main>
-    <h2 class="section">細胞膜</h2>
+    <h2 class="section">中四</h2>
     <div class="grid">
-      <a class="card" href="fluid-mosaic.html">
-        <h3>流動鑲嵌模型</h3>
-        <p>細胞膜結構：磷脂雙層、蛋白質與碳水化合物；第二幕可見磷脂橫向移動。</p>
-        <div class="meta">←／→ 換幕 · 空白鍵暫停</div>
+      <a class="card" href="f4-biology.html">
+        <h3>中四 · 生物</h3>
+        <p>細胞膜結構與物質運輸等互動示意。</p>
+        <div class="meta">2 個動畫 · 進入 →</div>
       </a>
-      <a class="card" href="transport.html">
-        <h3>物質穿越細胞膜</h3>
-        <p>擴散、滲透與主動運輸等物質進出細胞的過程示意。</p>
-        <div class="meta">瀏覽器直接播放</div>
-      </a>
+      <div class="card disabled">
+        <h3>中四 · 化學</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+      <div class="card disabled">
+        <h3>中四 · 物理</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
     </div>
-    <div class="note">之後有新動畫會加在這裡。建議全螢幕播放，方便投影。</div>
+
+    <h2 class="section">中五</h2>
+    <div class="grid">
+      <div class="card disabled">
+        <h3>中五 · 生物</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+      <div class="card disabled">
+        <h3>中五 · 化學</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+      <div class="card disabled">
+        <h3>中五 · 物理</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+    </div>
+
+    <h2 class="section">中六</h2>
+    <div class="grid">
+      <div class="card disabled">
+        <h3>中六 · 生物</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+      <div class="card disabled">
+        <h3>中六 · 化學</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+      <div class="card disabled">
+        <h3>中六 · 物理</h3>
+        <p>稍後推出。</p>
+        <div class="meta">即將推出</div>
+      </div>
+    </div>
   </main>
-  <footer>生物科動畫 · 教學用途</footer>
+  <footer>教學用途 · 用 Chrome 或 Safari 打開效果最佳</footer>
 </body>
 </html>
