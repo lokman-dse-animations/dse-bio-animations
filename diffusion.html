@@ -903,6 +903,20 @@
           r: 9
         });
       }
+      // Right panel: RBCs flowing left → right in microvessel
+      for (let i = 0; i < 6; i++) {
+        const u0 = i / 6;
+        particles.push({
+          kind: "tisRBC",
+          t: u0 * 4.5,
+          period: 4.5,
+          lane: i,
+          r: 15 + (i % 3),
+          x: 760 + u0 * 420,
+          y: 188 + (i % 2) * 6,
+          oxygenated: u0 < 0.45
+        });
+      }
       // Tissue: O2 / nutrients out of capillary into cells
       for (let i = 0; i < 7; i++) {
         particles.push({
@@ -1255,6 +1269,11 @@
           const r = r0 + u * (r1 - r0);
           p.x = AX + Math.cos(ang) * r + jig;
           p.y = AY + Math.sin(ang) * r * 0.95 + jig * 0.4;
+        } else if (p.kind === "tisRBC") {
+          // Flow left → right inside right-panel capillary band
+          p.x = 760 + u * 420;
+          p.y = 188 + Math.sin(p.t * 3 + p.lane) * 4;
+          p.oxygenated = u < 0.5; // still oxygenated on arterial side, then give O2
         } else if (p.kind === "tisO2") {
           // Capillary (top) → tissue fluid → body cell
           const x0 = 720 + (p.lane % 5) * 70;
@@ -1773,21 +1792,27 @@
     ctx.fillStyle = "#b9770e";
     ctx.fillText("呼出空氣", bx + 70, by1 + 8);
 
-    // Blood flow labels (upper sides — clear of 小支氣管)
+    // Blood-flow arrows AT capillary inlet (left) and outlet (right)
+    // Inlet → into U
+    drawArrow(leftEnd.x - 55, leftEnd.y - 45, leftEnd.x - 8, leftEnd.y - 8, "#7b241c", 4);
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    drawArrow(AX - AR - 55, AY - 50, AX - AR - 25, AY - 10, "#7b241c", 3);
-    ctx.fillText("來自肺動脈的缺氧血", AX - AR - 50, AY - 70);
+    ctx.fillText("來自肺動脈的缺氧血", leftEnd.x - 70, leftEnd.y - 58);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧低 · 二氧化碳高）", AX - AR - 50, AY - 53);
+    ctx.fillText("（氧低 · 二氧化碳高）", leftEnd.x - 70, leftEnd.y - 42);
+    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    ctx.fillText("入口 ↓", leftEnd.x - 40, leftEnd.y + 18);
 
+    // Outlet ← out of U
+    drawArrow(rightEnd.x + 6, rightEnd.y - 6, rightEnd.x + 50, rightEnd.y - 42, "#e74c3c", 4);
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    drawArrow(AX + AR + 25, AY - 10, AX + AR + 55, AY - 50, "#e74c3c", 3);
-    ctx.fillText("流往肺靜脈的含氧血", AX + AR + 60, AY - 70);
+    ctx.fillText("流往肺靜脈的含氧血", rightEnd.x + 70, rightEnd.y - 55);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧高 · 二氧化碳低）", AX + AR + 60, AY - 53);
+    ctx.fillText("（氧高 · 二氧化碳低）", rightEnd.x + 70, rightEnd.y - 39);
+    ctx.font = "bold 12px 'Noto Sans TC', sans-serif";
+    ctx.fillText("出口 ↑", rightEnd.x + 40, rightEnd.y + 18);
 
     drawAnnotationBox(40, 640, [
       "微血管 U 形沿氣囊外側環繞；底部小支氣管供空氣進出",
@@ -1823,16 +1848,20 @@
     ctx.fillStyle = "#5a6a7a";
     ctx.fillText("微血管壁（單層細胞）", 720, 148);
 
-    drawArrow(800, 175, 1120, 175, "#c0392b", 3);
+    // Inlet / outlet arrows on the tissue capillary
+    drawArrow(710, 195, 755, 195, "#7b241c", 3);
+    drawArrow(1165, 195, 1210, 195, "#e74c3c", 3);
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("血流 →", 960, 168);
+    ctx.fillText("血流 →", 960, 155);
 
-    drawRBC(840, 190, 18, true);
-    drawRBC(940, 185, 17, true);
-    drawRBC(1040, 192, 18, false);
-    drawRBC(1140, 188, 16, false);
+    // Animated RBCs flowing through capillary
+    particles.forEach(p => {
+      if (p.kind === "tisRBC") {
+        drawRBC(p.x, p.y, p.r, !!p.oxygenated);
+      }
+    });
 
     roundRect(700, 280, 520, 370, 16);
     ctx.fillStyle = "rgba(241, 196, 15, 0.14)";
