@@ -1198,31 +1198,28 @@
     }
 
     if (id === "importance") {
-      // Left panel: alveolus center (334, 400); capillary is annular ring around it
-      // Right: capillary top band; tissue cells below
-      const ALV_CX = 334, ALV_CY = 400;
-      const ALV_RX = 118, ALV_RY = 112;
-      const CAP_MID_RX = 152, CAP_MID_RY = 144; // mid-lumen of wrapping capillary
+      // Left: one alveolus (334, 370); U-capillary along bottom+sides (not concentric ring)
+      // Right: capillary top / tissue below
+      const AX = 334, AY = 370, AR = 125;
       particles.forEach(p => {
         p.t += dt;
         const u = (p.t % p.period) / p.period;
         const jig = Math.sin(p.t * 2.8 + p.lane) * 4;
 
         if (p.kind === "alvO2") {
-          // Radial OUT: air sac → through wall/film → into wrapping capillary
-          const ang = -0.55 + (p.lane % 6) * 0.40; // NE–SE arc
-          const ex0 = 42, ey0 = 40;
-          const exR = ex0 + u * (CAP_MID_RX - ex0);
-          const eyR = ey0 + u * (CAP_MID_RY - ey0);
-          p.x = ALV_CX + Math.cos(ang) * exR + jig;
-          p.y = ALV_CY + Math.sin(ang) * eyR + jig * 0.5;
+          // From air sac interior → down/out into U-capillary (toward RBC)
+          const ang = 0.4 + (p.lane % 5) * 0.35; // lower-right to bottom
+          const r0 = 30, r1 = AR + 28;
+          const r = r0 + u * (r1 - r0);
+          p.x = AX + Math.cos(ang) * r + jig;
+          p.y = AY + Math.sin(ang) * r * 0.95 + jig * 0.4;
         } else if (p.kind === "alvCO2") {
-          // Radial IN: capillary lumen → alveolar air
-          const ang = 2.2 + (p.lane % 5) * 0.4; // left/lower arcs
-          const exR = CAP_MID_RX - u * (CAP_MID_RX - 42);
-          const eyR = CAP_MID_RY - u * (CAP_MID_RY - 40);
-          p.x = ALV_CX + Math.cos(ang) * exR + jig;
-          p.y = ALV_CY + Math.sin(ang) * eyR + jig * 0.5;
+          // From U-capillary lumen → into air sac
+          const ang = Math.PI * 0.7 + (p.lane % 5) * 0.35; // left-bottom
+          const r0 = AR + 28, r1 = 35;
+          const r = r0 + u * (r1 - r0);
+          p.x = AX + Math.cos(ang) * r + jig;
+          p.y = AY + Math.sin(ang) * r * 0.95 + jig * 0.4;
         } else if (p.kind === "tisO2") {
           // Capillary (top) → tissue fluid → body cell
           const x0 = 720 + (p.lane % 5) * 70;
@@ -1536,16 +1533,31 @@
   }
 
   function drawSceneImportance() {
-    // Shared geometry for left panel (must match particle paths)
-    const ALV_CX = 334, ALV_CY = 400;
-    const ALV_RX = 118, ALV_RY = 112;
-    const CAP_IN_RX = 128, CAP_IN_RY = 122;   // inner edge of capillary (just outside 氣囊壁)
-    const CAP_OUT_RX = 176, CAP_OUT_RY = 168; // outer edge of capillary
-    const CAP_MID_RX = 152, CAP_MID_RY = 144;
+    // Geometry: ONE alveolus + U-shaped capillary along bottom & sides (textbook style)
+    const AX = 334, AY = 370, AR = 125;
+    const CAP_GAP = 10;      // clear space between 氣囊壁 and 微血管內壁
+    const CAP_W = 36;        // capillary lumen width (thin tube, not fat ring)
+    const rInner = AR + CAP_GAP;
+    const rOuter = rInner + CAP_W;
+    const rMid = (rInner + rOuter) / 2;
 
-    // ========== LEFT: 肺氣囊氣體交換 ==========
+    // Point along U centerline (t: 0 left-top → 1 right-top), wrapping bottom+sides only
+    function uCap(t) {
+      // angle from ~200° (left) through 270° (bottom) to ~340° (right) — open at top
+      const a0 = Math.PI * 0.55;   // ~99° past top? wait use from PI*0.85 to PI*2.15
+      const aStart = Math.PI * 0.78;  // upper-left
+      const aEnd = Math.PI * 2.22;    // upper-right
+      const ang = aStart + t * (aEnd - aStart);
+      return {
+        x: AX + Math.cos(ang) * rMid,
+        y: AY + Math.sin(ang) * rMid * 0.98,
+        ang: ang
+      };
+    }
+
+    // ========== LEFT PANEL ==========
     roundRect(24, 36, 620, 730, 14);
-    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
     ctx.fill();
     ctx.strokeStyle = "#2c5aa0";
     ctx.lineWidth = 2;
@@ -1556,160 +1568,198 @@
     ctx.textAlign = "center";
     ctx.fillText("肺氣囊與微血管的氣體交換", 334, 68);
 
-    // --- Capillary WRAP: annulus around alveolus (even-odd ring) ---
-    ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_OUT_RX, CAP_OUT_RY, 0, 0, Math.PI * 2);
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_IN_RX, CAP_IN_RY, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(231, 76, 60, 0.32)";
-    ctx.fill("evenodd");
+    // --- Draw U-shaped CAPILLARY TUBE first (behind labels, outside sac) ---
+    // Build outer and inner wall paths for the U arc only
+    const aStart = Math.PI * 0.78;
+    const aEnd = Math.PI * 2.22;
+    const steps = 48;
 
-    // Capillary outer wall
+    // Lumen fill between inner and outer arcs
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_OUT_RX, CAP_OUT_RY, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "#922b21";
-    ctx.lineWidth = 3.5;
+    for (let i = 0; i <= steps; i++) {
+      const ang = aStart + (i / steps) * (aEnd - aStart);
+      const x = AX + Math.cos(ang) * rOuter;
+      const y = AY + Math.sin(ang) * rOuter * 0.98;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const ang = aStart + (i / steps) * (aEnd - aStart);
+      const x = AX + Math.cos(ang) * rInner;
+      const y = AY + Math.sin(ang) * rInner * 0.98;
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    // Gradient: darker (deoxygenated) on left → brighter on right
+    const lg = ctx.createLinearGradient(AX - rOuter, AY, AX + rOuter, AY);
+    lg.addColorStop(0, "rgba(123, 36, 28, 0.45)");
+    lg.addColorStop(0.45, "rgba(192, 57, 43, 0.35)");
+    lg.addColorStop(1, "rgba(231, 76, 60, 0.40)");
+    ctx.fillStyle = lg;
+    ctx.fill();
+
+    // Capillary walls (thin strokes — 微血管壁)
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const ang = aStart + (i / steps) * (aEnd - aStart);
+      const x = AX + Math.cos(ang) * rOuter;
+      const y = AY + Math.sin(ang) * rOuter * 0.98;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "#7b241c";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
     ctx.stroke();
-    // Capillary inner wall (= against 氣囊壁)
+
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_IN_RX, CAP_IN_RY, 0, 0, Math.PI * 2);
+    for (let i = 0; i <= steps; i++) {
+      const ang = aStart + (i / steps) * (aEnd - aStart);
+      const x = AX + Math.cos(ang) * rInner;
+      const y = AY + Math.sin(ang) * rInner * 0.98;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
     ctx.strokeStyle = "#c0392b";
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Soft highlight in lumen
+    // Open ends of U — short stubs suggesting vessel continue
+    const leftEnd = uCap(0);
+    const rightEnd = uCap(1);
+    // inlet stub (left)
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_MID_RX + 8, CAP_MID_RY + 8, 0, 0, Math.PI * 2);
-    ctx.ellipse(ALV_CX, ALV_CY, CAP_MID_RX - 8, CAP_MID_RY - 8, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 120, 100, 0.12)";
-    ctx.fill("evenodd");
+    ctx.moveTo(leftEnd.x - 8, leftEnd.y - 25);
+    ctx.lineTo(leftEnd.x - 4, leftEnd.y + 8);
+    ctx.strokeStyle = "#7b241c";
+    ctx.lineWidth = CAP_W * 0.85;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    // outlet stub (right)
+    ctx.beginPath();
+    ctx.moveTo(rightEnd.x + 4, rightEnd.y + 8);
+    ctx.lineTo(rightEnd.x + 10, rightEnd.y - 28);
+    ctx.strokeStyle = "#e74c3c";
+    ctx.lineWidth = CAP_W * 0.85;
+    ctx.stroke();
+    ctx.lineCap = "butt";
 
-    // --- Alveolar air sac (fills the hole — no overlap with vessel lumen) ---
+    // --- ONE large alveolus (氣囊) — soft pink chamber, no second ring ---
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, ALV_RX, ALV_RY, 0, 0, Math.PI * 2);
-    const ag = ctx.createRadialGradient(ALV_CX - 30, ALV_CY - 40, 10, ALV_CX, ALV_CY, ALV_RX);
-    ag.addColorStop(0, "#fff5f0");
-    ag.addColorStop(0.55, "#fadbd8");
-    ag.addColorStop(1, "#f5b7b1");
+    ctx.ellipse(AX, AY, AR, AR * 0.96, 0, 0, Math.PI * 2);
+    const ag = ctx.createRadialGradient(AX - 35, AY - 45, 8, AX, AY, AR);
+    ag.addColorStop(0, "#fff8f5");
+    ag.addColorStop(0.5, "#fdebd0");
+    ag.addColorStop(1, "#f5c6aa");
     ctx.fillStyle = ag;
     ctx.fill();
 
-    // 氣囊壁 (alveolar wall — thin rim)
+    // 氣囊壁 — single thin outline only
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, ALV_RX, ALV_RY, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "#e59866";
-    ctx.lineWidth = 6;
+    ctx.ellipse(AX, AY, AR, AR * 0.96, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "#d68910";
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // 薄水膜 (thin moisture film just inside wall)
+    // 薄水膜 — dashed line just inside wall (not another solid circle look)
     ctx.beginPath();
-    ctx.ellipse(ALV_CX, ALV_CY, ALV_RX - 10, ALV_RY - 10, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(52, 152, 219, 0.7)";
+    ctx.ellipse(AX, AY, AR - 9, AR * 0.96 - 9, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(52,152,219,0.75)";
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Airway opening at top
+    ctx.beginPath();
+    roundRect(AX - 26, AY - AR - 48, 52, 52, 8);
+    ctx.fillStyle = "#fdebd0";
+    ctx.fill();
+    ctx.strokeStyle = "#d68910";
     ctx.lineWidth = 3.5;
     ctx.stroke();
 
-    // Airway neck at top (opening where capillary does not cover)
-    ctx.save();
-    ctx.beginPath();
-    // clear a notch visually with a short tube
-    roundRect(ALV_CX - 28, ALV_CY - ALV_RY - 55, 56, 58, 10);
-    ctx.fillStyle = "#fadbd8";
-    ctx.fill();
-    ctx.strokeStyle = "#e59866";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.restore();
-
-    // Labels on structures (placed in clear zones)
-    ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#a04000";
-    ctx.fillText("氣囊壁", ALV_CX - 70, ALV_CY - 70);
-    ctx.fillStyle = "#2471a3";
-    ctx.fillText("薄水膜", ALV_CX + 55, ALV_CY - 55);
-    ctx.fillStyle = "#922b21";
-    ctx.fillText("微血管壁", ALV_CX + 40, ALV_CY - CAP_OUT_RY - 8);
-
+    // Center labels (inside air only)
     ctx.fillStyle = "#6e2c00";
-    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
-    ctx.fillText("氣囊（肺泡）", ALV_CX, ALV_CY - 8);
+    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("氣囊", AX, AY - 6);
     ctx.font = "14px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#5a6a7a";
-    ctx.fillText("空氣 · 氧高 · CO₂低", ALV_CX, ALV_CY + 16);
+    ctx.fillText("（肺泡空氣）", AX, AY + 16);
+    ctx.fillText("氧高 · 二氧化碳低", AX, AY + 36);
 
-    // RBCs sitting IN the capillary lumen (parametric on mid ring)
-    // Left/bottom arc = deoxygenated in; right/top arc = oxygenated out
-    const rbcSpecs = [
-      { a: 2.6, ox: false, s: 17 },
-      { a: 3.1, ox: false, s: 16 },
-      { a: 3.55, ox: false, s: 15 },
-      { a: 4.1, ox: false, s: 16 },
-      { a: -0.3, ox: true, s: 16 },
-      { a: 0.25, ox: true, s: 17 },
-      { a: 0.75, ox: true, s: 15 },
-      { a: 1.2, ox: true, s: 16 }
-    ];
-    rbcSpecs.forEach(r => {
-      const x = ALV_CX + Math.cos(r.a) * CAP_MID_RX;
-      const y = ALV_CY + Math.sin(r.a) * CAP_MID_RY;
-      drawRBC(x, y, r.s, r.ox);
+    // Structure callouts (leader lines to clear zones)
+    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#2471a3";
+    ctx.textAlign = "right";
+    ctx.fillText("薄水膜", AX - 40, AY - 55);
+    ctx.fillStyle = "#b9770e";
+    ctx.fillText("氣囊壁", AX - 40, AY - 75);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#922b21";
+    ctx.fillText("微血管壁", AX + AR + CAP_GAP + CAP_W + 8, AY + 20);
+
+    // RBCs in SINGLE FILE along U lumen mid-line
+    const rbcTs = [0.08, 0.20, 0.32, 0.44, 0.56, 0.68, 0.80, 0.92];
+    rbcTs.forEach((t, i) => {
+      const pt = uCap(t);
+      const oxygenated = t > 0.5; // left darker / right brighter
+      drawRBC(pt.x, pt.y, 14, oxygenated);
     });
 
     ctx.fillStyle = "#7b241c";
-    ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("紅血細胞", ALV_CX + CAP_OUT_RX - 10, ALV_CY + 10);
+    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    const midBot = uCap(0.5);
+    ctx.fillText("紅血細胞", midBot.x, midBot.y + 42);
 
-    // Static direction arrows (O2 out / CO2 in) — short radial cues
-    function radialArrow(ang, inward, color) {
-      const rOutX = CAP_MID_RX - 8, rOutY = CAP_MID_RY - 8;
-      const rInX = 50, rInY = 48;
-      const x1 = ALV_CX + Math.cos(ang) * (inward ? rOutX : rInX);
-      const y1 = ALV_CY + Math.sin(ang) * (inward ? rOutY : rInY);
-      const x2 = ALV_CX + Math.cos(ang) * (inward ? rInX : rOutX);
-      const y2 = ALV_CY + Math.sin(ang) * (inward ? rInY : rOutY);
-      drawArrow(x1, y1, x2, y2, color, 3);
-    }
-    radialArrow(0.15, false, "#1a5276");  // O2 out to right
-    radialArrow(0.9, false, "#1a5276");
-    radialArrow(2.8, true, "#d68910");   // CO2 in from left
-    radialArrow(3.5, true, "#d68910");
-
-    // Inhale / exhale
-    drawArrow(ALV_CX, ALV_CY - ALV_RY - 70, ALV_CX, ALV_CY - ALV_RY - 40, "#1a5276", 3);
+    // Static teaching arrows: O2 into capillary, CO2 into air
+    drawArrow(AX + 40, AY + 50, AX + 70, AY + AR + 8, "#1a5276", 3);
     ctx.fillStyle = "#1a5276";
     ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("吸入空氣（含氧）", ALV_CX, ALV_CY - ALV_RY - 78);
+    ctx.textAlign = "left";
+    ctx.fillText("氧 → 紅血細胞", AX + 75, AY + AR + 20);
 
-    drawArrow(ALV_CX - 90, ALV_CY - ALV_RY - 20, ALV_CX - 130, ALV_CY - ALV_RY - 55, "#d68910", 3);
+    drawArrow(AX - 75, AY + AR + 5, AX - 45, AY + 45, "#d68910", 3);
     ctx.fillStyle = "#b9770e";
-    ctx.fillText("呼出（含二氧化碳）", ALV_CX - 140, ALV_CY - ALV_RY - 62);
+    ctx.textAlign = "right";
+    ctx.fillText("二氧化碳 → 氣囊", AX - 80, AY + AR + 20);
 
-    // Blood flow in / out labels (clear of the ring)
-    drawArrow(ALV_CX - CAP_OUT_RX - 50, ALV_CY + 40, ALV_CX - CAP_OUT_RX + 5, ALV_CY + 70, "#7b241c", 3);
+    // Inhale / exhale
+    drawArrow(AX, AY - AR - 70, AX, AY - AR - 42, "#1a5276", 3);
+    ctx.fillStyle = "#1a5276";
+    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("吸入空氣（含氧）", AX, AY - AR - 78);
+
+    drawArrow(AX - 70, AY - AR - 10, AX - 110, AY - AR - 45, "#d68910", 3);
+    ctx.fillStyle = "#b9770e";
+    ctx.fillText("呼出（含二氧化碳）", AX - 120, AY - AR - 52);
+
+    // Blood flow labels
     ctx.fillStyle = "#7b241c";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("來自肺動脈的缺氧血", ALV_CX - CAP_OUT_RX - 40, ALV_CY + 100);
+    drawArrow(AX - AR - 70, AY - 10, AX - AR - 40, AY + 30, "#7b241c", 3);
+    ctx.fillText("來自肺動脈的缺氧血", AX - AR - 55, AY + 55);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧低 · 二氧化碳高）", ALV_CX - CAP_OUT_RX - 40, ALV_CY + 118);
+    ctx.fillText("（氧低 · 二氧化碳高）", AX - AR - 55, AY + 72);
 
-    drawArrow(ALV_CX + CAP_OUT_RX - 10, ALV_CY - 90, ALV_CX + CAP_OUT_RX + 40, ALV_CY - 120, "#c0392b", 3);
     ctx.fillStyle = "#c0392b";
     ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
-    ctx.fillText("流往肺靜脈的含氧血", ALV_CX + CAP_OUT_RX + 20, ALV_CY - 132);
+    drawArrow(AX + AR + 35, AY + 20, AX + AR + 65, AY - 25, "#e74c3c", 3);
+    ctx.fillText("流往肺靜脈的含氧血", AX + AR + 70, AY - 40);
     ctx.font = "12px 'Noto Sans TC', sans-serif";
-    ctx.fillText("（氧高 · 二氧化碳低）", ALV_CX + CAP_OUT_RX + 20, ALV_CY - 114);
+    ctx.fillText("（氧高 · 二氧化碳低）", AX + AR + 70, AY - 23);
 
     drawAnnotationBox(40, 620, [
-      "微血管環繞氣囊：紅血細胞在管腔內，不與氣囊重疊",
+      "微血管呈 U 形沿氣囊外側環繞（非同心雙圓）",
       "氧：氣囊空氣 → 薄水膜 → 擴散入紅血細胞",
       "二氧化碳：血液 → 擴散入氣囊 → 呼出"
     ], "#2c5aa0");
 
-    // ========== RIGHT: 血液與體細胞（分層，不重疊） ==========
+    // ========== RIGHT PANEL (unchanged layered layout) ==========
     roundRect(660, 36, 596, 730, 14);
-    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
     ctx.fill();
     ctx.strokeStyle = "#1e8449";
     ctx.lineWidth = 2;
@@ -1720,7 +1770,6 @@
     ctx.textAlign = "center";
     ctx.fillText("血液與體細胞之間的物質交換", 958, 68);
 
-    // Capillary band (top only)
     roundRect(700, 100, 520, 150, 36);
     ctx.fillStyle = "rgba(231,76,60,0.14)";
     ctx.fill();
@@ -1747,7 +1796,6 @@
     drawRBC(1040, 192, 18, false);
     drawRBC(1140, 188, 16, false);
 
-    // Tissue fluid + cells (below capillary — clear separation)
     roundRect(700, 280, 520, 370, 16);
     ctx.fillStyle = "rgba(241, 196, 15, 0.14)";
     ctx.fill();
@@ -1801,7 +1849,6 @@
       "二氧化碳／廢物：體細胞 → 組織液 → 血液（擴散）"
     ], "#1e8449");
 
-    // Molecules on top
     particles.forEach(p => {
       const kinds = ["alvO2","alvCO2","tisO2","tisNut","tisCO2","tisWaste"];
       if (kinds.indexOf(p.kind) >= 0) {
