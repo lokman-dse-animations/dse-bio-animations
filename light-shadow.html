@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>光的直線傳播：燈泡距離與影子大小</title>
+<!--
+  課堂模擬：燈泡、蠟燭與屏幕 —— 影子的形成
+  ------------------------------------------------------------
+  ‧ 單一檔案，不需上網，直接雙擊開啟即可使用。
+  ‧ 以 <canvas> 繪圖，所有程式都在下方 <script> 內，附中文註解方便學習。
+  ‧ 快捷鍵：R = 重播　F = 全螢幕　P = 先讓學生估一估　N = 顯示／隱藏數值
+-->
+<style>
+  /* ===== 顏色設定（深藍背景 + 黃色光線，投影時最清楚）===== */
+  :root {
+    --bg: #0b1730;
+    --panel: #12233f;
+    --text: #f4f7fb;
+    --ray: #ffd84a;
+    --accent: #7fdcff;
+    --colA: #8fd3ff;
+    --colB: #ffb38a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang HK", "PingFang TC",
+                 "Noto Sans CJK HK", "Noto Sans CJK TC", "Noto Sans TC", "Heiti TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ===== 頂部標題列 ===== */
+  header {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 2px solid #ffffff22;
+  }
+  header h1 { margin: 0; font-size: clamp(24px, 2.2vw, 40px); }
+  header .sub { font-size: clamp(20px, 1.5vw, 28px); color: #ffe27a; font-weight: bold; }
+  header .spacer { flex: 1; }
+
+  /* ===== 中間：畫布 + 控制面板 ===== */
+  main { flex: 1; display: flex; min-height: 0; }
+  #stage { flex: 1; position: relative; min-width: 0; min-height: 0; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  aside {
+    width: clamp(270px, 21vw, 360px);
+    padding: 14px 16px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto; font-size: 20px;
+  }
+  body.hide-aside aside { display: none; }
+
+  button {
+    font: inherit; font-size: 22px; font-weight: bold;
+    padding: 10px 16px; border-radius: 12px;
+    border: 2px solid #ffffff55; background: #1f3a66; color: #fff; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.2); }
+  button.primary { background: #e0a400; color: #111; border-color: #ffd84a; }
+  button.predict { background: #6b3fa0; border-color: #c9a6ff; }
+  button.predict.on { background: #e0a400; color: #111; border-color: #ffd84a; }
+
+  .ctl label { display: block; font-size: 20px; line-height: 1.4; margin-bottom: 4px; }
+  .ctl .val { font-size: 26px; font-weight: bold; }
+  .ctl.a .val { color: var(--colA); }
+  .ctl.b .val { color: var(--colB); }
+  input[type=range] { width: 100%; height: 40px; accent-color: #ffd84a; cursor: pointer; }
+  .check { display: flex; align-items: center; gap: 10px; font-size: 20px; cursor: pointer; }
+  .check input { width: 28px; height: 28px; accent-color: #ffd84a; }
+
+  .legend { font-size: 20px; line-height: 1.7; border-top: 2px solid #ffffff22; padding-top: 10px; }
+  .legend .sw { display: inline-block; width: 34px; height: 14px; vertical-align: middle; margin-right: 8px; border-radius: 3px; }
+  .hint { font-size: 18px; color: #b8c6dc; line-height: 1.5; }
+
+  /* ===== 底部結論列 ===== */
+  footer {
+    padding: 8px 16px 10px; background: #081022;
+    border-top: 2px solid #ffffff22; text-align: center;
+  }
+  #conclusion { font-size: clamp(24px, 2.1vw, 38px); font-weight: bold; color: #ffe27a; }
+  #formula { font-size: clamp(20px, 1.5vw, 28px); margin-top: 4px; line-height: 1.45; }
+  #formula .a { color: var(--colA); font-weight: bold; }
+  #formula .b { color: var(--colB); font-weight: bold; }
+
+  /* ===== 細螢幕（直向 iPad／手機）：控制面板移到下方 ===== */
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow: auto; }
+    main { flex-direction: column; }
+    #stage { flex: none; height: 68vh; }
+    aside { width: auto; flex-direction: row; flex-wrap: wrap; }
+    aside > * { flex: 1 1 280px; }
+  }
+
+  a.back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: clamp(18px, 1.4vw, 24px);
+    white-space: nowrap;
+  }
+  a.back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="f3-physics.html">← 返回中三物理</a>
+  <h1>影子的形成：燈泡越遠，影子會怎樣？</h1>
+  <span class="sub">光以直線傳播</span>
+  <span class="spacer"></span>
+  <button id="btnReplay" class="primary" title="快捷鍵 R">▶ 重播</button>
+  <button id="btnFull" title="快捷鍵 F">全螢幕</button>
+  <button id="btnAside" title="收起／打開右邊的控制面板">控制面板</button>
+</header>
+
+<main>
+  <div id="stage"><canvas id="cv" aria-label="燈泡、蠟燭與屏幕的影子模擬"></canvas></div>
+
+  <aside>
+    <button id="btnPredict" class="predict" title="快捷鍵 P">先讓學生估一估</button>
+
+    <div class="ctl a">
+      <label for="sliderA">設置 A：燈泡至蠟燭距離<br><span class="val" id="valA">20 cm</span></label>
+      <input type="range" id="sliderA" min="15" max="70" step="1" value="20">
+    </div>
+
+    <div class="ctl b">
+      <label for="sliderB">設置 B：燈泡至蠟燭距離<br><span class="val" id="valB">50 cm</span></label>
+      <input type="range" id="sliderB" min="15" max="70" step="1" value="50">
+    </div>
+
+    <label class="check"><input type="checkbox" id="chkNumbers" checked> 顯示影子高度及結論</label>
+
+    <button id="btnReset">重設數值</button>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#ffd84a"></span>光線</div>
+      <div><span class="sw" style="background:rgba(255,216,74,0.35)"></span>被照亮的範圍</div>
+      <div><span class="sw" style="background:#000;border:1px solid #888"></span>影子（光線被擋住）</div>
+    </div>
+
+    <div class="hint">
+      蠟燭高度：10 cm（連燭芯）<br>
+      屏幕高度：48 cm<br>
+      蠟燭至屏幕：40 cm（固定）<br>
+      燈泡與蠟燭中心同一高度<br>
+      （為簡化，支架沒有畫出）<br>
+      快捷鍵：R 重播　F 全螢幕<br>P 估一估　N 顯示／隱藏數值
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div id="conclusion">燈泡越遠，影子越小</div>
+  <div id="formula"></div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================
+  // 1. 物理設定（單位：cm）
+  // ---------------------------------------------------------
+  // 側面圖：以「中心線」作高度 0。燈泡（點光源）、蠟燭的中心、屏幕的中心
+  // 都在這條中心線上。蠟燭由 -5 cm（底部）至 +5 cm（燭芯頂）。
+  // 經過蠟燭頂和蠟燭底的兩條光線，分別決定影子的頂和底，
+  // 所以影子在屏幕上會上下對稱，剛好位於屏幕中間。
+  // 影子高度 = 蠟燭高度 × 燈泡至屏幕距離 ÷ 燈泡至蠟燭距離
+  // =========================================================
+  const CANDLE_H = 10;       // 蠟燭高度（由蠟燭底量至燭芯頂）
+  const WICK_H = 1;          // 燭芯長度
+  const BODY_H = CANDLE_H - WICK_H; // 蠟身高度
+  const C_TOP = CANDLE_H / 2;       // 燭芯頂的高度（+5 cm）
+  const C_BOT = -CANDLE_H / 2;      // 蠟燭底的高度（-5 cm）
+  const BODY_TOP = C_BOT + BODY_H;  // 蠟身頂的高度（+4 cm）
+  const CANDLE_W = 2.4;      // 蠟燭闊度
+  const L = 40;              // 蠟燭至屏幕距離（兩個設置相同）
+  const SCREEN_H = 48;       // 屏幕高度（最大的影子 36.7 cm，上下各留最少約 5.7 cm 光亮邊）
+  const D_MIN = 15, D_MAX = 70;          // 滑桿範圍：燈泡至蠟燭距離
+  const DEFAULTS = { A: 20, B: 50 };     // 預設距離
+  const RAY_STEP = 3;        // 每隔 3 cm（以屏幕上的落點計）畫一條光線
+
+  // 動畫時間（秒）
+  const T_BULB = 0.5;    // 燈泡亮起
+  const T_TRAVEL = 1.8;  // 光線由燈泡走到屏幕
+  const T_LABEL = 0.6;   // 數值標籤淡入
+  const T_TOTAL = T_BULB + T_TRAVEL + T_LABEL;
+
+  // 程式狀態
+  const state = {
+    d: { A: DEFAULTS.A, B: DEFAULTS.B }, // 燈泡至蠟燭距離
+    showNumbers: true,  // 是否顯示影子高度及結論
+    predict: false,     // 「先讓學生估一估」模式：燈泡未開、不顯示光線和影子
+    animStart: null,    // 動畫開始時間（毫秒）
+    playing: false,
+  };
+
+  // 最近一次繪畫的幾何資料（供測試及檢查用）
+  const lastGeom = {};
+
+  // =========================================================
+  // 2. 計算影子高度
+  // ---------------------------------------------------------
+  // 燈泡在 (0, 0)，燭芯頂在 (d, +5)，蠟燭底在 (d, -5)。
+  // 由燈泡經燭芯頂的直線，斜率 = 5 ÷ d，延伸到屏幕（x = d + L）時高度 = +5 ÷ d × (d + L)；
+  // 由燈泡經蠟燭底的直線，到達屏幕時高度 = -5 ÷ d × (d + L)。
+  // 兩者相減：影子高度 = 10 × (d + L) ÷ d
+  // 這就是相似三角形：影子高度 ÷ 蠟燭高度 = 燈泡至屏幕距離 ÷ 燈泡至蠟燭距離
+  // =========================================================
+  // 光線由燈泡經過高度 yAtCandle（在蠟燭位置）後，到達屏幕時的高度
+  function heightOnScreen(d, yAtCandle) {
+    return yAtCandle / d * (d + L);
+  }
+  function shadowHeight(d) {
+    const top = heightOnScreen(d, C_TOP);     // 影子頂（經燭芯頂的光線）
+    const bottom = heightOnScreen(d, C_BOT);  // 影子底（經蠟燭底的光線）
+    return top - bottom;
+  }
+
+  // 四捨五入至一個小數位，整數則不顯示小數
+  function fmt(v) {
+    const r = Math.round(v * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // =========================================================
+  // 3. 畫布與版面
+  // =========================================================
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0; // 畫布的 CSS 像素大小
+
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    W = Math.max(300, rect.width);
+    H = Math.max(300, rect.height);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 之後一律用 CSS 像素作單位
+    render();
+  }
+
+  // 根據畫布大小計算比例尺（每 cm 多少像素）及各物件位置
+  // 兩個設置用「同一比例尺」及「同一蠟燭、屏幕位置」，方便直接比較。
+  function computeLayout() {
+    const fs = clamp(Math.min(W / 62, H / 36), 20, 28);   // 標籤字體大小（最少 20px）
+    const panelH = H / 2;
+    const topPad = fs * 1.7;                 // 上方留位：設置標題、「屏幕」字樣
+    const bottomPad = fs * 3.3;              // 下方留位：兩行距離標示
+    const leftPad = fs * 6.8;                // 左方留位：「燈泡（光源）」字樣
+    const rightPad = fs * 7.4;               // 右方留位：影子高度標示
+    const span = D_MAX + L;                  // 最遠燈泡至屏幕的距離
+    const s = Math.max(1, Math.min((W - leftPad - rightPad) / span,
+                                   (panelH - topPad - bottomPad) / SCREEN_H));
+    const used = span * s;
+    const x0 = leftPad + Math.max(0, (W - leftPad - rightPad - used) / 2);
+    const xs = x0 + used;      // 屏幕左面的 x 位置
+    const xc = xs - L * s;     // 蠟燭中線（燭芯）的 x 位置
+    const extraV = Math.max(0, panelH - topPad - bottomPad - SCREEN_H * s);
+    return { fs, panelH, topPad, bottomPad, s, xs, xc, extraV };
+  }
+
+  // =========================================================
+  // 4. 繪圖小工具
+  // =========================================================
+  function font(size, bold) {
+    return `${bold ? 'bold ' : ''}${Math.round(size)}px "Microsoft JhengHei","微軟正黑體","PingFang HK","PingFang TC","Noto Sans CJK HK","Noto Sans CJK TC",sans-serif`;
+  }
+
+  // 有底色的文字（避免被光線遮住，投影時更清楚）
+  function pillText(text, x, y, opt = {}) {
+    const size = opt.size || 20;
+    ctx.font = font(size, opt.bold);
+    const w = ctx.measureText(text).width;
+    const pad = size * 0.3;
+    let left = x - w / 2;
+    if (opt.align === 'left') left = x;
+    if (opt.align === 'right') left = x - w;
+    ctx.fillStyle = opt.bg || 'rgba(8,16,34,0.88)';
+    roundRect(left - pad, y - size * 0.68, w + pad * 2, size * 1.36, size * 0.3);
+    ctx.fill();
+    ctx.fillStyle = opt.color || '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(text, left, y + size * 0.04);
+    return w;
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // 箭咀（在 (x,y)，指向 angle 方向）
+  function arrowHead(x, y, angle, size, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(size * 0.6, 0);
+    ctx.lineTo(-size * 0.6, -size * 0.5);
+    ctx.lineTo(-size * 0.6, size * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 距離標示線（兩端有箭咀）
+  // 文字放不下時：先試簡短文字（只寫數值），再不行就把文字移到線的左邊
+  function dimLine(x1, x2, y, text, color, size, shortText, allowOutside) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y); ctx.lineTo(x2, y);
+    ctx.moveTo(x1, y - 9); ctx.lineTo(x1, y + 9);
+    ctx.moveTo(x2, y - 9); ctx.lineTo(x2, y + 9);
+    ctx.stroke();
+    arrowHead(x1 + 6, y, Math.PI, 12, color);
+    arrowHead(x2 - 6, y, 0, 12, color);
+    ctx.font = font(size, true);
+    const fits = (t) => ctx.measureText(t).width + size * 1.6 < x2 - x1;
+    if (fits(text)) {
+      pillText(text, (x1 + x2) / 2, y, { size, bold: true, color });
+    } else if (allowOutside) {
+      pillText(text, x1 - 14, y, { size, bold: true, color, align: 'right' });
+    } else {
+      pillText(shortText || text, (x1 + x2) / 2, y, { size, bold: true, color });
+    }
+  }
+
+  // =========================================================
+  // 5. 畫一個設置（A 或 B）
+  //    t = 動畫已進行的秒數（Infinity 代表動畫完成）
+  //    畫布的 y 軸向下，所以「高度 y cm」的位置 = axis - y × s
+  // =========================================================
+  function drawSetup(key, panelTop, Lo, t, speed) {
+    const d = state.d[key];
+    const { s, xs, xc, fs } = Lo;
+    const axis = panelTop + Lo.topPad + Lo.extraV / 2 + (SCREEN_H / 2) * s; // 中心線的 y 位置
+    const Y = (cm) => axis - cm * s;            // 高度（cm）→ 畫布 y 位置
+    const xb = xc - d * s;                       // 燈泡 x 位置
+    const shH = shadowHeight(d);                 // 影子高度（cm）
+    const shTopCm = heightOnScreen(d, C_TOP);    // 影子頂（cm，正數）
+    const shBotCm = heightOnScreen(d, C_BOT);    // 影子底（cm，負數）
+    const shTopY = Y(shTopCm), shBotY = Y(shBotCm);
+    const scrTopY = Y(SCREEN_H / 2), scrBotY = Y(-SCREEN_H / 2); // 屏幕頂和底
+    const wickTipY = Y(C_TOP), baseY = Y(C_BOT); // 燭芯頂、蠟燭底
+    const sw = Math.max(12, 1.4 * s);            // 屏幕厚度（像素）
+    const cw = CANDLE_W * s;                     // 蠟燭闊度（像素）
+    const xf = xc - cw / 2;                      // 蠟燭左面（面向燈泡）
+    const colKey = key === 'A' ? '#8fd3ff' : '#ffb38a';
+
+    // ---- 動畫進度 ----
+    const lightOn = !state.predict;
+    const bulbA = lightOn ? clamp(t / T_BULB, 0, 1) : 0;            // 燈泡亮度
+    const r = lightOn ? Math.max(0, (t - T_BULB) * speed) : 0;        // 光線已走到的半徑（像素）
+    const labelA = lightOn ? clamp((t - T_BULB - T_TRAVEL) / T_LABEL, 0, 1) : 0;
+    const dxScreen = xs - xb;
+
+    // 記錄幾何資料（供測試用）
+    lastGeom[key] = { d, s, axis, xb, xc, xs, shTopY, shBotY, wickTipY, baseY, scrTopY, scrBotY,
+      shadowCmFormula: CANDLE_H * (d + L) / d,
+      shadowCmFromPixels: (shBotY - shTopY) / s,
+      marginTopCm: (shTopY - scrTopY) / s,
+      marginBottomCm: (scrBotY - shBotY) / s };
+
+    // ---- (a) 中心線（淡虛線）：燈泡、蠟燭中心、屏幕中心在同一高度 ----
+    ctx.save();
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(xb, axis); ctx.lineTo(xs + sw, axis);
+    ctx.stroke();
+    ctx.restore();
+
+    // ---- (b) 光錐（被照亮的範圍）及影子區域 ----
+    if (r > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(xb, axis, r, 0, Math.PI * 2);   // 只畫光已到達的部分
+      ctx.clip();
+      // 光錐：燈泡 → 屏幕頂 → 屏幕底
+      ctx.beginPath();
+      ctx.moveTo(xb, axis);
+      ctx.lineTo(xs, scrTopY);
+      ctx.lineTo(xs, scrBotY);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(xb, 0, xs, 0);
+      g.addColorStop(0, 'rgba(255,220,90,0.32)');
+      g.addColorStop(1, 'rgba(255,220,90,0.20)');
+      ctx.fillStyle = g;
+      ctx.fill();
+      // 影子區域：燭芯頂 → 屏幕上的影子頂 → 影子底 → 蠟燭底（光線到不了）
+      ctx.beginPath();
+      ctx.moveTo(xc, wickTipY);
+      ctx.lineTo(xs, shTopY);
+      ctx.lineTo(xs, shBotY);
+      ctx.lineTo(xc, baseY);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,0,0,0.78)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ---- (c) 光線 ----
+    // 以屏幕上的落點選光線：由屏幕底至屏幕頂，每 3 cm 一條
+    const half = SCREEN_H / 2;
+    const rays = [];
+    for (let y = -half; y <= half + 1e-9; y += RAY_STEP) {
+      if (Math.abs(y - shTopCm) > 0.9 && Math.abs(y - shBotCm) > 0.9) rays.push(y);
+    }
+    if (rays[rays.length - 1] < half - 0.5) rays.push(half);   // 光錐上緣
+    if (r > 0) {
+      ctx.lineCap = 'round';
+      rays.forEach((y, i) => {
+        let ex, ey;
+        if (y > shBotCm && y < shTopCm) {
+          // 這條光線被蠟燭擋住：停在蠟燭左面（或燭芯）
+          const dFace = d - CANDLE_W / 2;          // 蠟燭左面離燈泡的距離（cm）
+          const yFace = y * dFace / (d + L);       // 光線在蠟燭左面時的高度（cm）
+          if (yFace <= BODY_TOP) { ex = xf; ey = Y(yFace); }
+          else { ex = xc; ey = Y(y * d / (d + L)); }   // 碰到燭芯
+        } else {
+          // 沒有被擋住：一直到達屏幕（影子上方或下方的光亮部分）
+          ex = xs; ey = Y(y);
+        }
+        // 只在部分到達屏幕的光線上加箭咀，避免太擠
+        const reaches = !(y > shBotCm && y < shTopCm);
+        const arrowAt = (reaches && i % 2 === 0) ? 0.72 : 0;
+        drawRay(xb, axis, ex, ey, r, 'rgba(255,216,74,0.85)', 2.5, arrowAt);
+      });
+      // 兩條重點光線：剛好掠過蠟燭頂和蠟燭底，決定影子的上下邊界
+      drawRay(xb, axis, xs, shTopY, r, '#fff27a', 4.5, 0.6);
+      drawRay(xb, axis, xs, shBotY, r, '#fff27a', 4.5, 0.6);
+    }
+
+    // ---- (d) 屏幕 ----
+    // 未被照亮時是灰色；照亮部分變淺黃；影子部分是黑色
+    ctx.fillStyle = '#6f7a8e';
+    ctx.fillRect(xs, scrTopY, sw, SCREEN_H * s);
+    if (r > dxScreen) {
+      // 光已到達屏幕：由中間向上下逐漸亮起
+      const reachPx = Math.sqrt(Math.max(0, r * r - dxScreen * dxScreen));
+      const reachCm = Math.min(half, reachPx / s);
+      ctx.save();
+      ctx.fillStyle = '#fff4b8';
+      ctx.shadowColor = 'rgba(255,230,120,0.9)';
+      ctx.shadowBlur = 16;
+      if (reachCm > shTopCm) {        // 影子上方的光亮部分
+        ctx.fillRect(xs, Y(reachCm), sw, shTopY - Y(reachCm));
+      }
+      if (-reachCm < shBotCm) {       // 影子下方的光亮部分
+        ctx.fillRect(xs, shBotY, sw, Y(-reachCm) - shBotY);
+      }
+      ctx.restore();
+      // 影子在屏幕上（黑色），光到達影子邊緣時變得最深
+      const shA = clamp((reachCm - shTopCm) / 3 + 0.5, 0, 1);
+      ctx.fillStyle = `rgba(0,0,0,${0.35 + 0.65 * shA})`;
+      ctx.fillRect(xs, shTopY, sw, shBotY - shTopY);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(xs, scrTopY, sw, SCREEN_H * s);
+    // 屏幕底座
+    ctx.fillStyle = '#5b6578';
+    ctx.fillRect(xs - sw * 0.6, scrBotY, sw * 2.2, 5);
+
+    // ---- (e) 蠟燭（未點燃，是擋光的不透光物體；支架沒有畫出）----
+    // 蠟身左下角沿重點光線削去一點（只有一兩個像素），
+    // 令經過蠟燭底的光線剛好掠過蠟燭，幾何上完全準確。
+    const bodyTopY = Y(BODY_TOP);
+    const cutY = Y(C_BOT * (d - CANDLE_W / 2) / d);   // 重點光線經過蠟燭左面時的高度
+    const cg = ctx.createLinearGradient(xf, 0, xf + cw, 0);
+    cg.addColorStop(0, '#fffaf0');
+    cg.addColorStop(1, '#d9cba6');
+    ctx.beginPath();
+    ctx.moveTo(xf, bodyTopY);
+    ctx.lineTo(xf + cw, bodyTopY);
+    ctx.lineTo(xf + cw, baseY);
+    ctx.lineTo(xc, baseY);
+    ctx.lineTo(xf, cutY);
+    ctx.closePath();
+    ctx.fillStyle = cg;
+    ctx.fill();
+    ctx.strokeStyle = '#a8946a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // 燭芯
+    ctx.strokeStyle = '#e9e2cf';
+    ctx.lineWidth = Math.max(3, 0.3 * s);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(xc, bodyTopY);
+    ctx.lineTo(xc, wickTipY);
+    ctx.stroke();
+    // 光線掠過蠟燭頂和蠟燭底的位置，加小圓圈強調
+    if (labelA > 0) {
+      ctx.save();
+      ctx.globalAlpha = labelA;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      for (const yy of [wickTipY, baseY]) {
+        ctx.beginPath();
+        ctx.arc(xc, yy, 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // ---- (f) 燈泡（點光源），支架向下延伸至屏幕底的高度 ----
+    drawBulb(xb, axis, Math.max(12, Math.min(20, 1.6 * s)), bulbA, scrBotY + 4);
+
+    // ---- (g) 文字標籤 ----
+    // 設置標題
+    const nearFar = state.d.A === state.d.B ? '距離相同'
+      : ((key === 'A') === (state.d.A < state.d.B) ? '燈泡較近' : '燈泡較遠');
+    ctx.font = font(fs * 1.15, true);
+    ctx.fillStyle = colKey;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`設置 ${key}：${nearFar}`, 14, panelTop + fs * 0.95);
+
+    // 「燈泡（光源）」放在燈泡左邊（那裏沒有光線）
+    pillText('燈泡（光源）', xb - 26, axis, { size: fs, align: 'right', color: '#ffe27a' });
+
+    // 「屏幕」
+    pillText('屏幕', xs + sw / 2, scrTopY - fs * 0.75, { size: fs, color: '#ffffff' });
+
+    // 蠟燭高度：放在蠟燭右邊的影子區域內（那裏沒有光線經過）
+    const bx = xf + cw + 10;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bx - 5, wickTipY); ctx.lineTo(bx + 5, wickTipY);
+    ctx.moveTo(bx, wickTipY); ctx.lineTo(bx, baseY);
+    ctx.moveTo(bx - 5, baseY); ctx.lineTo(bx + 5, baseY);
+    ctx.stroke();
+    ctx.font = font(fs * 0.9, false);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('蠟燭', bx + 8, axis - fs * 0.5);
+    ctx.font = font(fs * 0.9, true);
+    ctx.fillText(`${CANDLE_H} cm`, bx + 8, axis + fs * 0.5);
+
+    // 影子區域字樣（地方夠才顯示，避免與蠟燭標籤重疊）
+    ctx.font = font(fs * 0.9, true);
+    const candleLabelRight = bx + 8 + ctx.measureText(`${CANDLE_H} cm`).width;
+    const regionW = ctx.measureText('影子區域').width;
+    if (r > 0 && labelA > 0 && xs - 10 - regionW > candleLabelRight + 16) {
+      ctx.save();
+      ctx.globalAlpha = labelA;
+      ctx.fillStyle = '#c9d4e8';
+      ctx.textAlign = 'right';
+      ctx.fillText('影子區域', xs - 10, axis);
+      ctx.restore();
+    }
+
+    // 影子高度（屏幕右邊的括號）
+    const hx = xs + sw + 14;
+    if (state.predict || labelA > 0) {
+      ctx.save();
+      ctx.globalAlpha = state.predict ? 1 : labelA;
+      if (!state.predict) {
+        ctx.strokeStyle = '#7fdcff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(hx - 6, shTopY); ctx.lineTo(hx + 6, shTopY);
+        ctx.moveTo(hx, shTopY); ctx.lineTo(hx, shBotY);
+        ctx.moveTo(hx - 6, shBotY); ctx.lineTo(hx + 6, shBotY);
+        ctx.stroke();
+        // 由影子頂和底到括號的虛線
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(xs + sw, shTopY); ctx.lineTo(hx - 6, shTopY);
+        ctx.moveTo(xs + sw, shBotY); ctx.lineTo(hx - 6, shBotY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // 估一估模式時，影子還未出現，只寫「？ cm」
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#7fdcff';
+      ctx.font = font(fs, true);
+      ctx.fillText('影子高度', hx + 12, axis - fs * 0.62);
+      const showNum = state.showNumbers && !state.predict;
+      ctx.font = font(fs * 1.3, true);
+      ctx.fillText(showNum ? `${fmt(shH)} cm` : '？ cm', hx + 12, axis + fs * 0.7);
+      ctx.restore();
+    }
+
+    // 距離標示（屏幕底下方兩行）
+    const row1 = scrBotY + fs * 1.2;
+    const row2 = row1 + fs * 1.4;
+    const ds = fs * 0.9;
+    dimLine(xb, xc, row1, `燈泡至蠟燭 ${d} cm`, colKey, ds, null, true);
+    dimLine(xc, xs, row1, `蠟燭至屏幕 ${L} cm`, '#c9d4e8', ds, `${L} cm`, false);
+    dimLine(xb, xs, row2, `燈泡至屏幕 ${d + L} cm`, '#ffe27a', ds, `${d + L} cm`, false);
+  }
+
+  // 畫一條光線：由 (x1,y1) 到 (x2,y2)，但只畫到光已走到的半徑 r
+  // arrowAt：箭咀位置（0 至 1，0 代表不加箭咀）
+  function drawRay(x1, y1, x2, y2, r, color, width, arrowAt) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const k = Math.min(1, r / len);
+    if (k <= 0) return;
+    const ex = x1 + (x2 - x1) * k, ey = y1 + (y2 - y1) * k;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    // 在光線中間加箭咀，表示光的傳播方向
+    if (arrowAt > 0 && k > arrowAt + 0.03) {
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      arrowHead(x1 + (x2 - x1) * arrowAt, y1 + (y2 - y1) * arrowAt, ang, 10 + width * 1.5, color);
+    }
+  }
+
+  // 畫燈泡：玻璃泡中心 (x,y) 就是點光源的位置
+  function drawBulb(x, y, rad, on, standBottom) {
+    // 燈座支架
+    ctx.fillStyle = '#7d8696';
+    ctx.fillRect(x - 3, y + rad * 1.3, 6, Math.max(0, standBottom - y - rad * 1.3));
+    ctx.fillRect(x - rad * 0.9, standBottom - 4, rad * 1.8, 5);
+    // 螺絲燈頭
+    ctx.fillStyle = '#9aa3b2';
+    ctx.fillRect(x - rad * 0.5, y + rad * 0.7, rad, rad * 0.65);
+    ctx.strokeStyle = '#5c6575';
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - rad * 0.5, y + rad * 0.7 + i * rad * 0.2);
+      ctx.lineTo(x + rad * 0.5, y + rad * 0.7 + i * rad * 0.2);
+      ctx.stroke();
+    }
+    // 光暈
+    if (on > 0) {
+      const g = ctx.createRadialGradient(x, y, rad * 0.5, x, y, rad * 4.5);
+      g.addColorStop(0, `rgba(255,240,150,${0.85 * on})`);
+      g.addColorStop(1, 'rgba(255,240,150,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, rad * 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 玻璃泡
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = on > 0 ? `rgb(${Math.round(170 + 85 * on)},${Math.round(178 + 72 * on)},${Math.round(196 - 6 * on)})` : '#aab2c2';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // 燈絲（中心點就是光源）
+    ctx.strokeStyle = on > 0 ? '#ff8c1a' : '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - rad * 0.45, y + rad * 0.2);
+    ctx.lineTo(x - rad * 0.2, y - rad * 0.15);
+    ctx.lineTo(x, y + rad * 0.1);
+    ctx.lineTo(x + rad * 0.2, y - rad * 0.15);
+    ctx.lineTo(x + rad * 0.45, y + rad * 0.2);
+    ctx.stroke();
+  }
+
+  // =========================================================
+  // 6. 整體繪畫 + 動畫
+  // =========================================================
+  function currentT() {
+    if (state.predict) return 0;
+    if (!state.playing || state.animStart === null) return Infinity;
+    return (performance.now() - state.animStart) / 1000;
+  }
+
+  function render() {
+    if (!W) return;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0b1730';
+    ctx.fillRect(0, 0, W, H);
+
+    const Lo = computeLayout();
+    let t = currentT();
+
+    // 光速（像素／秒）：兩個設置用同一速度，最遠的光線在 T_TRAVEL 秒內到達屏幕
+    const maxDist = Math.max(...['A', 'B'].map(k =>
+      Math.hypot(state.d[k] * Lo.s + L * Lo.s, (SCREEN_H / 2) * Lo.s)));
+    const speed = maxDist / T_TRAVEL;
+
+    // 兩個設置之間的分隔線
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, Lo.panelH); ctx.lineTo(W, Lo.panelH);
+    ctx.stroke();
+
+    // 垂直虛線：顯示兩個設置的蠟燭和屏幕位置完全相同
+    ctx.save();
+    ctx.setLineDash([6, 10]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(Lo.xc, 4); ctx.lineTo(Lo.xc, H - 4);
+    ctx.moveTo(Lo.xs, 4); ctx.lineTo(Lo.xs, H - 4);
+    ctx.stroke();
+    ctx.restore();
+
+    drawSetup('A', 0, Lo, t, speed);
+    drawSetup('B', Lo.panelH, Lo, t, speed);
+
+    // 動畫仍在進行：下一格繼續畫
+    if (state.playing && t < T_TOTAL) {
+      requestAnimationFrame(render);
+    } else if (state.playing) {
+      state.playing = false;
+      state.animStart = null;
+    }
+  }
+
+  // 重播：由燈泡亮起開始
+  function replay() {
+    state.predict = false;
+    state.animStart = performance.now();
+    state.playing = true;
+    updateUI();
+    requestAnimationFrame(render);
+  }
+
+  // =========================================================
+  // 7. 底部結論及公式
+  // =========================================================
+  function updateUI() {
+    const { A, B } = state.d;
+    document.getElementById('valA').textContent = `${A} cm`;
+    document.getElementById('valB').textContent = `${B} cm`;
+    document.getElementById('sliderA').value = A;
+    document.getElementById('sliderB').value = B;
+    document.getElementById('chkNumbers').checked = state.showNumbers;
+
+    const btnP = document.getElementById('btnPredict');
+    btnP.textContent = state.predict ? '開燈揭曉 ▶' : '先讓學生估一估';
+    btnP.classList.toggle('on', state.predict);
+
+    const concl = document.getElementById('conclusion');
+    const formula = document.getElementById('formula');
+    if (state.predict) {
+      concl.textContent = '估一估：開燈後，哪一個設置的影子較大？影子大約有多高？';
+      formula.innerHTML = '提示：光以直線傳播，試想像光線經過蠟燭頂後會落在屏幕哪裏。';
+      return;
+    }
+    if (!state.showNumbers) {
+      concl.textContent = '想一想：燈泡與蠟燭的距離，怎樣影響影子的大小？';
+      formula.innerHTML = '試量度或計算兩個影子的高度，再比較一下。';
+      return;
+    }
+    const hA = shadowHeight(A), hB = shadowHeight(B);
+    if (A === B) concl.textContent = '兩個燈泡距離相同，影子一樣大。';
+    else if (B > A) concl.textContent = '設置 B 的燈泡較遠，影子較小 —— 燈泡越遠，影子越小！';
+    else concl.textContent = '設置 B 的燈泡較近，影子較大 —— 燈泡越近，影子越大！';
+    formula.innerHTML =
+      '影子高度 = 蠟燭高度 × 燈泡至屏幕距離 ÷ 燈泡至蠟燭距離<br>' +
+      `<span class="a">A：${CANDLE_H} × ${A + L} ÷ ${A} = ${fmt(hA)} cm</span>　　` +
+      `<span class="b">B：${CANDLE_H} × ${B + L} ÷ ${B} = ${fmt(hB)} cm</span>`;
+  }
+
+  // =========================================================
+  // 8. 按鈕、滑桿、快捷鍵
+  // =========================================================
+  function setDistance(key, v) {
+    state.d[key] = clamp(Math.round(Number(v)), D_MIN, D_MAX);
+    updateUI();
+    if (!state.playing) render();
+  }
+  document.getElementById('sliderA').addEventListener('input', e => setDistance('A', e.target.value));
+  document.getElementById('sliderB').addEventListener('input', e => setDistance('B', e.target.value));
+
+  document.getElementById('chkNumbers').addEventListener('change', e => {
+    state.showNumbers = e.target.checked;
+    updateUI(); if (!state.playing) render();
+  });
+
+  function togglePredict() {
+    if (state.predict) { replay(); return; }      // 揭曉：開燈播放動畫
+    state.predict = true;
+    state.playing = false;
+    updateUI(); render();
+  }
+  document.getElementById('btnPredict').addEventListener('click', togglePredict);
+  document.getElementById('btnReplay').addEventListener('click', replay);
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    state.d.A = DEFAULTS.A; state.d.B = DEFAULTS.B;
+    state.showNumbers = true;
+    replay();
+  });
+
+  function toggleFullscreen() {
+    const doc = document, el = document.documentElement;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+    } else {
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) req.call(el);
+    }
+  }
+  document.getElementById('btnFull').addEventListener('click', toggleFullscreen);
+
+  document.getElementById('btnAside').addEventListener('click', () => {
+    document.body.classList.toggle('hide-aside');
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'r') replay();
+    else if (k === 'f') toggleFullscreen();
+    else if (k === 'p') togglePredict();
+    else if (k === 'n') {
+      state.showNumbers = !state.showNumbers;
+      updateUI(); if (!state.playing) render();
+    }
+  });
+
+  // 畫布大小跟隨視窗改變（投影機、手提電腦、iPad 都適用）
+  new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+  window.addEventListener('resize', resizeCanvas);
+
+  // 供測試／進階使用的介面
+  window.shadowSim = {
+    setDistance, replay, togglePredict,
+    shadowHeight,
+    getGeometry: () => JSON.parse(JSON.stringify(lastGeom)),
+    isPlaying: () => state.playing,
+    state,
+  };
+
+  // 開啟網頁時自動播放一次
+  updateUI();
+  resizeCanvas();
+  replay();
+})();
+</script>
+</body>
+</html>
