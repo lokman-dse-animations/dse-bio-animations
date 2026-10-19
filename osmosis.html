@@ -335,6 +335,32 @@
   const W = canvas.width;
   const H = canvas.height;
 
+  // Dialysis experimental setup (drawSetup ox=40) — shared by init, update, draw
+  const DIALYSIS_OX = 40;
+  const BEAKER_X = DIALYSIS_OX + 100; // 140
+  const BEAKER_Y = 380;
+  const BEAKER_W = 280;
+  const BEAKER_H = 300;
+  const BAG_X = BEAKER_X + 70; // 210
+  const BAG_Y = BEAKER_Y + 40; // 420
+  const BAG_W = 140;
+  const BAG_H = 200;
+  // Particle-safe interiors (inset from glass / rounded membrane)
+  const BEAKER_IN_L = BEAKER_X + 8;
+  const BEAKER_IN_R = BEAKER_X + BEAKER_W - 8;
+  const BEAKER_IN_T = BEAKER_Y + 12;
+  const BEAKER_IN_B = BEAKER_Y + BEAKER_H - 12;
+  const BAG_IN_L = BAG_X + 14;
+  const BAG_IN_R = BAG_X + BAG_W - 14;
+  const BAG_IN_T = BAG_Y + 18;
+  const BAG_IN_B = BAG_Y + BAG_H - 18;
+
+  function easeInOut(p) {
+    p = Math.max(0, Math.min(1, p));
+    return p * p * (3 - 2 * p);
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
   const scenes = [
     {
       id: "define",
@@ -571,55 +597,83 @@
   }
 
   // --- Animal cell drawing ---
-  function drawAnimalCell(cx, cy, r, state, t) {
+  // morph 0 = resting normal shape; 1 = full end-state for `state`
+  function drawAnimalCell(cx, cy, r, state, t, morph) {
     // state: normal | swell | burst | shrink
+    if (morph == null) morph = 1;
+    morph = easeInOut(Math.max(0, Math.min(1, morph)));
     ctx.save();
     if (state === "burst") {
-      // jagged burst
-      ctx.beginPath();
-      const spikes = 12;
-      for (let i = 0; i < spikes; i++) {
-        const a = (i / spikes) * Math.PI * 2 - Math.PI / 2;
-        const rr = r * (i % 2 === 0 ? 1.15 : 0.55);
-        const x = cx + Math.cos(a) * rr;
-        const y = cy + Math.sin(a) * rr;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.fillStyle = "rgba(232,160,160,0.55)";
-      ctx.fill();
-      ctx.strokeStyle = "#c0392b";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      // spilled contents
-      for (let i = 0; i < 8; i++) {
-        const a = t * 0.8 + i;
-        drawMolecule(cx + Math.cos(a) * (r + 20 + i * 4), cy + Math.sin(a * 1.3) * (r + 10), 5, "#e8a0a0");
+      // swell first, then rupture near the end
+      if (morph < 0.72) {
+        const swellM = morph / 0.72;
+        const scale = lerp(1, 1.32, swellM) + Math.sin(t * 2) * 0.02 * swellM;
+        const R = r * scale;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
+        g.addColorStop(0, "#fadbd8");
+        g.addColorStop(1, "#e8a0a0");
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.strokeStyle = "#c0392b";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx - R * 0.1, cy, R * 0.28, 0, Math.PI * 2);
+        ctx.fillStyle = "#922b21";
+        ctx.fill();
+      } else {
+        const bm = (morph - 0.72) / 0.28;
+        const spikes = 12;
+        ctx.beginPath();
+        for (let i = 0; i < spikes; i++) {
+          const a = (i / spikes) * Math.PI * 2 - Math.PI / 2;
+          const outer = lerp(1.32, 1.15, bm);
+          const inner = lerp(1.32, 0.55, bm);
+          const rr = r * (i % 2 === 0 ? outer : inner);
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "rgba(232,160,160," + (0.75 - bm * 0.2) + ")";
+        ctx.fill();
+        ctx.strokeStyle = "#c0392b";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        for (let i = 0; i < Math.floor(8 * bm); i++) {
+          const a = t * 0.8 + i;
+          drawMolecule(cx + Math.cos(a) * (r + 20 + i * 4) * bm,
+                       cy + Math.sin(a * 1.3) * (r + 10) * bm, 5, "#e8a0a0");
+        }
       }
     } else if (state === "shrink") {
-      // crenated / star-like
-      ctx.beginPath();
+      // continuous crenation from disc → star
+      const cren = morph;
+      const baseR = r * lerp(1, 0.88, cren);
       const spikes = 10;
+      ctx.beginPath();
       for (let i = 0; i < spikes; i++) {
         const a = (i / spikes) * Math.PI * 2;
-        const rr = r * (i % 2 === 0 ? 1.0 : 0.62);
+        const dip = lerp(1, 0.62, cren);
+        const rr = baseR * (i % 2 === 0 ? 1.0 : dip);
         const x = cx + Math.cos(a) * rr;
         const y = cy + Math.sin(a) * rr;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.fillStyle = "#d98880";
+      ctx.fillStyle = cren > 0.4 ? "#d98880" : "#e8a0a0";
       ctx.fill();
       ctx.strokeStyle = "#922b21";
       ctx.lineWidth = 3;
       ctx.stroke();
-      // nucleus
       ctx.beginPath();
-      ctx.arc(cx, cy, r * 0.28, 0, Math.PI * 2);
+      ctx.arc(cx, cy, baseR * 0.28, 0, Math.PI * 2);
       ctx.fillStyle = "#a93226";
       ctx.fill();
-    } else {
-      const scale = state === "swell" ? 1.25 + Math.sin(t * 2) * 0.03 : 1;
+    } else if (state === "swell") {
+      const scale = lerp(1, 1.28, morph) + Math.sin(t * 2) * 0.03 * morph;
       const R = r * scale;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -631,7 +685,24 @@
       ctx.strokeStyle = "#c0392b";
       ctx.lineWidth = 3;
       ctx.stroke();
-      // nucleus
+      ctx.beginPath();
+      ctx.arc(cx - R * 0.1, cy, R * 0.28, 0, Math.PI * 2);
+      ctx.fillStyle = "#922b21";
+      ctx.fill();
+    } else {
+      // normal — gentle resting wobble
+      const wobble = 1 + Math.sin(t * 1.5) * 0.015;
+      const R = r * wobble;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
+      g.addColorStop(0, "#fadbd8");
+      g.addColorStop(1, "#e8a0a0");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 3;
+      ctx.stroke();
       ctx.beginPath();
       ctx.arc(cx - R * 0.1, cy, R * 0.28, 0, Math.PI * 2);
       ctx.fillStyle = "#922b21";
@@ -641,8 +712,11 @@
   }
 
   // --- Plant cell drawing ---
-  function drawPlantCell(x, y, w, h, state, t) {
+  // morph 0 = resting normal (membrane near wall); 1 = full end-state
+  function drawPlantCell(x, y, w, h, state, t, morph) {
     // state: normal | turgid | plasmolysed | flaccid
+    if (morph == null) morph = 1;
+    morph = easeInOut(Math.max(0, Math.min(1, morph)));
     const wallPad = 6;
     // cell wall
     ctx.fillStyle = "#27ae60";
@@ -652,33 +726,39 @@
     roundRect(x + wallPad, y + wallPad, w - wallPad * 2, h - wallPad * 2, 4);
     ctx.fill();
 
+    // resting protoplast (normal)
     let protoX = x + wallPad + 4;
     let protoY = y + wallPad + 4;
     let protoW = w - wallPad * 2 - 8;
     let protoH = h - wallPad * 2 - 8;
 
     if (state === "plasmolysed") {
-      // shrink and detach
-      const shrink = 0.55;
-      protoW = protoW * shrink;
-      protoH = protoH * shrink;
-      protoX = x + (w - protoW) / 2;
-      protoY = y + (h - protoH) / 2 + 8;
-      // space label area
-      ctx.fillStyle = "rgba(52,152,219,0.12)";
-      roundRect(x + wallPad, y + wallPad, w - wallPad * 2, h - wallPad * 2, 4);
-      ctx.fill();
+      const shrink = lerp(1, 0.55, morph);
+      const tw = protoW * shrink;
+      const th = protoH * shrink;
+      protoX = lerp(protoX, x + (w - tw) / 2, morph);
+      protoY = lerp(protoY, y + (h - th) / 2 + 8, morph);
+      protoW = tw;
+      protoH = th;
+      if (morph > 0.15) {
+        ctx.fillStyle = "rgba(52,152,219," + (0.12 * morph) + ")";
+        roundRect(x + wallPad, y + wallPad, w - wallPad * 2, h - wallPad * 2, 4);
+        ctx.fill();
+      }
     } else if (state === "flaccid") {
-      protoW *= 0.85;
-      protoH *= 0.85;
-      protoX = x + (w - protoW) / 2;
-      protoY = y + (h - protoH) / 2;
+      const shrink = lerp(1, 0.85, morph);
+      const tw = protoW * shrink;
+      const th = protoH * shrink;
+      protoX = lerp(protoX, x + (w - tw) / 2, morph);
+      protoY = lerp(protoY, y + (h - th) / 2, morph);
+      protoW = tw;
+      protoH = th;
     } else if (state === "turgid") {
-      // pressed against wall
-      protoX = x + wallPad + 2;
-      protoY = y + wallPad + 2;
-      protoW = w - wallPad * 2 - 4;
-      protoH = h - wallPad * 2 - 4;
+      // press more firmly against wall
+      protoX = lerp(protoX, x + wallPad + 2, morph);
+      protoY = lerp(protoY, y + wallPad + 2, morph);
+      protoW = lerp(protoW, w - wallPad * 2 - 4, morph);
+      protoH = lerp(protoH, h - wallPad * 2 - 4, morph);
     }
 
     // cytoplasm / membrane
@@ -690,12 +770,15 @@
     roundRect(protoX, protoY, protoW, protoH, 8);
     ctx.stroke();
 
-    // vacuole
+    // vacuole — pinkish when plasmolysing
     const vx = protoX + protoW * 0.12;
     const vy = protoY + protoH * 0.18;
     const vw = protoW * 0.76;
     const vh = protoH * 0.64;
-    ctx.fillStyle = state === "plasmolysed" ? "rgba(241,148,138,0.9)" : "rgba(133,193,233,0.75)";
+    const vacPink = (state === "plasmolysed") ? morph : 0;
+    ctx.fillStyle = vacPink > 0.3
+      ? "rgba(241,148,138," + (0.55 + vacPink * 0.35) + ")"
+      : "rgba(133,193,233,0.75)";
     roundRect(vx, vy, vw, vh, 10);
     ctx.fill();
     ctx.strokeStyle = "rgba(40,116,166,0.5)";
@@ -710,30 +793,69 @@
     ctx.fill();
   }
 
-  // RBC disc
-  function drawRBC(cx, cy, r, state) {
+  // RBC disc — morph 0 = normal biconcave; 1 = full end-state
+  function drawRBC(cx, cy, r, state, morph) {
+    if (morph == null) morph = 1;
+    morph = easeInOut(Math.max(0, Math.min(1, morph)));
     ctx.save();
     if (state === "ghost") {
-      ctx.globalAlpha = 0.25;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, r * 1.3, r * 0.9, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = "#e74c3c";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      // swell then fade to ghost outline
+      if (morph < 0.55) {
+        const sm = morph / 0.55;
+        const rx = r * lerp(1.35, 1.55, sm);
+        const ry = r * lerp(0.9, 1.15, sm);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.5);
+        g.addColorStop(0, "#f5b7b1");
+        g.addColorStop(0.45, "#e74c3c");
+        g.addColorStop(1, "#922b21");
+        ctx.globalAlpha = 1 - sm * 0.35;
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else {
+        const gm = (morph - 0.55) / 0.45;
+        ctx.globalAlpha = lerp(0.55, 0.22, gm);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r * 1.3, r * 0.9, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = "#e74c3c";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
     } else if (state === "crenated") {
-      ctx.beginPath();
+      const cren = morph;
       const spikes = 14;
+      ctx.beginPath();
       for (let i = 0; i < spikes; i++) {
         const a = (i / spikes) * Math.PI * 2;
-        const rr = r * (i % 2 === 0 ? 1.05 : 0.55);
+        const outer = lerp(1.35, 1.05, cren);
+        const inner = lerp(1.35, 0.55, cren);
+        const rr = r * (i % 2 === 0 ? outer : inner);
+        const yScale = lerp(0.9, 0.85, cren);
+        // approximate ellipse→star: use angle-based radius
         const x = cx + Math.cos(a) * rr;
-        const y = cy + Math.sin(a) * rr * 0.85;
+        const y = cy + Math.sin(a) * rr * yScale;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.fillStyle = "#922b21";
+      if (cren < 0.35) {
+        const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.3);
+        g.addColorStop(0, "#f5b7b1");
+        g.addColorStop(0.45, "#e74c3c");
+        g.addColorStop(1, "#922b21");
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = "#922b21";
+      }
       ctx.fill();
+      if (cren < 0.5) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r * 0.45 * (1 - cren), r * 0.28 * (1 - cren), 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,220,220," + (0.55 * (1 - cren * 2)) + ")";
+        ctx.fill();
+      }
     } else {
       // biconcave
       ctx.beginPath();
@@ -810,12 +932,21 @@
     }
 
     if (id === "dialysis") {
-      // water outside bag + sucrose inside
+      // water outside bag (beaker liquid, not inside bag) + sucrose/water inside bag
       for (let i = 0; i < 40; i++) {
+        let x, y, tries = 0;
+        do {
+          x = BEAKER_IN_L + 6 + Math.random() * (BEAKER_IN_R - BEAKER_IN_L - 12);
+          y = BEAKER_IN_T + 6 + Math.random() * (BEAKER_IN_B - BEAKER_IN_T - 12);
+          tries++;
+        } while (
+          tries < 40 &&
+          x > BAG_IN_L - 8 && x < BAG_IN_R + 8 &&
+          y > BAG_IN_T - 8 && y < BAG_IN_B + 8
+        );
         particles.push({
           kind: "water", side: "out",
-          x: 180 + Math.random() * 400,
-          y: 280 + Math.random() * 380,
+          x, y,
           vx: (Math.random() - 0.5) * 50,
           vy: (Math.random() - 0.5) * 50,
           r: 5
@@ -824,8 +955,8 @@
       for (let i = 0; i < 20; i++) {
         particles.push({
           kind: "sucrose", side: "in",
-          x: 280 + Math.random() * 160,
-          y: 340 + Math.random() * 200,
+          x: BAG_IN_L + 8 + Math.random() * (BAG_IN_R - BAG_IN_L - 16),
+          y: BAG_IN_T + 8 + Math.random() * (BAG_IN_B - BAG_IN_T - 16),
           vx: (Math.random() - 0.5) * 20,
           vy: (Math.random() - 0.5) * 20,
           r: 12
@@ -834,8 +965,8 @@
       for (let i = 0; i < 12; i++) {
         particles.push({
           kind: "water", side: "in",
-          x: 280 + Math.random() * 160,
-          y: 340 + Math.random() * 200,
+          x: BAG_IN_L + 6 + Math.random() * (BAG_IN_R - BAG_IN_L - 12),
+          y: BAG_IN_T + 6 + Math.random() * (BAG_IN_B - BAG_IN_T - 12),
           vx: (Math.random() - 0.5) * 40,
           vy: (Math.random() - 0.5) * 40,
           r: 5
@@ -923,7 +1054,7 @@
         p.vy = (p.vy / spd) * maxSpd;
       }
 
-      if (id === "define" || id === "demo" || id === "waterpot") {
+      if (id === "define" || id === "waterpot") {
         if (p.kind === "sucrose") {
           clampParticle(p, midX, 50);
           if (p.x < 50) { p.x = 50; p.vx *= -1; }
@@ -945,22 +1076,96 @@
           if (p.y < 100) { p.y = 100; p.vy *= -1; }
           if (p.y > H - 60) { p.y = H - 60; p.vy *= -1; }
         }
-      } else if (id === "dialysis") {
-        const bagL = 260, bagR = 460, bagT = 320, bagB = 560;
+      } else if (id === "demo") {
+        // U-tube container: walls x∈[80,W-80], liquid between dynamic tops and baseY=650
+        const demoProg = Math.min(1, sceneT / 10);
+        const leftTop = 280 - demoProg * 70;
+        const rightTop = 280 + demoProg * 70;
+        const baseY = 650;
+        const liqTop = (p.side === "L" ? leftTop : rightTop) + 12;
         if (p.kind === "sucrose") {
-          if (p.x < bagL + 10) { p.x = bagL + 10; p.vx *= -1; }
-          if (p.x > bagR - 10) { p.x = bagR - 10; p.vx *= -1; }
-          if (p.y < bagT + 10) { p.y = bagT + 10; p.vy *= -1; }
-          if (p.y > bagB - 10) { p.y = bagB - 10; p.vy *= -1; }
-        } else {
-          // water can enter bag
-          const inBag = p.x > bagL && p.x < bagR && p.y > bagT && p.y < bagB;
-          if (p.side === "out" && inBag && Math.random() < 0.02) p.side = "in";
-          if (p.x < 160) { p.x = 160; p.vx *= -1; }
-          if (p.x > 580) { p.x = 580; p.vx *= -1; }
-          if (p.y < 260) { p.y = 260; p.vy *= -1; }
-          if (p.y > 680) { p.y = 680; p.vy *= -1; }
+          if (p.side === "L") {
+            if (p.x < 95) { p.x = 95; p.vx *= -1; }
+            if (p.x > midX - 18) { p.x = midX - 18; p.vx *= -1; }
+          } else {
+            if (p.x < midX + 18) { p.x = midX + 18; p.vx *= -1; }
+            if (p.x > W - 95) { p.x = W - 95; p.vx *= -1; }
+          }
+        } else if (p.kind === "water") {
+          if (Math.abs(p.x - midX) < 8) {
+            if (p.side === "R" && Math.random() < 0.55 + demoProg * 0.3) {
+              p.side = "L";
+              p.vx = -Math.abs(p.vx) - 20;
+            } else if (p.side === "L" && Math.random() < 0.25) {
+              p.side = "R";
+              p.vx = Math.abs(p.vx) + 10;
+            }
+          }
+          if (p.x < 95) { p.x = 95; p.vx *= -1; }
+          if (p.x > W - 95) { p.x = W - 95; p.vx *= -1; }
         }
+        if (p.y < liqTop) { p.y = liqTop; p.vy = Math.abs(p.vy); }
+        if (p.y > baseY - 18) { p.y = baseY - 18; p.vy *= -1; }
+      } else if (id === "dialysis") {
+        const bagL = BAG_IN_L, bagR = BAG_IN_R, bagT = BAG_IN_T, bagB = BAG_IN_B;
+        const inBag = p.x > bagL && p.x < bagR && p.y > bagT && p.y < bagB;
+        if (p.kind === "sucrose") {
+          // cannot pass membrane — stay strictly inside bag
+          if (p.x < bagL + 4) { p.x = bagL + 4; p.vx *= -1; }
+          if (p.x > bagR - 4) { p.x = bagR - 4; p.vx *= -1; }
+          if (p.y < bagT + 4) { p.y = bagT + 4; p.vy *= -1; }
+          if (p.y > bagB - 4) { p.y = bagB - 4; p.vy *= -1; }
+        } else {
+          // water: always inside beaker; osmosis via intentional bag crossing
+          if (p.side === "in") {
+            // prefer stay in bag; small chance to leave through membrane
+            if (!inBag) {
+              // drifted out — either re-enter clamp or intentionally leave
+              if (Math.random() < 0.08) {
+                p.side = "out";
+              } else {
+                p.x = Math.max(bagL + 4, Math.min(bagR - 4, p.x));
+                p.y = Math.max(bagT + 4, Math.min(bagB - 4, p.y));
+                p.vx *= -1; p.vy *= -1;
+              }
+            }
+          } else {
+            // outside: bounce off bag exterior unless crossing in
+            if (inBag) {
+              if (Math.random() < 0.035 + progress * 0.04) {
+                p.side = "in"; // enter bag (osmosis)
+              } else {
+                // push back outside nearest bag edge
+                const dl = Math.abs(p.x - bagL), dr = Math.abs(p.x - bagR);
+                const dt = Math.abs(p.y - bagT), db = Math.abs(p.y - bagB);
+                const m = Math.min(dl, dr, dt, db);
+                if (m === dl) { p.x = bagL - 2; p.vx = -Math.abs(p.vx); }
+                else if (m === dr) { p.x = bagR + 2; p.vx = Math.abs(p.vx); }
+                else if (m === dt) { p.y = bagT - 2; p.vy = -Math.abs(p.vy); }
+                else { p.y = bagB + 2; p.vy = Math.abs(p.vy); }
+              }
+            }
+          }
+          // absolute beaker walls — never leave glass
+          if (p.x < BEAKER_IN_L) { p.x = BEAKER_IN_L; p.vx *= -1; }
+          if (p.x > BEAKER_IN_R) { p.x = BEAKER_IN_R; p.vx *= -1; }
+          if (p.y < BEAKER_IN_T) { p.y = BEAKER_IN_T; p.vy *= -1; }
+          if (p.y > BEAKER_IN_B) { p.y = BEAKER_IN_B; p.vy *= -1; }
+        }
+      } else if (id === "hypotonic" || id === "hypertonic" || id === "isotonic") {
+        // soft drift toward / away from animal cell (300–320, 360–380)
+        const cx = 310, cy = 370;
+        const dx = cx - p.x, dy = cy - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const bias = id === "hypotonic" ? 28 : id === "hypertonic" ? -28 : 0;
+        if (bias !== 0) {
+          p.vx += (dx / dist) * bias * dt;
+          p.vy += (dy / dist) * bias * dt;
+        }
+        if (p.x < 30) { p.x = 30; p.vx *= -1; }
+        if (p.x > W - 30) { p.x = W - 30; p.vx *= -1; }
+        if (p.y < 90) { p.y = 90; p.vy *= -1; }
+        if (p.y > H - 40) { p.y = H - 40; p.vy *= -1; }
       } else {
         if (p.x < 30) { p.x = 30; p.vx *= -1; }
         if (p.x > W - 30) { p.x = W - 30; p.vx *= -1; }
@@ -1143,8 +1348,8 @@
       ctx.lineTo(ox + 200, 700);
       ctx.stroke();
 
-      // beaker
-      const bx = ox + 100, by = 380, bw = 280, bh = 300;
+      // beaker + bag — same geometry as BEAKER_*/BAG_* when ox === DIALYSIS_OX
+      const bx = ox + 100, by = BEAKER_Y, bw = BEAKER_W, bh = BEAKER_H;
       ctx.fillStyle = "rgba(174,214,241,0.3)";
       roundRect(bx, by, bw, bh, 8);
       ctx.fill();
@@ -1154,7 +1359,7 @@
       drawCallout(bx + bw / 2, by + bh + 30, "蒸餾水", "#2980b9");
 
       // dialysis bag
-      const bagX = bx + 70, bagY = by + 40, bagW = 140, bagH = 200;
+      const bagX = bx + 70, bagY = by + 40, bagW = BAG_W, bagH = BAG_H;
       ctx.fillStyle = isExp ? "rgba(241,196,15,0.35)" : "rgba(174,214,241,0.4)";
       roundRect(bagX, bagY, bagW, bagH, 40);
       ctx.fill();
@@ -1226,58 +1431,87 @@
 
   function drawSceneIsotonic(t) {
     drawCallout(W / 2, 50, "等滲溶液 — 水勢相等，沒有淨移動", "#2c5aa0");
+    const morph = easeInOut(Math.min(1, sceneT / 10));
 
-    // animal
-    drawAnimalCell(320, 380, 110, "normal", t);
+    // animal — stays normal with gentle settle
+    drawAnimalCell(320, 380, 110, "normal", t, morph);
     drawWaterArrowsAround(320, 380, 110, "equal", t);
     drawCallout(320, 560, "動物細胞", "#c0392b");
-    drawAnnotationBox(180, 600, ["細胞膜", "形狀正常"], "#c0392b");
+    if (morph > 0.35) {
+      drawAnnotationBox(180, 600, ["細胞膜", "形狀維持正常"], "#c0392b");
+    }
 
-    // plant
-    drawPlantCell(740, 220, 340, 280, "normal", t);
+    // plant — stays normal
+    drawPlantCell(740, 220, 340, 280, "normal", t, morph);
     drawWaterArrowsAround(910, 360, 160, "equal", t);
     drawCallout(910, 560, "植物細胞", "#27ae60");
-    drawAnnotationBox(780, 600, ["細胞壁 · 細胞質 · 液泡", "維持正常"], "#27ae60");
+    if (morph > 0.35) {
+      drawAnnotationBox(780, 600, ["細胞壁 · 細胞質 · 液泡", "維持正常"], "#27ae60");
+    }
 
     particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
   }
 
   function drawSceneHypotonic(t) {
     drawCallout(W / 2, 50, "低滲溶液 — 外液水勢較高，水進入細胞", "#2980b9");
+    const morph = easeInOut(Math.min(1, sceneT / 10));
 
-    const burst = sceneT > 6;
-    drawAnimalCell(300, 360, 100, burst ? "burst" : "swell", t);
-    drawWaterArrowsAround(300, 360, burst ? 100 : 120, "in", t);
-    drawCallout(300, 560, burst ? "爆裂（溶血）" : "膨脹中…", "#c0392b");
-    drawAnnotationBox(140, 600, ["動物細胞無細胞壁", "持續吸水 → 溶血"], "#c0392b");
+    // animal: swell → burst over ~10s
+    drawAnimalCell(300, 360, 100, "burst", t, morph);
+    const arrowR = lerp(100, 125, Math.min(1, morph / 0.7));
+    drawWaterArrowsAround(300, 360, arrowR, "in", t);
+    let aLabel = "開始吸水…";
+    if (morph > 0.25 && morph < 0.72) aLabel = "膨脹中…";
+    else if (morph >= 0.72) aLabel = "爆裂（溶血）";
+    drawCallout(300, 560, aLabel, "#c0392b");
+    if (morph > 0.4) {
+      drawAnnotationBox(140, 600, ["動物細胞無細胞壁", "持續吸水 → 溶血"], "#c0392b");
+    }
 
-    drawPlantCell(720, 200, 360, 300, "turgid", t);
+    // plant: gradually become turgid
+    drawPlantCell(720, 200, 360, 300, "turgid", t, morph);
     drawWaterArrowsAround(900, 350, 170, "in", t);
-    drawCallout(900, 560, "硬脹（膨壓）", "#27ae60");
-    drawAnnotationBox(760, 600, ["細胞壁阻止爆裂", "細胞變硬脹"], "#27ae60");
+    const pLabel = morph > 0.55 ? "硬脹（膨壓）" : "吸水中…";
+    drawCallout(900, 560, pLabel, "#27ae60");
+    if (morph > 0.45) {
+      drawAnnotationBox(760, 600, ["細胞壁阻止爆裂", "細胞變硬脹"], "#27ae60");
+    }
 
     particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
   }
 
   function drawSceneHypertonic(t) {
     drawCallout(W / 2, 50, "高滲溶液 — 外液水勢較低，水離開細胞", "#c0392b");
+    const morph = easeInOut(Math.min(1, sceneT / 10));
 
-    drawAnimalCell(300, 360, 100, "shrink", t);
-    drawWaterArrowsAround(300, 360, 90, "out", t);
-    drawCallout(300, 560, "萎縮／皺縮", "#c0392b");
-    drawAnnotationBox(150, 600, ["動物細胞失水", "體積縮小、表面皺縮"], "#c0392b");
+    // animal: slowly crenate
+    drawAnimalCell(300, 360, 100, "shrink", t, morph);
+    drawWaterArrowsAround(300, 360, lerp(100, 85, morph), "out", t);
+    let aLabel = "開始失水…";
+    if (morph > 0.3 && morph < 0.75) aLabel = "皺縮中…";
+    else if (morph >= 0.75) aLabel = "萎縮／皺縮";
+    drawCallout(300, 560, aLabel, "#c0392b");
+    if (morph > 0.4) {
+      drawAnnotationBox(150, 600, ["動物細胞失水", "體積縮小、表面皺縮"], "#c0392b");
+    }
 
-    const plas = sceneT > 3 ? "plasmolysed" : "flaccid";
-    drawPlantCell(720, 200, 360, 300, plas, t);
+    // plant: normal → plasmolysis continuously
+    drawPlantCell(720, 200, 360, 300, "plasmolysed", t, morph);
     drawWaterArrowsAround(900, 350, 150, "out", t);
-    drawCallout(900, 560, plas === "plasmolysed" ? "質壁分離（軟縮）" : "軟縮中…", "#27ae60");
-    drawAnnotationBox(740, 600, ["液泡收縮", "細胞膜脫離細胞壁", "＝ 質壁分離"], "#27ae60");
+    let pLabel = "開始失水…";
+    if (morph > 0.25 && morph < 0.7) pLabel = "軟縮中…";
+    else if (morph >= 0.7) pLabel = "質壁分離（軟縮）";
+    drawCallout(900, 560, pLabel, "#27ae60");
+    if (morph > 0.5) {
+      drawAnnotationBox(740, 600, ["液泡收縮", "細胞膜脫離細胞壁", "＝ 質壁分離"], "#27ae60");
+    }
 
     particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
   }
 
   function drawSceneRBC(t) {
     drawCallout(W / 2, 45, "實驗：紅血球在不同濃度氯化鈉溶液中", "#2c5aa0");
+    const morph = easeInOut(Math.min(1, sceneT / 10));
 
     const panels = [
       { x: 40, label: "溶液 A：0% NaCl", sub: "低滲", state: "ghost", note: "溶血", color: "#c0392b" },
@@ -1309,17 +1543,24 @@
         [0, -40], [50, 10], [-55, 20], [20, 55], [-30, -60],
         [70, -30], [-70, -10], [0, 20]
       ];
+      // stagger morph slightly per cell for a natural look
       positions.forEach((off, i) => {
-        if (p.state === "ghost" && i > 3) return; // fewer ghosts
-        drawRBC(p.x + 190 + off[0], 380 + off[1], 22, p.state);
+        const cellMorph = Math.max(0, Math.min(1, morph * 1.15 - i * 0.04));
+        if (p.state === "ghost" && cellMorph > 0.55 && i > 3) return;
+        drawRBC(p.x + 190 + off[0], 380 + off[1], 22, p.state, cellMorph);
       });
 
-      drawAnnotationBox(p.x + 50, 560, [p.note, "×450"], p.color);
+      if (morph > 0.45) {
+        drawAnnotationBox(p.x + 50, 560, [p.note, "×450"], p.color);
+      } else if (morph > 0.15) {
+        drawAnnotationBox(p.x + 50, 560, ["變化中…", "×450"], p.color);
+      }
     });
   }
 
   function drawScenePlant(t) {
-    // Left: onion plasmolysis
+    // Left: onion plasmolysis — gradual morph
+    const morph = easeInOut(Math.min(1, sceneT / 10));
     drawCallout(320, 45, "紅洋蔥表皮細胞", "#8e44ad");
 
     roundRect(40, 80, 560, 340, 12);
@@ -1329,18 +1570,20 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    drawCallout(180, 115, "濃蔗糖 → 質壁分離", "#c0392b");
-    // mini plant cells plasmolysed
+    drawCallout(180, 115, morph > 0.5 ? "濃蔗糖 → 質壁分離" : "濃蔗糖 → 失水中…", "#c0392b");
+    // mini plant cells: start normal → plasmolyse
     for (let row = 0; row < 2; row++) {
       for (let col = 0; col < 2; col++) {
-        drawPlantCell(60 + col * 130, 150 + row * 120, 120, 100, "plasmolysed", t);
+        const cm = Math.max(0, Math.min(1, morph - (row + col) * 0.05));
+        drawPlantCell(60 + col * 130, 150 + row * 120, 120, 100, "plasmolysed", t, cm);
       }
     }
 
-    drawCallout(460, 115, "蒸餾水 → 恢復", "#27ae60");
+    drawCallout(460, 115, morph > 0.5 ? "蒸餾水 → 恢復" : "蒸餾水 → 吸水中…", "#27ae60");
     for (let row = 0; row < 2; row++) {
       for (let col = 0; col < 2; col++) {
-        drawPlantCell(340 + col * 120, 150 + row * 120, 110, 100, "turgid", t);
+        const cm = Math.max(0, Math.min(1, morph - (row + col) * 0.05));
+        drawPlantCell(340 + col * 120, 150 + row * 120, 110, 100, "turgid", t, cm);
       }
     }
 
@@ -1377,11 +1620,13 @@
       "量度質量變化百分率"
     ], "#d35400");
 
-    drawAnnotationBox(40, 450, [
-      "質壁分離：細胞液水勢 > 外液",
-      "水離開 → 原生質體縮小脫壁",
-      "換蒸餾水可去質壁分離"
-    ], "#8e44ad");
+    if (morph > 0.45) {
+      drawAnnotationBox(40, 450, [
+        "質壁分離：細胞液水勢 > 外液",
+        "水離開 → 原生質體縮小脫壁",
+        "換蒸餾水可去質壁分離"
+      ], "#8e44ad");
+    }
 
     particles.forEach(p => drawMolecule(p.x, p.y, p.r, "#3498db"));
   }
