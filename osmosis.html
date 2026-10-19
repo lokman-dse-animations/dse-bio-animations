@@ -880,7 +880,7 @@
     cells = [];
     const id = scenes[sceneIndex].id;
 
-    if (id === "define" || id === "demo") {
+    if (id === "define") {
       // Left: concentrated (many sucrose, fewer free water)
       // Right: dilute
       const leftSuc = 18;
@@ -925,6 +925,52 @@
           y: 120 + Math.random() * 520,
           vx: (Math.random() - 0.5) * 70,
           vy: (Math.random() - 0.5) * 70,
+          r: 5 + Math.random() * 2
+        });
+      }
+    }
+
+    if (id === "demo") {
+      // U-tube: spawn inside liquid halves (initial top ≈ 280, base 650)
+      const mid = W / 2;
+      for (let i = 0; i < 16; i++) {
+        particles.push({
+          kind: "sucrose", side: "L",
+          x: 110 + Math.random() * (mid - 140),
+          y: 300 + Math.random() * 320,
+          vx: (Math.random() - 0.5) * 25,
+          vy: (Math.random() - 0.5) * 25,
+          r: 14 + Math.random() * 4
+        });
+      }
+      for (let i = 0; i < 4; i++) {
+        particles.push({
+          kind: "sucrose", side: "R",
+          x: mid + 40 + Math.random() * (W - mid - 140),
+          y: 300 + Math.random() * 320,
+          vx: (Math.random() - 0.5) * 25,
+          vy: (Math.random() - 0.5) * 25,
+          r: 14 + Math.random() * 4
+        });
+      }
+      // fewer free water on left (concentrated), many on right (dilute)
+      for (let i = 0; i < 14; i++) {
+        particles.push({
+          kind: "water", side: "L",
+          x: 110 + Math.random() * (mid - 140),
+          y: 300 + Math.random() * 320,
+          vx: (Math.random() - 0.5) * 40,
+          vy: (Math.random() - 0.5) * 40,
+          r: 5 + Math.random() * 2
+        });
+      }
+      for (let i = 0; i < 48; i++) {
+        particles.push({
+          kind: "water", side: "R",
+          x: mid + 30 + Math.random() * (W - mid - 130),
+          y: 300 + Math.random() * 320,
+          vx: -20 - Math.random() * 40, // already drifting toward membrane
+          vy: (Math.random() - 0.5) * 50,
           r: 5 + Math.random() * 2
         });
       }
@@ -1133,6 +1179,21 @@
     const midX = W / 2;
     const progress = Math.min(1, sceneT / 8); // osmosis progress over ~8s
 
+    // demo: target water counts so R→L is visible but right never empties
+    let demoWaterL = 0, demoWaterR = 0;
+    if (id === "demo") {
+      particles.forEach(p => {
+        if (p.kind === "water") {
+          if (p.side === "L") demoWaterL++;
+          else demoWaterR++;
+        }
+      });
+    }
+    const demoProgPre = Math.min(1, sceneT / 10);
+    const demoTargetL = 14 + Math.floor(demoProgPre * 18); // 14 → 32
+    const demoWantCross = demoWaterL < demoTargetL + 2;
+    const demoWantBack = demoWaterL > demoTargetL - 1;
+
     particles.forEach(p => {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
@@ -1170,13 +1231,14 @@
           if (p.y > H - 60) { p.y = H - 60; p.vy *= -1; }
         }
       } else if (id === "demo") {
-        // U-tube container: walls x∈[80,W-80], liquid between dynamic tops and baseY=650
+        // U-tube: levels change while water visibly crosses membrane R→L (稀→濃)
         const demoProg = Math.min(1, sceneT / 10);
         const leftTop = 280 - demoProg * 70;
         const rightTop = 280 + demoProg * 70;
         const baseY = 650;
         const liqTop = (p.side === "L" ? leftTop : rightTop) + 12;
         if (p.kind === "sucrose") {
+          // cannot cross membrane
           if (p.side === "L") {
             if (p.x < 95) { p.x = 95; p.vx *= -1; }
             if (p.x > midX - 18) { p.x = midX - 18; p.vx *= -1; }
@@ -1185,17 +1247,57 @@
             if (p.x > W - 95) { p.x = W - 95; p.vx *= -1; }
           }
         } else if (p.kind === "water") {
-          if (Math.abs(p.x - midX) < 8) {
-            if (p.side === "R" && Math.random() < 0.55 + demoProg * 0.3) {
-              p.side = "L";
-              p.vx = -Math.abs(p.vx) - 20;
-            } else if (p.side === "L" && Math.random() < 0.25) {
-              p.side = "R";
-              p.vx = Math.abs(p.vx) + 10;
+          // Visible R→L crossings synced with level change; quota keeps both sides wet
+          if (p.side === "R") {
+            p.vx += (demoWantCross ? -70 : -10) * dt;
+            if (demoWantCross && p.x < midX + 100) {
+              p.vx = Math.min(p.vx, -35 - demoProg * 25);
             }
+            if (p.x < midX + 40 && p.x > midX + 2) {
+              if (demoWantCross && Math.random() < 0.4 + demoProg * 0.25) {
+                p.side = "L";
+                p.crossing = 0.55;
+                p.vx = -75 - Math.random() * 25;
+                p.x = midX - 18;
+                demoWaterL++; demoWaterR--;
+              }
+            }
+            if (p.side === "R" && p.x <= midX + 2) {
+              if (demoWantCross) {
+                p.side = "L";
+                p.crossing = 0.55;
+                p.vx = -80;
+                p.x = midX - 18;
+                demoWaterL++; demoWaterR--;
+              } else {
+                p.x = midX + 12;
+                p.vx = 20;
+              }
+            }
+            if (p.x > W - 95) { p.x = W - 95; p.vx *= -1; }
+          } else {
+            // after crossing streak, ease; pull some back if over quota
+            if (!(p.crossing > 0) && demoWantBack) {
+              p.vx += 55 * dt;
+            }
+            if (p.x > midX - 45 && !(p.crossing > 0)) {
+              const backChance = demoWantBack ? 0.45 : 0.06;
+              if (Math.random() < backChance) {
+                p.side = "R";
+                p.vx = 45 + Math.random() * 25;
+                p.x = midX + 18;
+                demoWaterL--; demoWaterR++;
+              } else if (p.x > midX - 8) {
+                p.x = midX - 16;
+                p.vx = -25;
+              }
+            }
+            if (p.x < 95) { p.x = 95; p.vx *= -1; }
           }
-          if (p.x < 95) { p.x = 95; p.vx *= -1; }
-          if (p.x > W - 95) { p.x = W - 95; p.vx *= -1; }
+          if (p.crossing != null && p.crossing > 0) {
+            p.crossing -= dt;
+            if (p.vx > -40) p.vx = -50 - Math.random() * 20;
+          }
         }
         if (p.y < liqTop) { p.y = liqTop; p.vy = Math.abs(p.vy); }
         if (p.y > baseY - 18) { p.y = baseY - 18; p.vy *= -1; }
@@ -1648,14 +1750,26 @@
     drawDashedMembrane(midX, 170, baseY - 10);
     drawCallout(midX, 140, "差異透性膜", "#7f8c8d");
 
-    // particles constrained to liquid
+    // particles constrained to liquid — crossing waters highlighted
     particles.forEach(p => {
       const top = p.side === "L" ? leftTop + 10 : rightTop + 10;
       if (p.y < top) p.y = top + Math.random() * 10;
       if (p.y > baseY - 15) p.y = baseY - 15;
       if (p.side === "L" && p.x > midX - 15 && p.kind === "sucrose") p.x = midX - 20;
       if (p.side === "R" && p.x < midX + 15 && p.kind === "sucrose") p.x = midX + 20;
-      drawMolecule(p.x, p.y, p.r, p.kind === "sucrose" ? "#f1c40f" : "#3498db");
+      const crossing = p.kind === "water" && p.crossing != null && p.crossing > 0;
+      if (crossing) {
+        // motion streak showing R→L passage through membrane
+        ctx.strokeStyle = "rgba(41,128,185,0.55)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(p.x + 28, p.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        drawMolecule(p.x, p.y, p.r + 1.5, "#1a5276");
+      } else {
+        drawMolecule(p.x, p.y, p.r, p.kind === "sucrose" ? "#f1c40f" : "#3498db");
+      }
     });
 
     drawCallout(W * 0.25, leftTop - 28, "濃蔗糖溶液（水勢低）", "#d4920a");
@@ -1664,6 +1778,7 @@
     ctx.globalAlpha = 0.7 + Math.sin(t * 3) * 0.3;
     drawArrow(W * 0.65, (leftTop + rightTop) / 2 + 40, W * 0.35, (leftTop + rightTop) / 2 + 40, "#2980b9", 6);
     ctx.globalAlpha = 1;
+    drawCallout(midX, (leftTop + rightTop) / 2 + 70, "水分子：右 → 左", "#2980b9");
 
     // level arrows
     if (progress > 0.15) {
@@ -1674,7 +1789,8 @@
     }
 
     drawAnnotationBox(40, H - 100, [
-      "一段時間後：濃側液面↑ 稀側液面↓"
+      "水分子由稀（右）→ 濃（左）穿過膜",
+      "→ 左側液面上升、右側液面下降"
     ], "#2c5aa0");
   }
 
