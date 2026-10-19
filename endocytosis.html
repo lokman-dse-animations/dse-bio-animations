@@ -235,7 +235,7 @@
       <p class="hint">
         鍵盤：<kbd>空白鍵</kbd> 暫停／播放 · <kbd>←</kbd><kbd>→</kbd> 上／下一步 · <kbd>R</kbd> 重播<br>
         點選步驟可跳到<strong>同一連續動畫</strong>的該時段。<br>
-        流程對應：察覺 → 偽足包圍 → 膜掐斷成吞噬泡 → 進入內部 → 酶分解。
+        流程對應：察覺 → 偽足合攏 → 邊緣形成吞噬泡 → 移入內部 → 酶分解。
       </p>
     </div>
   </aside>
@@ -269,14 +269,14 @@
       desc: "同一段動畫中，細胞膜向上、下長成<strong>兩條平滑彎曲的偽足</strong>，逐漸<strong>包圍</strong>外來粒子。膜緣全程圓滑，沒有尖角。"
     },
     {
-      t0: 7.5, t1: 10.5,
-      title: "3. 包圍並吞入",
-      desc: "兩條偽足<strong>合攏</strong>，細胞膜把外來粒子<strong>完全包圍</strong>。接著膜在合攏處<strong>掐斷</strong>，粒子連同一圈膜一起進入細胞。"
+      t0: 7.5, t1: 9.6,
+      title: "3. 偽足合攏包圍",
+      desc: "兩條<strong>偽足</strong>合攏，把外來粒子圍在袋狀凹位中。合攏完成前尚未形成獨立圓圈。"
     },
     {
-      t0: 10.5, t1: 14.0,
-      title: "4. 形成吞噬泡並進入內部",
-      desc: "偽足合攏、包圍完成的一刻，粒子已被<strong>圓形吞噬泡</strong>包住（仍在細胞邊緣）。其後吞噬泡才<strong>移入細胞質</strong>；外層細胞膜重新封合。"
+      t0: 9.6, t1: 14.0,
+      title: "4. 形成吞噬泡 → 移入內部",
+      desc: "偽足尖端一合攏，粒子邊緣立刻出現獨立的<strong>圓形吞噬泡</strong>（停留在細胞邊緣讓你看清）。其後吞噬泡才<strong>移入細胞質</strong>，溶酶體再融合分解。"
     },
     {
       t0: 14.0, t1: 18.0,
@@ -776,19 +776,20 @@
   function drawFrame() {
     const t = animT;
 
-    // Timeline: surround → tips fuse → CIRCLE at edge (吞噬泡) → THEN slide in → digest
+    // Match 6-step diagram 3→4→5:
+    // closing U → SNAP full circular 吞噬泡 at edge → HOLD → slide in → lysosomes
     const notice = smoothstep(0.5, 2.0, t) * (1 - smoothstep(3.2, 5.0, t));
-    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(9.6, 11.8, t));
-    const surround = smoothstep(6.0, 9.2, t);             // arms wrap particle
-    const pinch = smoothstep(8.4, 9.7, t);                // tips fuse; wrap ring closes
-    // Full circular 吞噬泡 as soon as engulfment completes — still at cell EDGE
-    const vacForm = smoothstep(9.2, 10.0, t);
-    // Hold circle at edge, then slide deeper (do NOT form circle during/after slide)
-    const vacIn = smoothstep(11.2, 13.4, t);
-    const settle = smoothstep(9.6, 12.4, t);              // outer membrane reseals after pinch
+    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(9.8, 12.0, t));
+    const surround = smoothstep(6.0, 9.1, t);              // arms wrap (step 3)
+    const pinch = smoothstep(8.3, 9.55, t);               // tips fuse
+    // Snap circle ON the instant tips meet — still at periphery (step 4)
+    const vacForm = smoothstep(9.45, 9.75, t);
+    // Hold ~1.5s at edge (9.75→11.3), THEN slide (step 5 position)
+    const vacIn = smoothstep(11.3, 13.5, t);
+    // Outer membrane reseals as soon as circle exists (step 4 continuous outline)
+    const settle = smoothstep(9.55, 11.8, t);
     const enzyme = smoothstep(14.0, 16.0, t);
     const digest = smoothstep(15.2, 17.8, t);
-    const vesicle = Math.max(vacForm, vacIn);
 
     ctx.clearRect(0, 0, W, H);
     const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -809,27 +810,24 @@
     const cx = 500, cy = 400, rx = 220, ry = 195;
     const partR = 38;
 
-    // Pocket at the right edge where arms enclose the particle
-    const approach = smoothstep(2.5, 9.2, t);
-    const edgeX = lerp(960, cx + rx * 0.42 + 78, approach);
+    // Fusion-site pocket: right periphery (step 4 phagosome sits here)
+    const approach = smoothstep(2.5, 9.0, t);
+    const edgeX = lerp(960, cx + rx - partR - 22, approach); // ~660: just inside right membrane
     const edgeY = cy;
-    // Deep interior target for the phagosome
-    const inX = cx + 55;
+    const inX = cx + 40;
     const inY = cy;
 
-    // Vacuole / particle center: stay at edge through pinch, then slide in
     const vacX = lerp(edgeX, inX, vacIn);
     const vacY = lerp(edgeY, inY, vacIn);
-    const partX = vacX;
-    const partY = vacY;
+
+    // Has the complete circular phagosome appeared? (binary-ish for clarity)
+    const hasPhagosome = vacForm >= 0.85;
 
     if (notice > 0.05) drawAttentionRays(cx, cy, edgeX, edgeY, notice);
 
-    // Cell silhouette still aims lobes at the *edge* pocket (not the inward vacuole)
     const cell = buildCell(cx, cy, rx, ry, reach, surround, settle, notice, edgeX, edgeY, partR);
     fillCell(cell.pts, cx, cy);
 
-    // Clip organelles inside cell
     ctx.save();
     {
       const pts = cell.pts;
@@ -860,11 +858,10 @@
       ctx.fillText("細胞質", cx - 20, cy + 70);
     }
 
-    // Lysosomes migrate toward the *moving* vacuole
     lysoHome.forEach((h, i) => {
       const homeX = cx + h[0], homeY = cy + h[1];
       const ang = i * 0.95;
-      const fuseR = partR + 24;
+      const fuseR = partR + 26;
       const tx = vacX + Math.cos(ang) * fuseR;
       const ty = vacY + Math.sin(ang) * fuseR;
       const migrate = enzyme;
@@ -874,51 +871,50 @@
       if (digest < 0.92) drawLysosome(ex, ey, rr);
     });
 
-    // Interior draw of formed vacuole (also redrawn unclipped below for clarity)
-    const vr = lerp(partR + 16, partR + 28, Math.min(1, vacForm * 0.7 + vacIn * 0.3));
-    if (vacForm > 0.12) {
-      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.5));
+    const vr = partR + 20;
+    // Draw phagosome inside clip once it exists (also redrawn on top)
+    if (hasPhagosome) {
+      drawVesicle(vacX, vacY, vr, 1);
       drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
     }
 
-    ctx.restore(); // end cell clip
+    ctx.restore();
 
-    if (cell.upLbl) drawCallout(cell.upLbl[0], cell.upLbl[1], "偽足", "#1a5276");
-    if (cell.loLbl) drawCallout(cell.loLbl[0], cell.loLbl[1], "偽足", "#1a5276");
+    // 偽足 labels only while arms are still the story (before snap circle)
+    if (!hasPhagosome) {
+      if (cell.upLbl) drawCallout(cell.upLbl[0], cell.upLbl[1], "偽足", "#1a5276");
+      if (cell.loLbl) drawCallout(cell.loLbl[0], cell.loLbl[1], "偽足", "#1a5276");
+    }
 
     if (t > 1.2 && t < 4.5) {
       drawCallout(cx - 160, cy - 175, "細胞膜", "#1f8a8c");
     }
 
-    // Wrap ring while closing — hands off to full 吞噬泡 circle as soon as closed
-    if (pinch > 0.04 && vacForm < 0.55) {
-      const wrapR = partR + 16;
-      const closeAmt = clamp(Math.max(pinch, vacForm * 1.2), 0, 1);
-      drawWrapRing(edgeX, edgeY, wrapR, closeAmt, Math.min(1, pinch * 1.3) * (1 - vacForm));
-      if (pinch > 0.3 && vacForm < 0.35) {
-        drawCallout(edgeX, edgeY - wrapR - 36, "細胞膜包圍粒子", "#1f8a8c");
+    // Step 3: closing pocket — particle + optional open ring; NO full circle yet
+    if (!hasPhagosome) {
+      if (pinch > 0.05) {
+        const wrapR = partR + 16;
+        drawWrapRing(edgeX, edgeY, wrapR, clamp(pinch, 0, 0.92), Math.min(1, pinch * 1.25));
+        if (pinch > 0.25) {
+          drawCallout(edgeX, edgeY - wrapR - 34, "偽足合攏中", "#1a5276");
+        }
       }
-    }
-
-    // Particle in pocket until circular vacuole takes over
-    if (vacForm < 0.25) {
-      const plabel = t < 3.2 ? "外來粒子" : (t < 8.2 ? "食物粒子" : null);
+      const plabel = t < 3.2 ? "外來粒子" : (t < 8.0 ? "食物粒子" : null);
       drawParticle(edgeX, edgeY, partR, plabel, 0);
     }
 
-    // ★ KEY: full circular 吞噬泡 as soon as engulfment completes — at EDGE first
-    // (vacX is still edgeX while vacIn≈0). Then the SAME circle slides inward.
-    if (vacForm > 0.15) {
-      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.35));
+    // Step 4: INSTANT complete circular 吞噬泡 at fusion site / periphery
+    // Hold until vacIn starts (~1.5s), then step 5: same circle slides deeper
+    if (hasPhagosome) {
+      drawVesicle(vacX, vacY, vr, 1);
       drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
 
-      if (vacForm > 0.55 && vacIn < 0.08) {
-        // Hold beat: circle sits at edge, labelled 吞噬泡 — before any inward move
-        drawCallout(vacX, vacY - vr - 32, "吞噬泡", "#1f8a8c");
-      } else if (vacIn > 0.06 && vacIn < 0.95) {
+      if (vacIn < 0.05) {
+        drawCallout(vacX, vacY - vr - 34, "吞噬泡", "#1f8a8c");
+      } else if (vacIn < 0.95) {
         drawInwardArrow(edgeX, edgeY, vacX, vacY, vacIn);
-        drawCallout((edgeX + vacX) * 0.5, cy - 100, "吞噬泡進入內部", "#1f8a8c");
-      } else if (vacIn >= 0.95 && digest < 0.3) {
+        drawCallout((edgeX + vacX) * 0.5, cy - 102, "吞噬泡進入內部", "#1f8a8c");
+      } else if (digest < 0.3) {
         drawCallout(vacX, vacY - vr - 30, "吞噬泡", "#1f8a8c");
       }
     }
@@ -960,14 +956,14 @@
     let msg = "察覺不屬於體內的粒子";
     let col = "#d68910";
     if (t >= 14) { msg = "溶酶體融合 → 酶分解／中和"; col = "#c0392b"; }
-    else if (t >= 11.2) { msg = "吞噬泡移入細胞內部"; col = "#1f8a8c"; }
-    else if (t >= 9.5) { msg = "包圍完成 → 形成圓形吞噬泡"; col = "#1f8a8c"; }
+    else if (t >= 11.3) { msg = "吞噬泡移入細胞內部"; col = "#1f8a8c"; }
+    else if (hasPhagosome) { msg = "合攏完成 → 邊緣出現圓形吞噬泡"; col = "#1f8a8c"; }
     else if (t >= 7.5) { msg = "兩條偽足合攏 · 包圍粒子"; col = "#1a5276"; }
     else if (t >= 3) { msg = "伸出兩條偽足 · 包圍粒子"; col = "#1a5276"; }
     drawCallout(W / 2, 48, msg, col);
 
     if (t < 5.5) {
-      roundRect(28, 78, 380, 100, 10);
+      roundRect(28, 78, 400, 100, 10);
       ctx.fillStyle = "rgba(255,255,255,0.95)";
       ctx.fill();
       ctx.strokeStyle = "#2c5aa0";
@@ -976,8 +972,8 @@
       ctx.fillStyle = "#1a2332";
       ctx.font = "19px 'Noto Sans TC', sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("流程：察覺 → 偽足包圍", 44, 112);
-      ctx.fillText("→ 膜掐斷成吞噬泡 → 進入內部", 44, 140);
+      ctx.fillText("流程：察覺 → 偽足合攏包圍", 44, 112);
+      ctx.fillText("→ 邊緣形成吞噬泡 → 移入內部", 44, 140);
       ctx.fillText("→ 溶酶體／酶分解", 44, 168);
     }
   }
