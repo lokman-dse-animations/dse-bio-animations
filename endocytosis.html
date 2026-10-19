@@ -276,7 +276,7 @@
     {
       t0: 10.5, t1: 14.0,
       title: "4. 形成吞噬泡並進入內部",
-      desc: "包圍粒子的那圈膜成為獨立的<strong>圓形吞噬泡</strong>，清楚可見地<strong>移入細胞質</strong>。外層細胞膜重新封合。"
+      desc: "偽足合攏、包圍完成的一刻，粒子已被<strong>圓形吞噬泡</strong>包住（仍在細胞邊緣）。其後吞噬泡才<strong>移入細胞質</strong>；外層細胞膜重新封合。"
     },
     {
       t0: 14.0, t1: 18.0,
@@ -776,17 +776,18 @@
   function drawFrame() {
     const t = animT;
 
-    // Timeline: notice → reach → surround → pinch-off circle → slide inward → digest
+    // Timeline: surround → tips fuse → CIRCLE at edge (吞噬泡) → THEN slide in → digest
     const notice = smoothstep(0.5, 2.0, t) * (1 - smoothstep(3.2, 5.0, t));
-    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(10.0, 12.2, t));
-    const surround = smoothstep(6.0, 9.4, t);             // arms wrap particle
-    const pinch = smoothstep(8.8, 10.6, t);               // tips fuse; wrap ring closes
-    const vacForm = smoothstep(10.2, 11.4, t);            // distinct circular 吞噬泡
-    const vacIn = smoothstep(11.0, 13.2, t);              // circle slides into interior
-    const settle = smoothstep(10.4, 13.0, t);             // outer membrane reseals
+    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(9.6, 11.8, t));
+    const surround = smoothstep(6.0, 9.2, t);             // arms wrap particle
+    const pinch = smoothstep(8.4, 9.7, t);                // tips fuse; wrap ring closes
+    // Full circular 吞噬泡 as soon as engulfment completes — still at cell EDGE
+    const vacForm = smoothstep(9.2, 10.0, t);
+    // Hold circle at edge, then slide deeper (do NOT form circle during/after slide)
+    const vacIn = smoothstep(11.2, 13.4, t);
+    const settle = smoothstep(9.6, 12.4, t);              // outer membrane reseals after pinch
     const enzyme = smoothstep(14.0, 16.0, t);
     const digest = smoothstep(15.2, 17.8, t);
-    // legacy alias used only if needed
     const vesicle = Math.max(vacForm, vacIn);
 
     ctx.clearRect(0, 0, W, H);
@@ -819,8 +820,8 @@
     // Vacuole / particle center: stay at edge through pinch, then slide in
     const vacX = lerp(edgeX, inX, vacIn);
     const vacY = lerp(edgeY, inY, vacIn);
-    const partX = vacForm > 0.15 ? vacX : edgeX;
-    const partY = vacForm > 0.15 ? vacY : edgeY;
+    const partX = vacX;
+    const partY = vacY;
 
     if (notice > 0.05) drawAttentionRays(cx, cy, edgeX, edgeY, notice);
 
@@ -873,10 +874,10 @@
       if (digest < 0.92) drawLysosome(ex, ey, rr);
     });
 
-    // Vacuole + particle drawn INSIDE clip once pinched off (reads as interior)
-    if (vacForm > 0.2) {
-      const vr = lerp(partR + 14, partR + 30, Math.min(1, vacForm + vacIn * 0.35));
-      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.4));
+    // Interior draw of formed vacuole (also redrawn unclipped below for clarity)
+    const vr = lerp(partR + 16, partR + 28, Math.min(1, vacForm * 0.7 + vacIn * 0.3));
+    if (vacForm > 0.12) {
+      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.5));
       drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
     }
 
@@ -889,41 +890,35 @@
       drawCallout(cx - 160, cy - 175, "細胞膜", "#1f8a8c");
     }
 
-    // --- Membrane wrap / pinch-off (before vacuole is fully interior) ---
-    // Open wrapping ring around particle at the edge while arms close
-    if (pinch > 0.05 && vacForm < 0.85) {
+    // Wrap ring while closing — hands off to full 吞噬泡 circle as soon as closed
+    if (pinch > 0.04 && vacForm < 0.55) {
       const wrapR = partR + 16;
-      const closeAmt = clamp(pinch * 1.05, 0, 1);
-      // Draw wrap ring above cell so pinch-off is obvious
-      drawWrapRing(edgeX, edgeY, wrapR, closeAmt, Math.min(1, pinch * 1.2) * (1 - vacForm * 0.9));
-      if (pinch > 0.35 && vacForm < 0.45) {
+      const closeAmt = clamp(Math.max(pinch, vacForm * 1.2), 0, 1);
+      drawWrapRing(edgeX, edgeY, wrapR, closeAmt, Math.min(1, pinch * 1.3) * (1 - vacForm));
+      if (pinch > 0.3 && vacForm < 0.35) {
         drawCallout(edgeX, edgeY - wrapR - 36, "細胞膜包圍粒子", "#1f8a8c");
-      }
-      if (pinch > 0.75 && vacForm < 0.55) {
-        drawCallout(edgeX + 70, edgeY + wrapR + 28, "掐斷成圈", "#1a5276");
       }
     }
 
-    // Particle still outside / in pocket until vacuole has formed
-    if (vacForm < 0.35) {
-      const plabel = t < 3.2 ? "外來粒子" : (t < 8.5 ? "食物粒子" : null);
+    // Particle in pocket until circular vacuole takes over
+    if (vacForm < 0.25) {
+      const plabel = t < 3.2 ? "外來粒子" : (t < 8.2 ? "食物粒子" : null);
       drawParticle(edgeX, edgeY, partR, plabel, 0);
     }
 
-    // Once circular vacuole exists: emphasize it + show motion into cell
-    if (vacForm > 0.35) {
-      const vr = lerp(partR + 14, partR + 30, Math.min(1, vacForm + vacIn * 0.35));
-      // Redraw vesicle/particle on top (unclipped) so the circle stays crisp while sliding in
-      if (vacIn > 0.02) {
-        drawVesicle(vacX, vacY, vr, Math.min(1, vacForm));
-        drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
-      }
-      if (vacIn > 0.08 && vacIn < 0.95) {
+    // ★ KEY: full circular 吞噬泡 as soon as engulfment completes — at EDGE first
+    // (vacX is still edgeX while vacIn≈0). Then the SAME circle slides inward.
+    if (vacForm > 0.15) {
+      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.35));
+      drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
+
+      if (vacForm > 0.55 && vacIn < 0.08) {
+        // Hold beat: circle sits at edge, labelled 吞噬泡 — before any inward move
+        drawCallout(vacX, vacY - vr - 32, "吞噬泡", "#1f8a8c");
+      } else if (vacIn > 0.06 && vacIn < 0.95) {
         drawInwardArrow(edgeX, edgeY, vacX, vacY, vacIn);
         drawCallout((edgeX + vacX) * 0.5, cy - 100, "吞噬泡進入內部", "#1f8a8c");
-      } else if (vacForm > 0.55 && vacIn < 0.15) {
-        drawCallout(vacX, vacY - vr - 30, "吞噬泡", "#1f8a8c");
-      } else if (vacIn >= 0.95 && digest < 0.25) {
+      } else if (vacIn >= 0.95 && digest < 0.3) {
         drawCallout(vacX, vacY - vr - 30, "吞噬泡", "#1f8a8c");
       }
     }
@@ -965,8 +960,8 @@
     let msg = "察覺不屬於體內的粒子";
     let col = "#d68910";
     if (t >= 14) { msg = "溶酶體融合 → 酶分解／中和"; col = "#c0392b"; }
-    else if (t >= 11.2) { msg = "圓形吞噬泡 → 移入細胞內部"; col = "#1f8a8c"; }
-    else if (t >= 9.0) { msg = "膜包圍粒子 · 掐斷成吞噬泡"; col = "#1f8a8c"; }
+    else if (t >= 11.2) { msg = "吞噬泡移入細胞內部"; col = "#1f8a8c"; }
+    else if (t >= 9.5) { msg = "包圍完成 → 形成圓形吞噬泡"; col = "#1f8a8c"; }
     else if (t >= 7.5) { msg = "兩條偽足合攏 · 包圍粒子"; col = "#1a5276"; }
     else if (t >= 3) { msg = "伸出兩條偽足 · 包圍粒子"; col = "#1a5276"; }
     drawCallout(W / 2, 48, msg, col);
