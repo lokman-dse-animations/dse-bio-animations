@@ -142,7 +142,6 @@
     border-radius: 4px; background: #fff;
     font-family: ui-monospace, monospace; font-size: 0.85em;
   }
-
   a.back-link {
     color: var(--accent);
     text-decoration: none;
@@ -236,7 +235,7 @@
       <p class="hint">
         鍵盤：<kbd>空白鍵</kbd> 暫停／播放 · <kbd>←</kbd><kbd>→</kbd> 上／下一步 · <kbd>R</kbd> 重播<br>
         點選步驟可跳到<strong>同一連續動畫</strong>的該時段。<br>
-        流程對應：察覺 → 伸出偽足包圍 → 形成吞噬泡 → 溶酶體融合 → 酶分解。
+        流程對應：察覺 → 偽足包圍 → 膜掐斷成吞噬泡 → 進入內部 → 酶分解。
       </p>
     </div>
   </aside>
@@ -270,14 +269,14 @@
       desc: "同一段動畫中，細胞膜向上、下長成<strong>兩條平滑彎曲的偽足</strong>，逐漸<strong>包圍</strong>外來粒子。膜緣全程圓滑，沒有尖角。"
     },
     {
-      t0: 7.5, t1: 11.0,
+      t0: 7.5, t1: 10.5,
       title: "3. 包圍並吞入",
-      desc: "兩條偽足<strong>合攏</strong>，把粒子完全包圍，並<strong>吞入細胞內</strong>。"
+      desc: "兩條偽足<strong>合攏</strong>，細胞膜把外來粒子<strong>完全包圍</strong>。接著膜在合攏處<strong>掐斷</strong>，粒子連同一圈膜一起進入細胞。"
     },
     {
-      t0: 11.0, t1: 14.0,
-      title: "4. 形成吞噬泡",
-      desc: "進入細胞後，粒子被<strong>膜包圍</strong>，形成<strong>吞噬泡</strong>。外層細胞膜重新封合，外形恢復為平滑泡狀。"
+      t0: 10.5, t1: 14.0,
+      title: "4. 形成吞噬泡並進入內部",
+      desc: "包圍粒子的那圈膜成為獨立的<strong>圓形吞噬泡</strong>，清楚可見地<strong>移入細胞質</strong>。外層細胞膜重新封合。"
     },
     {
       t0: 14.0, t1: 18.0,
@@ -692,18 +691,79 @@
   function drawVesicle(x, y, r, alpha) {
     ctx.save();
     ctx.globalAlpha = alpha;
+    // filled interior so the circle reads as a distinct bubble
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(42,157,159,0.18)";
+    const g = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, 4, x, y, r);
+    g.addColorStop(0, "rgba(200,240,235,0.55)");
+    g.addColorStop(0.55, "rgba(42,157,159,0.22)");
+    g.addColorStop(1, "rgba(31,138,140,0.12)");
+    ctx.fillStyle = g;
     ctx.fill();
     ctx.strokeStyle = "#1f8a8c";
-    ctx.lineWidth = 4.5;
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "round";
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, y, r - 5, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(31,138,140,0.35)";
+    ctx.arc(x, y, Math.max(4, r - 6), 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(31,138,140,0.4)";
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Partial → full ring around particle (= membrane wrapping / pinch-off). */
+  function drawWrapRing(x, y, r, closeAmt, alpha) {
+    // closeAmt 0 = open C facing left (into cell), 1 = full circle pinched off
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = "#1f8a8c";
+    ctx.lineWidth = 5.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const gap = (1 - closeAmt) * Math.PI * 0.95; // radians still open
+    const start = gap * 0.5;
+    const end = Math.PI * 2 - gap * 0.5;
+    ctx.beginPath();
+    if (closeAmt >= 0.98) {
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    } else {
+      // open toward cell center (left) so wrap reads as arms closing from the right
+      ctx.arc(x, y, r, start - Math.PI * 0.05, end - Math.PI * 0.05);
+    }
+    ctx.stroke();
+    if (closeAmt > 0.55) {
+      ctx.globalAlpha = alpha * (closeAmt - 0.55) / 0.45;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(42,157,159,0.14)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawInwardArrow(x0, y0, x1, y1, amt) {
+    if (amt < 0.08) return;
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.45 * Math.min(1, amt);
+    ctx.strokeStyle = "#1f8a8c";
+    ctx.fillStyle = "#1f8a8c";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([7, 6]);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0 - 55);
+    ctx.lineTo(x1, y1 - 55);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // arrow head
+    const ang = Math.atan2(0, x1 - x0);
+    const ax = x1, ay = y1 - 55;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax + 12, ay - 7);
+    ctx.lineTo(ax + 12, ay + 7);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 
@@ -716,13 +776,18 @@
   function drawFrame() {
     const t = animT;
 
+    // Timeline: notice → reach → surround → pinch-off circle → slide inward → digest
     const notice = smoothstep(0.5, 2.0, t) * (1 - smoothstep(3.2, 5.0, t));
-    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(10.4, 12.8, t));
-    const surround = smoothstep(6.2, 10.2, t);
-    const vesicle = smoothstep(10.6, 12.5, t);
-    const settle = smoothstep(10.8, 13.5, t);
+    const reach = smoothstep(2.2, 6.5, t) * (1 - smoothstep(10.0, 12.2, t));
+    const surround = smoothstep(6.0, 9.4, t);             // arms wrap particle
+    const pinch = smoothstep(8.8, 10.6, t);               // tips fuse; wrap ring closes
+    const vacForm = smoothstep(10.2, 11.4, t);            // distinct circular 吞噬泡
+    const vacIn = smoothstep(11.0, 13.2, t);              // circle slides into interior
+    const settle = smoothstep(10.4, 13.0, t);             // outer membrane reseals
     const enzyme = smoothstep(14.0, 16.0, t);
     const digest = smoothstep(15.2, 17.8, t);
+    // legacy alias used only if needed
+    const vesicle = Math.max(vacForm, vacIn);
 
     ctx.clearRect(0, 0, W, H);
     const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -743,19 +808,24 @@
     const cx = 500, cy = 400, rx = 220, ry = 195;
     const partR = 38;
 
-    let partX, partY;
-    if (t < 11.2) {
-      const approach = smoothstep(2.5, 9.8, t);
-      partX = lerp(960, cx + rx * 0.55 + 95, approach);
-      partY = cy;
-    } else {
-      partX = lerp(cx + 130, cx + 105, smoothstep(11.2, 13.0, t));
-      partY = cy;
-    }
+    // Pocket at the right edge where arms enclose the particle
+    const approach = smoothstep(2.5, 9.2, t);
+    const edgeX = lerp(960, cx + rx * 0.42 + 78, approach);
+    const edgeY = cy;
+    // Deep interior target for the phagosome
+    const inX = cx + 55;
+    const inY = cy;
 
-    if (notice > 0.05) drawAttentionRays(cx, cy, partX, partY, notice);
+    // Vacuole / particle center: stay at edge through pinch, then slide in
+    const vacX = lerp(edgeX, inX, vacIn);
+    const vacY = lerp(edgeY, inY, vacIn);
+    const partX = vacForm > 0.15 ? vacX : edgeX;
+    const partY = vacForm > 0.15 ? vacY : edgeY;
 
-    const cell = buildCell(cx, cy, rx, ry, reach, surround, settle, notice, partX, partY, partR);
+    if (notice > 0.05) drawAttentionRays(cx, cy, edgeX, edgeY, notice);
+
+    // Cell silhouette still aims lobes at the *edge* pocket (not the inward vacuole)
+    const cell = buildCell(cx, cy, rx, ry, reach, surround, settle, notice, edgeX, edgeY, partR);
     fillCell(cell.pts, cx, cy);
 
     // Clip organelles inside cell
@@ -782,7 +852,6 @@
 
     drawNucleus(cx - 80, cy + 8);
 
-    // Cytoplasm label (early)
     if (t < 6) {
       ctx.fillStyle = "rgba(90,90,40,0.55)";
       ctx.font = "16px 'Noto Sans TC', sans-serif";
@@ -790,45 +859,72 @@
       ctx.fillText("細胞質", cx - 20, cy + 70);
     }
 
-    // Lysosomes: rest → migrate to vacuole → fuse
-    const vx = cx + 108, vy = cy;
+    // Lysosomes migrate toward the *moving* vacuole
     lysoHome.forEach((h, i) => {
       const homeX = cx + h[0], homeY = cy + h[1];
       const ang = i * 0.95;
-      const fuseR = partR + 22;
-      const tx = vx + Math.cos(ang) * fuseR;
-      const ty = vy + Math.sin(ang) * fuseR;
+      const fuseR = partR + 24;
+      const tx = vacX + Math.cos(ang) * fuseR;
+      const ty = vacY + Math.sin(ang) * fuseR;
       const migrate = enzyme;
       const ex = lerp(homeX, tx, migrate);
       const ey = lerp(homeY, ty, migrate);
-      // shrink as they fuse into vacuole
       const rr = lerp(11, 5, migrate * digest);
       if (digest < 0.92) drawLysosome(ex, ey, rr);
     });
+
+    // Vacuole + particle drawn INSIDE clip once pinched off (reads as interior)
+    if (vacForm > 0.2) {
+      const vr = lerp(partR + 14, partR + 30, Math.min(1, vacForm + vacIn * 0.35));
+      drawVesicle(vacX, vacY, vr, Math.min(1, vacForm * 1.4));
+      drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
+    }
 
     ctx.restore(); // end cell clip
 
     if (cell.upLbl) drawCallout(cell.upLbl[0], cell.upLbl[1], "偽足", "#1a5276");
     if (cell.loLbl) drawCallout(cell.loLbl[0], cell.loLbl[1], "偽足", "#1a5276");
 
-    // Membrane label once early
     if (t > 1.2 && t < 4.5) {
       drawCallout(cx - 160, cy - 175, "細胞膜", "#1f8a8c");
     }
 
-    const showOutsideParticle = vesicle < 0.55;
-    if (showOutsideParticle) {
-      drawParticle(partX, partY, partR, t < 3.2 ? "外來粒子" : (t < 8 ? "食物粒子" : null), 0);
+    // --- Membrane wrap / pinch-off (before vacuole is fully interior) ---
+    // Open wrapping ring around particle at the edge while arms close
+    if (pinch > 0.05 && vacForm < 0.85) {
+      const wrapR = partR + 16;
+      const closeAmt = clamp(pinch * 1.05, 0, 1);
+      // Draw wrap ring above cell so pinch-off is obvious
+      drawWrapRing(edgeX, edgeY, wrapR, closeAmt, Math.min(1, pinch * 1.2) * (1 - vacForm * 0.9));
+      if (pinch > 0.35 && vacForm < 0.45) {
+        drawCallout(edgeX, edgeY - wrapR - 36, "細胞膜包圍粒子", "#1f8a8c");
+      }
+      if (pinch > 0.75 && vacForm < 0.55) {
+        drawCallout(edgeX + 70, edgeY + wrapR + 28, "掐斷成圈", "#1a5276");
+      }
     }
 
-    if (vesicle > 0.05) {
-      const vr = lerp(partR + 16, partR + 32, vesicle);
-      drawVesicle(vx, vy, vr, Math.min(1, vesicle * 1.3));
-      if (vesicle > 0.35) {
-        drawParticle(vx, vy, partR * lerp(1, 0.5, digest), null, digest);
+    // Particle still outside / in pocket until vacuole has formed
+    if (vacForm < 0.35) {
+      const plabel = t < 3.2 ? "外來粒子" : (t < 8.5 ? "食物粒子" : null);
+      drawParticle(edgeX, edgeY, partR, plabel, 0);
+    }
+
+    // Once circular vacuole exists: emphasize it + show motion into cell
+    if (vacForm > 0.35) {
+      const vr = lerp(partR + 14, partR + 30, Math.min(1, vacForm + vacIn * 0.35));
+      // Redraw vesicle/particle on top (unclipped) so the circle stays crisp while sliding in
+      if (vacIn > 0.02) {
+        drawVesicle(vacX, vacY, vr, Math.min(1, vacForm));
+        drawParticle(vacX, vacY, partR * lerp(1, 0.5, digest), null, digest);
       }
-      if (vesicle > 0.55 && digest < 0.35) {
-        drawCallout(vx, vy - vr - 28, "吞噬泡", "#1f8a8c");
+      if (vacIn > 0.08 && vacIn < 0.95) {
+        drawInwardArrow(edgeX, edgeY, vacX, vacY, vacIn);
+        drawCallout((edgeX + vacX) * 0.5, cy - 100, "吞噬泡進入內部", "#1f8a8c");
+      } else if (vacForm > 0.55 && vacIn < 0.15) {
+        drawCallout(vacX, vacY - vr - 30, "吞噬泡", "#1f8a8c");
+      } else if (vacIn >= 0.95 && digest < 0.25) {
+        drawCallout(vacX, vacY - vr - 30, "吞噬泡", "#1f8a8c");
       }
     }
 
@@ -836,16 +932,15 @@
       drawCallout(cx - 30, cy - 175, "溶酶體融合", "#5b7a3a");
     }
     if (enzyme > 0.55 && digest < 0.85) {
-      drawCallout(vx + 90, vy - 70, "酶分解", "#c0392b");
+      drawCallout(vacX + 95, vacY - 70, "酶分解", "#c0392b");
     }
 
-    // Breakdown products into cytoplasm
     if (digest > 0.35) {
       for (let i = 0; i < 7; i++) {
         const ang = i * 0.95 + animT * 0.8;
         const dist = 40 + (digest - 0.35) * 90;
         ctx.beginPath();
-        ctx.arc(vx + Math.cos(ang) * dist, vy + Math.sin(ang) * dist, 8, 0, Math.PI * 2);
+        ctx.arc(vacX + Math.cos(ang) * dist, vacY + Math.sin(ang) * dist, 8, 0, Math.PI * 2);
         ctx.fillStyle = "#27ae60";
         ctx.fill();
       }
@@ -870,23 +965,24 @@
     let msg = "察覺不屬於體內的粒子";
     let col = "#d68910";
     if (t >= 14) { msg = "溶酶體融合 → 酶分解／中和"; col = "#c0392b"; }
-    else if (t >= 11) { msg = "膜包圍粒子 → 形成吞噬泡"; col = "#1f8a8c"; }
-    else if (t >= 7.5) { msg = "兩條偽足合攏 · 吞入細胞"; col = "#1a5276"; }
+    else if (t >= 11.2) { msg = "圓形吞噬泡 → 移入細胞內部"; col = "#1f8a8c"; }
+    else if (t >= 9.0) { msg = "膜包圍粒子 · 掐斷成吞噬泡"; col = "#1f8a8c"; }
+    else if (t >= 7.5) { msg = "兩條偽足合攏 · 包圍粒子"; col = "#1a5276"; }
     else if (t >= 3) { msg = "伸出兩條偽足 · 包圍粒子"; col = "#1a5276"; }
     drawCallout(W / 2, 48, msg, col);
 
     if (t < 5.5) {
-      roundRect(28, 78, 360, 100, 10);
+      roundRect(28, 78, 380, 100, 10);
       ctx.fillStyle = "rgba(255,255,255,0.95)";
       ctx.fill();
       ctx.strokeStyle = "#2c5aa0";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.fillStyle = "#1a2332";
-      ctx.font = "20px 'Noto Sans TC', sans-serif";
+      ctx.font = "19px 'Noto Sans TC', sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("流程：察覺 → 伸出偽足", 44, 112);
-      ctx.fillText("→ 包圍吞入 → 吞噬泡", 44, 140);
+      ctx.fillText("流程：察覺 → 偽足包圍", 44, 112);
+      ctx.fillText("→ 膜掐斷成吞噬泡 → 進入內部", 44, 140);
       ctx.fillText("→ 溶酶體／酶分解", 44, 168);
     }
   }
