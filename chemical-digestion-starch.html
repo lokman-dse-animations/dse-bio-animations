@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>化學消化（澱粉）— 酶把大分子分解</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --starch: #7b5ea7;
+    --starch-light: #a88fd4;
+    --enzyme: #e67e22;
+    --enzyme-dark: #c45f0e;
+    --sugar: #27ae60;
+    --sugar-light: #52d68a;
+    --iodine: #c0392b;
+    --iodine-pale: #e8c84a;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+    --tube: #5b9bd5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub { font-size: 0.9rem; color: var(--muted); }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+    .canvas-box { min-height: 0; max-height: 60vh; }
+    .controls { flex-wrap: wrap; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 380px;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .swatch.rect { border-radius: 3px; width: 18px; height: 12px; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .scene-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .scene-desc { font-size: 0.92rem; line-height: 1.55; color: var(--ink); }
+  .scene-desc strong { color: var(--accent); }
+  .def-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  .steps { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+  .step-btn {
+    text-align: left; border: 1px solid var(--border); background: #fff;
+    border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 0.88rem;
+    cursor: pointer; color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.4em; opacity: 0.7; font-variant-numeric: tabular-nums;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font: inherit;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #eef2f7; color: var(--ink); }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-top: 10px; }
+  footer {
+    text-align: center; padding: 8px 16px 14px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: #fff;
+    font-family: ui-monospace, monospace; font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>化學消化（澱粉）</h1>
+  <span class="sub">雅集單元12《健康的身體》· 約圖12.20＋實驗12.8 · 香港中學生物／科學</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="化學消化澱粉動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#7b5ea7"></span>澱粉（大分子）</span>
+      <span class="legend-item"><span class="swatch" style="background:#e67e22"></span>澱粉酶（amylase）</span>
+      <span class="legend-item"><span class="swatch" style="background:#27ae60"></span>麥芽糖／較簡單糖類</span>
+      <span class="legend-item"><span class="swatch" style="background:#1a1a2e"></span>碘液＋澱粉＝藍黑</span>
+      <span class="legend-item"><span class="swatch" style="background:#e8c84a"></span>碘液原色（唔變藍黑）</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：澱粉＋澱粉酶</div>
+      <p class="scene-desc" id="sceneDesc"></p>
+      <div class="def-box" id="defBox">
+        <strong>化學消化</strong>＝用酶把大分子食物分解成<strong>較簡單物質</strong>（<strong>產生新物質</strong>）。
+      </div>
+    </div>
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重設</button>
+      </div>
+      <p class="hint">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重設<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應雅集單元12《健康的身體》圖12.20 化學消化＋實驗12.8 碘液測澱粉 · 教師：Lok Man · 離線單檔
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const scenes = [
+    {
+      id: "meet",
+      title: "場景 1：澱粉＋澱粉酶",
+      desc: "大分子<strong>澱粉</strong>（一串相連的葡萄糖單位示意）與<strong>澱粉酶（amylase）</strong>接近。口腔唾液澱粉酶／胰澱粉酶可把澱粉分解為<strong>較簡單糖類</strong>。"
+    },
+    {
+      id: "break",
+      title: "場景 2：酶把鏈切斷",
+      desc: "澱粉酶作用：澱粉鏈<strong>斷開</strong>→ 變成<strong>麥芽糖</strong>等較簡單物質。學生版可記：<strong>澱粉 → 糖</strong>（旁註：主要先成<strong>麥芽糖</strong>）。"
+    },
+    {
+      id: "new",
+      title: "場景 3：產生新物質",
+      desc: "對比<strong>機械消化</strong>：化學消化<strong>改變化學結構</strong>、<strong>產生新物質</strong>。澱粉（大分子）≠ 麥芽糖（較簡單物質）。"
+    },
+    {
+      id: "iodine",
+      title: "場景 4：碘液實驗對照",
+      desc: "實驗12.8概念：<strong>無酶／仍有澱粉＋碘液＝藍黑</strong>；<strong>有澱粉酶、澱粉已分解＋碘液＝唔變藍黑</strong>（碘液原色：黃／啡）。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach(function (s, i) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", function () { goScene(i); });
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach(function (el, i) {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawHex(x, y, r, fill, stroke) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke || "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawStarchChain(cx, cy, n, gap, scale, brokenAt) {
+    // brokenAt: index after which chain is split (null = intact)
+    const units = [];
+    const totalW = (n - 1) * gap;
+    const x0 = cx - totalW / 2;
+    for (let i = 0; i < n; i++) {
+      let x = x0 + i * gap;
+      let y = cy;
+      if (brokenAt != null && i > brokenAt) {
+        x += 40 * scale; // separate after break
+        y += 10 * Math.sin(i);
+      }
+      units.push({ x: x, y: y });
+    }
+    // bonds
+    ctx.strokeStyle = "#5a3d8a";
+    ctx.lineWidth = 5 * scale;
+    ctx.lineCap = "round";
+    for (let i = 0; i < n - 1; i++) {
+      if (brokenAt != null && i === brokenAt) continue; // broken bond
+      ctx.beginPath();
+      ctx.moveTo(units[i].x, units[i].y);
+      ctx.lineTo(units[i + 1].x, units[i + 1].y);
+      ctx.stroke();
+    }
+    // hex units
+    for (let i = 0; i < n; i++) {
+      drawHex(units[i].x, units[i].y, 22 * scale, "#7b5ea7", "#5a3d8a");
+    }
+    return units;
+  }
+
+  function drawEnzyme(x, y, label) {
+    ctx.save();
+    ctx.translate(x, y);
+    // Pac-man / lock shape suggesting active site
+    ctx.beginPath();
+    ctx.arc(0, 0, 36, 0.35, Math.PI * 2 - 0.35);
+    ctx.lineTo(8, 0);
+    ctx.closePath();
+    const g = ctx.createRadialGradient(-8, -8, 4, 0, 0, 36);
+    g.addColorStop(0, "#ffb366");
+    g.addColorStop(0.6, "#e67e22");
+    g.addColorStop(1, "#c45f0e");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(100,50,0,0.4)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Active site notch highlight
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.arc(10, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    if (label) {
+      ctx.fillStyle = "#c45f0e";
+      ctx.font = "bold 22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, 0, 58);
+      ctx.font = "16px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.fillStyle = "#5a6a7a";
+      ctx.fillText("amylase", 0, 78);
+    }
+    ctx.restore();
+  }
+
+  function drawMaltose(x, y, scale) {
+    const s = scale || 1;
+    drawHex(x - 18 * s, y, 18 * s, "#27ae60", "#1e8449");
+    drawHex(x + 18 * s, y, 18 * s, "#52d68a", "#1e8449");
+    ctx.strokeStyle = "#1e8449";
+    ctx.lineWidth = 4 * s;
+    ctx.beginPath();
+    ctx.moveTo(x - 6 * s, y);
+    ctx.lineTo(x + 6 * s, y);
+    ctx.stroke();
+  }
+
+  function drawCallout(x, y, text, color, fontSize) {
+    const fs = fontSize || 26;
+    ctx.font = "bold " + fs + "px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 12;
+    roundRect(x - tw / 2 - pad, y - fs * 0.55, tw + pad * 2, fs * 1.2, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawFootnote(x, y, text) {
+    ctx.fillStyle = "#5a6a7a";
+    ctx.font = "20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(text, x, y);
+  }
+
+  function drawTestTube(x, y, fillColor, label, sublabel) {
+    const tw = 70;
+    const th = 200;
+    // Tube body
+    ctx.save();
+    roundRect(x - tw / 2, y, tw, th, 12);
+    ctx.fillStyle = "rgba(200,220,240,0.35)";
+    ctx.fill();
+    ctx.strokeStyle = "#5b9bd5";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // Liquid
+    roundRect(x - tw / 2 + 6, y + 40, tw - 12, th - 52, 8);
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+    // Rim
+    ctx.beginPath();
+    ctx.moveTo(x - tw / 2 - 4, y);
+    ctx.lineTo(x + tw / 2 + 4, y);
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    // Labels
+    ctx.fillStyle = "#1a2332";
+    ctx.font = "bold 22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x, y + th + 32);
+    if (sublabel) {
+      ctx.font = "18px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.fillStyle = "#5a6a7a";
+      ctx.fillText(sublabel, x, y + th + 58);
+    }
+    ctx.restore();
+  }
+
+  function drawScene1(t) {
+    // Title labels
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 32px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("澱粉（大分子）", 80, 80);
+
+    drawStarchChain(W * 0.42, H * 0.42, 8, 55, 1.1, null);
+
+    // Enzyme approaches from right
+    const approach = smoothstep(0, 2.5, t);
+    const ex = W * 0.88 - approach * W * 0.22;
+    const ey = H * 0.42 + Math.sin(t * 2) * 8;
+    drawEnzyme(ex, ey, "澱粉酶");
+
+    drawCallout(W * 0.5, H * 0.78, "澱粉酶靠近澱粉鏈", "#e67e22", 28);
+    drawFootnote(W * 0.5, H * 0.88, "唾液澱粉酶／胰澱粉酶（amylase）");
+  }
+
+  function drawScene2(t) {
+    const cut = smoothstep(0.8, 2.8, t);
+    const brokenAt = cut > 0.3 ? 3 : null;
+
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 28px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("澱粉 → 較簡單糖類", 80, 70);
+
+    if (cut < 0.5) {
+      drawStarchChain(W * 0.4, H * 0.38, 8, 52, 1.05, brokenAt);
+      // Enzyme at cut site
+      const pulse = 1 + 0.08 * Math.sin(t * 6);
+      ctx.save();
+      ctx.translate(W * 0.4, H * 0.38);
+      ctx.scale(pulse, pulse);
+      ctx.translate(-W * 0.4, -H * 0.38);
+      drawEnzyme(W * 0.4 + 20, H * 0.38 - 70, null);
+      ctx.restore();
+      if (cut > 0.25) {
+        // Lightning / cut mark
+        ctx.strokeStyle = "#c0392b";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(W * 0.4 + 10, H * 0.38 - 50);
+        ctx.lineTo(W * 0.4 + 25, H * 0.38 - 10);
+        ctx.lineTo(W * 0.4 + 5, H * 0.38 + 10);
+        ctx.lineTo(W * 0.4 + 30, H * 0.38 + 45);
+        ctx.stroke();
+        drawCallout(W * 0.72, H * 0.28, "切斷！", "#c0392b", 32);
+      }
+    } else {
+      // Show maltose products
+      const fade = smoothstep(0.5, 1, cut);
+      ctx.globalAlpha = fade;
+      const positions = [
+        [W * 0.22, H * 0.35], [W * 0.42, H * 0.32],
+        [W * 0.62, H * 0.36], [W * 0.38, H * 0.52]
+      ];
+      positions.forEach(function (p, i) {
+        const bob = Math.sin(t * 2.5 + i) * 6;
+        drawMaltose(p[0], p[1] + bob, 1.15);
+      });
+      ctx.globalAlpha = 1;
+
+      drawEnzyme(W * 0.82, H * 0.4, "澱粉酶");
+      drawCallout(W * 0.4, H * 0.68, "澱粉 → 糖（麥芽糖）", "#27ae60", 30);
+      drawFootnote(W * 0.4, H * 0.78, "較簡單物質 · 課文常寫可進一步成葡萄糖");
+    }
+  }
+
+  function drawScene3(t) {
+    // Two-column comparison
+    // Left: mechanical
+    roundRect(60, 100, W * 0.42 - 40, H - 200, 16);
+    ctx.fillStyle = "rgba(232,240,250,0.9)";
+    ctx.fill();
+    ctx.strokeStyle = "#2c5aa0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 30px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("機械消化", W * 0.25, 150);
+    ctx.font = "22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("只改大小／形狀", W * 0.25, 185);
+
+    // Same color blobs = same substance
+    drawHex(W * 0.18, 320, 28, "#7b5ea7");
+    drawHex(W * 0.25, 320, 28, "#7b5ea7");
+    drawHex(W * 0.32, 320, 28, "#7b5ea7");
+    ctx.fillStyle = "#2e7d4f";
+    ctx.font = "bold 24px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("不產生新物質", W * 0.25, 420);
+    ctx.fillText("化學結構不變", W * 0.25, 455);
+
+    // Right: chemical
+    roundRect(W * 0.52, 100, W * 0.42 - 20, H - 200, 16);
+    ctx.fillStyle = "rgba(255,245,235,0.95)";
+    ctx.fill();
+    ctx.strokeStyle = "#e67e22";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#e67e22";
+    ctx.font = "bold 30px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("化學消化", W * 0.72, 150);
+    ctx.font = "22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText("改變化學結構", W * 0.72, 185);
+
+    // Before → after
+    drawStarchChain(W * 0.72, 280, 5, 36, 0.75, null);
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.fillText("澱粉", W * 0.72, 330);
+
+    const pulse = 0.85 + 0.15 * Math.sin(t * 3);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+    ctx.fillText("↓ 產生新物質", W * 0.72, 370);
+    ctx.globalAlpha = 1;
+
+    drawMaltose(W * 0.65, 430, 1);
+    drawMaltose(W * 0.79, 430, 1);
+    ctx.fillStyle = "#27ae60";
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.fillText("麥芽糖（較簡單物質）", W * 0.72, 480);
+
+    drawCallout(W * 0.5, H * 0.9, "化學消化：澱粉＋澱粉酶 → 新物質", "#c0392b", 26);
+  }
+
+  function drawScene4(t) {
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 32px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("碘液測試（實驗12.8 概念）", W * 0.5, 70);
+
+    // Left tube: starch present, no enzyme / control → blue-black
+    const shimmer = Math.sin(t * 2) * 0.03;
+    drawTestTube(
+      W * 0.28, 140,
+      "rgb(" + Math.floor(20 + shimmer * 10) + "," + Math.floor(20 + shimmer * 5) + "," + Math.floor(45 + shimmer * 20) + ")",
+      "有澱粉＋碘液",
+      "藍黑色"
+    );
+
+    // Badge: 無酶／對照
+    roundRect(W * 0.28 - 90, 110, 180, 28, 6);
+    ctx.fillStyle = "#c0392b";
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 18px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("對照：無酶／仍有澱粉", W * 0.28, 130);
+
+    // Right tube: digested → iodine pale yellow/brown
+    drawTestTube(
+      W * 0.72, 140,
+      "#e8c84a",
+      "已分解＋碘液",
+      "唔變藍黑（黃／啡）"
+    );
+
+    roundRect(W * 0.72 - 100, 110, 200, 28, 6);
+    ctx.fillStyle = "#27ae60";
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 18px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("有澱粉酶 → 澱粉已分解", W * 0.72, 130);
+
+    // Mini icons under tubes
+    ctx.fillStyle = "#7b5ea7";
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+    ctx.fillText("仍是澱粉", W * 0.28, 430);
+    drawStarchChain(W * 0.28, 470, 4, 32, 0.65, null);
+
+    ctx.fillStyle = "#27ae60";
+    ctx.fillText("變成麥芽糖／糖", W * 0.72, 430);
+    drawMaltose(W * 0.66, 470, 0.9);
+    drawMaltose(W * 0.78, 470, 0.9);
+
+    // Bottom summary
+    const blink = 0.75 + 0.25 * Math.sin(t * 2.5);
+    ctx.globalAlpha = blink;
+    drawCallout(W * 0.5, H * 0.88, "無酶：藍黑｜有酶分解後：唔變藍黑", "#2c5aa0", 28);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawScene() {
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#eef4fb");
+    bg.addColorStop(0.5, "#f8fafc");
+    bg.addColorStop(1, "#eef4fb");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const t = sceneT;
+    if (sceneIndex === 0) drawScene1(t);
+    else if (sceneIndex === 1) drawScene2(t);
+    else if (sceneIndex === 2) drawScene3(t);
+    else drawScene4(t);
+
+    ctx.fillStyle = "rgba(44,90,160,0.9)";
+    roundRect(W - 160, 20, 140, 36, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("步驟 " + (sceneIndex + 1) + " / 4", W - 90, 44);
+  }
+
+  function loop(now) {
+    if (playing) {
+      sceneT = (now - t0) / 1000;
+    } else {
+      t0 = now - sceneT * 1000;
+    }
+    drawScene();
+    requestAnimationFrame(loop);
+  }
+
+  btnPlay.addEventListener("click", function () {
+    playing = !playing;
+    if (playing) t0 = performance.now() - sceneT * 1000;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", function () { goScene(sceneIndex - 1); });
+  document.getElementById("btnNext").addEventListener("click", function () { goScene(sceneIndex + 1); });
+  document.getElementById("btnRestart").addEventListener("click", restartScene);
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.code === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      if (playing) t0 = performance.now() - sceneT * 1000;
+      updateUI();
+    } else if (e.code === "KeyR") { restartScene(); }
+  });
+
+  updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

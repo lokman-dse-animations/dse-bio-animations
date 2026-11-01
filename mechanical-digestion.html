@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機械消化 — 把大塊食物弄碎</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --food: #d4a574;
+    --food-dark: #b8885a;
+    --food-light: #e8c9a0;
+    --tooth: #f5f0e8;
+    --tooth-edge: #c8bca8;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+    --surface: #e67e22;
+    --highlight: #f0b429;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub { font-size: 0.9rem; color: var(--muted); }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+    .canvas-box { min-height: 0; max-height: 60vh; }
+    .controls { flex-wrap: wrap; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 380px;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .swatch.rect { border-radius: 3px; width: 18px; height: 12px; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .scene-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .scene-desc { font-size: 0.92rem; line-height: 1.55; color: var(--ink); }
+  .scene-desc strong { color: var(--accent); }
+  .def-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  .steps { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+  .step-btn {
+    text-align: left; border: 1px solid var(--border); background: #fff;
+    border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 0.88rem;
+    cursor: pointer; color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.4em; opacity: 0.7; font-variant-numeric: tabular-nums;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font: inherit;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #eef2f7; color: var(--ink); }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-top: 10px; }
+  footer {
+    text-align: center; padding: 8px 16px 14px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: #fff;
+    font-family: ui-monospace, monospace; font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>機械消化</h1>
+  <span class="sub">雅集單元12《健康的身體》· 約圖12.19 · 香港中學生物／科學</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="機械消化動畫"></canvas>
+    </div>
+    <div class="legend-bar">
+      <span class="legend-item"><span class="swatch" style="background:#d4a574"></span>食物（麵包／食糰）</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#f5f0e8;border-color:#c8bca8"></span>牙齒</span>
+      <span class="legend-item"><span class="swatch" style="background:#2e7d4f"></span>化學結構不變</span>
+      <span class="legend-item"><span class="swatch" style="background:#e67e22"></span>表面積增加</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#2c5aa0"></span>口腔示意</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 1：大塊食物進入口腔</div>
+      <p class="scene-desc" id="sceneDesc"></p>
+      <div class="def-box" id="defBox">
+        <strong>機械消化</strong>＝把大塊食物弄碎成細小碎塊，過程中<strong>不產生新物質</strong>。
+      </div>
+    </div>
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重設</button>
+      </div>
+      <p class="hint">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換場景 · <kbd>空白鍵</kbd> 暫停／播放 · <kbd>R</kbd> 重設<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應雅集單元12《健康的身體》圖12.19 機械消化 · 教師：Lok Man · 離線單檔 · Chrome／Edge 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const scenes = [
+    {
+      id: "enter",
+      title: "場景 1：大塊食物進入口腔",
+      desc: "大塊<strong>麵包／食糰</strong>進入口腔。機械消化主要靠<strong>牙齒咀嚼</strong>（以及舌頭攪拌），把食物弄碎，方便吞嚥與之後的化學消化。"
+    },
+    {
+      id: "chew",
+      title: "場景 2：牙齒咀嚼切碎",
+      desc: "上下牙齒<strong>咬合／咀嚼</strong>，大塊食物被切成<strong>較細小碎塊</strong>。注意：這一步只改<strong>大小與形狀</strong>。"
+    },
+    {
+      id: "unchanged",
+      title: "場景 3：化學結構不變",
+      desc: "機械消化<strong>不改變化學結構</strong>、<strong>不產生新物質</strong>。碎塊仍是同一種食物（同一顏色／同一分子示意），只是變細了。"
+    },
+    {
+      id: "surface",
+      title: "場景 4：表面積增加",
+      desc: "碎塊愈多，總<strong>表面積↑</strong>，利於酶與食物接觸，方便之後的<strong>化學消化</strong>。機械消化為化學消化「鋪路」。"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+
+  // Food pieces state for chewing animation
+  let pieces = [];
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    b.innerHTML = '<span class="num">' + (i + 1) + ".</span> " + s.title.replace(/^場景 \d+：/, "");
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    titleEl.textContent = scenes[sceneIndex].title;
+    descEl.innerHTML = scenes[sceneIndex].desc;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    initPieces();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+    initPieces();
+  }
+
+  function initPieces() {
+    // One big loaf for scene 0; fragments for later scenes
+    pieces = [
+      { x: W * 0.5, y: H * 0.48, r: 90, ox: 0, oy: 0, ang: 0 }
+    ];
+    const offsets = [
+      [-70, -40, 38], [50, -55, 32], [-40, 50, 36],
+      [75, 30, 28], [-90, 10, 30], [20, 65, 34],
+      [100, -10, 26], [-20, -70, 30], [55, 70, 24]
+    ];
+    pieces.fragments = offsets.map(function (o, i) {
+      return {
+        x: W * 0.5 + o[0],
+        y: H * 0.5 + o[1],
+        r: o[2],
+        ox: o[0],
+        oy: o[1],
+        ang: (i * 0.7) % (Math.PI * 2),
+        spin: (i % 2 === 0 ? 1 : -1) * 0.4
+      };
+    });
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawMouthOutline() {
+    // Soft oral cavity frame
+    ctx.save();
+    roundRect(80, 70, W - 160, H - 160, 40);
+    ctx.fillStyle = "rgba(255, 230, 230, 0.45)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(200, 120, 120, 0.35)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 32px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("口腔（示意）", 110, 120);
+    ctx.restore();
+  }
+
+  function drawTooth(x, y, w, h, upsideDown) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (upsideDown) ctx.scale(1, -1);
+    // Crown
+    roundRect(-w / 2, 0, w, h * 0.55, 6);
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#fffef8");
+    g.addColorStop(0.6, "#f5f0e8");
+    g.addColorStop(1, "#e8e0d0");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "#c8bca8";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Root hint
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.28, h * 0.55);
+    ctx.lineTo(-w * 0.15, h);
+    ctx.lineTo(w * 0.15, h);
+    ctx.lineTo(w * 0.28, h * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = "#ebe4d6";
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTeethRow(y, biteOffset, upsideDown) {
+    const count = 6;
+    const startX = W * 0.28;
+    const gap = (W * 0.44) / (count - 1);
+    for (let i = 0; i < count; i++) {
+      const tw = 48 + (i % 2) * 6;
+      const th = 70;
+      drawTooth(startX + i * gap, y + biteOffset, tw, th, upsideDown);
+    }
+  }
+
+  function drawFoodBlob(x, y, r, ang, label) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang || 0);
+    // Irregular bread / rice-ball shape
+    ctx.beginPath();
+    const n = 8;
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const wobble = 0.85 + 0.15 * Math.sin(a * 3 + 1.2);
+      const px = Math.cos(a) * r * wobble;
+      const py = Math.sin(a) * r * wobble * 0.85;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+    g.addColorStop(0, "#e8c9a0");
+    g.addColorStop(0.5, "#d4a574");
+    g.addColorStop(1, "#b8885a");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(120, 80, 40, 0.45)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Texture dots
+    ctx.fillStyle = "rgba(140, 90, 50, 0.25)";
+    for (let i = 0; i < 5; i++) {
+      const dx = (i * 37 % 20) - 10;
+      const dy = (i * 53 % 18) - 9;
+      ctx.beginPath();
+      ctx.arc(dx * r * 0.04, dy * r * 0.04, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (label) {
+      ctx.rotate(-(ang || 0));
+      ctx.fillStyle = "#1a2332";
+      ctx.font = "bold 22px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, 0, -r - 14);
+    }
+    ctx.restore();
+  }
+
+  function drawMoleculeIcon(x, y, color, label, scale) {
+    const s = scale || 1;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    // Simple linked circles = same chemical unit
+    const positions = [[-18, 0], [0, -14], [18, 0], [0, 14]];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-18, 0); ctx.lineTo(18, 0);
+    ctx.moveTo(0, -14); ctx.lineTo(0, 14);
+    ctx.stroke();
+    positions.forEach(function (p) {
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.2)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+    if (label) {
+      ctx.fillStyle = color;
+      ctx.font = "bold 20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, 0, 42);
+    }
+    ctx.restore();
+  }
+
+  function drawCallout(x, y, text, color, fontSize) {
+    const fs = fontSize || 26;
+    ctx.font = "bold " + fs + "px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    const tw = ctx.measureText(text).width;
+    const pad = 12;
+    roundRect(x - tw / 2 - pad, y - fs * 0.55, tw + pad * 2, fs * 1.2, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.94)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawArrow(x1, y1, x2, y2, color) {
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 14 * Math.cos(ang - 0.4), y2 - 14 * Math.sin(ang - 0.4));
+    ctx.lineTo(x2 - 14 * Math.cos(ang + 0.4), y2 - 14 * Math.sin(ang + 0.4));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawScene1(t) {
+    drawMouthOutline();
+    // Food slides in from right
+    const enter = smoothstep(0, 1.8, t);
+    const bob = Math.sin(t * 2) * 6;
+    const x = W * 0.85 - enter * W * 0.35;
+    const y = H * 0.48 + bob;
+    drawFoodBlob(x, y, 95, Math.sin(t) * 0.05, "大塊食物");
+    // Upper / lower teeth idle
+    drawTeethRow(H * 0.22, 0, true);
+    drawTeethRow(H * 0.68, 0, false);
+    drawCallout(W * 0.5, H * 0.88, "準備咀嚼 → 機械消化開始", "#2c5aa0", 28);
+  }
+
+  function drawScene2(t) {
+    drawMouthOutline();
+    // Chewing cycle
+    const cycle = (t % 2.2);
+    const bite = Math.sin(cycle / 2.2 * Math.PI) * 28;
+    drawTeethRow(H * 0.22, bite, true);
+    drawTeethRow(H * 0.68, -bite, false);
+
+    // Progressively break into pieces
+    const breakP = smoothstep(0.5, 3.5, t);
+    if (breakP < 0.35) {
+      const squash = 1 - breakP * 0.4;
+      drawFoodBlob(W * 0.5, H * 0.48, 90 * squash, Math.sin(t * 3) * 0.1, "正在切碎…");
+    } else {
+      const frags = pieces.fragments;
+      const showN = Math.min(frags.length, Math.floor(1 + breakP * frags.length));
+      for (let i = 0; i < showN; i++) {
+        const f = frags[i];
+        const spread = smoothstep(0.35, 1, breakP);
+        const jiggle = Math.sin(t * 4 + i) * 3 * spread;
+        drawFoodBlob(
+          W * 0.5 + f.ox * spread + jiggle,
+          H * 0.5 + f.oy * spread,
+          f.r,
+          f.ang + t * f.spin * 0.15
+        );
+      }
+      drawCallout(W * 0.5, 150, "牙齒咬合 → 較細小碎塊", "#c0392b", 28);
+    }
+  }
+
+  function drawScene3(t) {
+    drawMouthOutline();
+    // Left: before  Right: after — same molecule icon
+    ctx.fillStyle = "#2c5aa0";
+    ctx.font = "bold 30px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("咀嚼前", W * 0.28, 160);
+    ctx.fillText("咀嚼後", W * 0.72, 160);
+
+    drawFoodBlob(W * 0.28, H * 0.42, 85, 0, null);
+    const frags = pieces.fragments;
+    for (let i = 0; i < 6; i++) {
+      const f = frags[i];
+      drawFoodBlob(W * 0.72 + f.ox * 0.55, H * 0.42 + f.oy * 0.55, f.r * 0.85, f.ang);
+    }
+
+    // Same chemical icon under both
+    const pulse = 0.95 + 0.05 * Math.sin(t * 3);
+    drawMoleculeIcon(W * 0.28, H * 0.68, "#2e7d4f", "化學結構", pulse);
+    drawMoleculeIcon(W * 0.72, H * 0.68, "#2e7d4f", "化學結構", pulse);
+
+    // Equals / unchanged banner
+    const blink = 0.7 + 0.3 * Math.sin(t * 2.5);
+    ctx.globalAlpha = blink;
+    drawCallout(W * 0.5, H * 0.68, "不變", "#2e7d4f", 36);
+    ctx.globalAlpha = 1;
+
+    drawArrow(W * 0.38, H * 0.42, W * 0.58, H * 0.42, "#5a6a7a");
+    drawCallout(W * 0.5, H * 0.88, "只改變大小／形狀 · 不產生新物質", "#2e7d4f", 28);
+  }
+
+  function drawScene4(t) {
+    drawMouthOutline();
+    // Show fragments with surface area arrows
+    const frags = pieces.fragments;
+    for (let i = 0; i < frags.length; i++) {
+      const f = frags[i];
+      const wob = Math.sin(t * 2 + i) * 4;
+      drawFoodBlob(W * 0.42 + f.ox * 0.9, H * 0.48 + f.oy * 0.9 + wob, f.r, f.ang + t * 0.1);
+    }
+
+    // Surface area panel
+    roundRect(W * 0.68, 180, 280, 380, 16);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fill();
+    ctx.strokeStyle = "#e67e22";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#e67e22";
+    ctx.font = "bold 28px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("表面積", W * 0.68 + 140, 230);
+
+    // Big up arrow
+    const bounce = Math.sin(t * 3) * 8;
+    ctx.fillStyle = "#e67e22";
+    ctx.beginPath();
+    ctx.moveTo(W * 0.68 + 140, 280 + bounce);
+    ctx.lineTo(W * 0.68 + 100, 340 + bounce);
+    ctx.lineTo(W * 0.68 + 120, 340 + bounce);
+    ctx.lineTo(W * 0.68 + 120, 420 + bounce);
+    ctx.lineTo(W * 0.68 + 160, 420 + bounce);
+    ctx.lineTo(W * 0.68 + 160, 340 + bounce);
+    ctx.lineTo(W * 0.68 + 180, 340 + bounce);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#c0392b";
+    ctx.font = "bold 48px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillText("↑", W * 0.68 + 140, 480);
+    ctx.font = "bold 26px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.fillStyle = "#1a2332";
+    ctx.fillText("表面積增加", W * 0.68 + 140, 520);
+
+    drawCallout(W * 0.38, H * 0.88, "利於酶接觸 → 方便化學消化", "#e67e22", 28);
+  }
+
+  function drawScene() {
+    ctx.clearRect(0, 0, W, H);
+    // soft bg wash
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#eef4fb");
+    bg.addColorStop(0.5, "#f8fafc");
+    bg.addColorStop(1, "#eef4fb");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const t = sceneT;
+    if (sceneIndex === 0) drawScene1(t);
+    else if (sceneIndex === 1) drawScene2(t);
+    else if (sceneIndex === 2) drawScene3(t);
+    else drawScene4(t);
+
+    // Scene badge
+    ctx.fillStyle = "rgba(44,90,160,0.9)";
+    roundRect(W - 160, 20, 140, 36, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("步驟 " + (sceneIndex + 1) + " / 4", W - 90, 44);
+  }
+
+  function loop(now) {
+    if (playing) {
+      sceneT = (now - t0) / 1000;
+    } else {
+      t0 = now - sceneT * 1000;
+    }
+    drawScene();
+    requestAnimationFrame(loop);
+  }
+
+  btnPlay.addEventListener("click", function () {
+    playing = !playing;
+    if (playing) t0 = performance.now() - sceneT * 1000;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", function () { goScene(sceneIndex - 1); });
+  document.getElementById("btnNext").addEventListener("click", function () { goScene(sceneIndex + 1); });
+  document.getElementById("btnRestart").addEventListener("click", restartScene);
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.code === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      if (playing) t0 = performance.now() - sceneT * 1000;
+      updateUI();
+    } else if (e.code === "KeyR") { restartScene(); }
+  });
+
+  initPieces();
+  updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
