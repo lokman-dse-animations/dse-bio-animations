@@ -62,6 +62,7 @@
     .main { grid-template-columns: 1fr; }
     .canvas-box { min-height: 0; max-height: 60vh; }
     .controls { flex-wrap: wrap; }
+    a.back-link { white-space: normal; }
   }
   .stage-wrap {
     background: var(--panel);
@@ -150,10 +151,20 @@
     border-radius: 4px; background: #fff;
     font-family: ui-monospace, monospace; font-size: 0.85em;
   }
+  a.back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+  a.back-link:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <header>
+  <a class="back-link" href="f3-biology.html">← 返回課次目錄</a>
   <h1>機械消化</h1>
   <span class="sub">雅集單元12《健康的身體》· 約圖12.19 · 香港中學生物／科學</span>
 </header>
