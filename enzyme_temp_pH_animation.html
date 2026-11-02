@@ -505,11 +505,12 @@
 
   /* Rate vs temperature (textbook-like): rise to ~37, crash after denaturation */
   function tempActivity(t) {
+    if (isDenaturedTemp(t)) return 0;
     if (t <= 37) {
       // roughly exponential / kinetic rise, peak at 37
       return Math.pow(Math.max(0, t) / 37, 1.35);
     }
-    // denaturation collapse; near 0 by ~60–65
+    // decline after the optimum; fully denatured enzymes have no activity
     const x = (t - 37) / 23;
     return Math.max(0, Math.exp(-3.2 * x * x) * (1 - 0.55 * x));
   }
@@ -518,6 +519,7 @@
 
   /* Gaussian bell for pH around optimum */
   function phActivity(pH, opt, sigma) {
+    if (isDenaturedPh(pH, opt, sigma)) return 0;
     const d = (pH - opt) / sigma;
     return Math.exp(-0.5 * d * d);
   }
@@ -598,18 +600,48 @@
       return isDenaturedPh(param, e.opt, e.sigma);
     }
 
+    function siteBlocked() {
+      // Red X / collapsed notch (warp ≥ 0.55) or the textbook denatured range.
+      return denatured() || denatureProgress >= 0.55;
+    }
+
     function updateDenatureVisual(dt) {
+      if (denatured()) {
+        denatureProgress = 1;
+        return;
+      }
       let target = 0;
       if (mode === 'temp') {
-        if (denatured()) target = 1;
-        else if (param > 45) target = (param - 45) / 10;
+        if (param > 45) target = (param - 45) / 10;
       } else {
         const e = ENZYMES[enzymeKey];
         const dist = Math.abs(param - e.opt) / e.sigma;
-        if (denatured()) target = 1;
-        else if (dist > 1.2) target = (dist - 1.2) / 1.0;
+        if (dist > 1.2) target = (dist - 1.2) / 1.0;
       }
       denatureProgress += (clamp(target, 0, 1) - denatureProgress) * Math.min(1, dt * 3);
+    }
+
+    function releaseUncatalysed(e) {
+      const s = e.binding;
+      if (!s) return;
+      s.bound = null;
+      s.bindT = 0;
+      const ang = Math.atan2(s.y - e.y, s.x - e.x);
+      const push = e.r + s.r + 4;
+      s.x = e.x + Math.cos(ang) * push;
+      s.y = e.y + Math.sin(ang) * push;
+      s.vx = Math.cos(ang) * 2.6;
+      s.vy = Math.sin(ang) * 2.6;
+      e.binding = null;
+      e.cool = 0.3;
+      if (floatTexts.length < 5) {
+        floatTexts.push({
+          x: e.x, y: e.y - e.r - 8,
+          text: '活性部位已變性 · 不能生成產物',
+          life: 46,
+          col: '#fca5a5'
+        });
+      }
     }
 
     function drawEnzyme(e) {
@@ -775,7 +807,6 @@
       if (!playing) { draw(); return; }
       updateDenatureVisual(dt);
       const act = activity();
-      const den = denatured();
       const speedMul = mode === 'temp'
         ? (0.25 + (param / 80) * 2.4)
         : (0.9 + act * 0.8);
@@ -796,7 +827,11 @@
         if (e.y < e.r) { e.y = e.r; e.vy *= -1; }
         if (e.y > H - e.r) { e.y = H - e.r; e.vy *= -1; }
 
-        if (e.binding) {
+        if (e.binding && siteBlocked()) {
+          // Complex started while the site was still complementary. Once the
+          // notch is warped, finish nothing — denatured enzymes do not catalyse.
+          releaseUncatalysed(e);
+        } else if (e.binding) {
           e.binding.bindT += dt;
           // hold briefly then release products
           if (e.binding.bindT > 0.55) {
@@ -854,7 +889,7 @@
             while (dAng < -Math.PI) dAng += Math.PI * 2;
             const facing = Math.abs(dAng) < 0.95;
 
-            if (den || denatureProgress > 0.55) {
+            if (siteBlocked()) {
               // bounce — warped active-site shape no longer complementary
               const nx = dx / (dist || 1), ny = dy / (dist || 1);
               s.vx = nx * Math.abs(s.vx) + rand(-0.3, 0.3);
@@ -957,6 +992,7 @@
       getHits() { return hits; },
       activity,
       denatured,
+      siteBlocked,
       getParam() { return param },
       getEnzymeKey() { return enzymeKey }
     };
@@ -1554,12 +1590,15 @@
     } else if (t <= 42) {
       tempStatus.className = 'status ok';
       tempStatus.textContent = '接近／處於最適温度（約 37 °C）：反應速率最高。';
-    } else if (t < 55) {
+    } else if (t < 51) {
       tempStatus.className = 'status warn';
       tempStatus.textContent = '高於最適温度：開始損害維持形狀的鍵，活性部位漸變形，速率下降。';
+    } else if (t < 55) {
+      tempStatus.className = 'status danger';
+      tempStatus.textContent = '活性部位已扭曲，受質無法嵌入，不能生成產物（反應速率為 0）。';
     } else {
       tempStatus.className = 'status danger';
-      tempStatus.textContent = '高温變性：活性部位形狀改變，不能與受質結合，催化功能喪失（不可逆）！';
+      tempStatus.textContent = '高温變性：活性部位形狀改變，不能與受質結合，催化功能喪失（不可逆），反應速率為 0。';
     }
   }
 
@@ -1567,9 +1606,13 @@
     const e = ENZYMES[key];
     const r = phActivity(pH, e.opt, e.sigma);
     phRate.textContent = (r * 100).toFixed(0) + '%';
+    const dist = Math.abs(pH - e.opt) / e.sigma;
     if (isDenaturedPh(pH, e.opt, e.sigma)) {
       phStatus.className = 'status danger';
-      phStatus.textContent = '極端 pH：' + e.name + ' 活性部位變形（變性），受質無法結合，反應速率極低。';
+      phStatus.textContent = '極端 pH：' + e.name + ' 活性部位變形（變性），受質無法結合，反應速率為 0。';
+    } else if (dist >= 1.75) {
+      phStatus.className = 'status danger';
+      phStatus.textContent = e.name + ' 活性部位已扭曲，受質無法嵌入，不能生成產物（反應速率為 0）。';
     } else if (Math.abs(pH - e.opt) < 0.6) {
       phStatus.className = 'status ok';
       phStatus.textContent = '處於 ' + e.name + ' 的最適 pH（≈' + e.opt + '）：活性部位形狀正確，反應速率最高。';
@@ -1641,10 +1684,16 @@
     if (tempPanelOn) {
       sceneTemp.step(dt);
       tempHits.textContent = sceneTemp.getHits();
+      tempRate.textContent = sceneTemp.siteBlocked()
+        ? '0%'
+        : (sceneTemp.activity() * 100).toFixed(0) + '%';
       drawTempCurve(curveTemp, +tempSlider.value);
     } else if (phPanelOn) {
       scenePh.step(dt);
       phHits.textContent = scenePh.getHits();
+      phRate.textContent = scenePh.siteBlocked()
+        ? '0%'
+        : (scenePh.activity() * 100).toFixed(0) + '%';
       drawPhCurve(curvePh, +phSlider.value, scenePh.getEnzymeKey());
     } else if (inhibPanelOn) {
       if (document.getElementById('inhib-comp').classList.contains('active')) {
