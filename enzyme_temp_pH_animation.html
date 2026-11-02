@@ -599,70 +599,144 @@
     }
 
     function updateDenatureVisual(dt) {
-      const target = denatured() ? 1 : (mode === 'temp' && param > 45 ? (param - 45) / 10 : 0);
+      let target = 0;
+      if (mode === 'temp') {
+        if (denatured()) target = 1;
+        else if (param > 45) target = (param - 45) / 10;
+      } else {
+        const e = ENZYMES[enzymeKey];
+        const dist = Math.abs(param - e.opt) / e.sigma;
+        if (denatured()) target = 1;
+        else if (dist > 1.2) target = (dist - 1.2) / 1.0;
+      }
       denatureProgress += (clamp(target, 0, 1) - denatureProgress) * Math.min(1, dt * 3);
     }
 
     function drawEnzyme(e) {
       const warp = denatureProgress;
+      const tShake = performance.now() / 1000;
       ctx.save();
       ctx.translate(e.x, e.y);
-      ctx.rotate(e.angle);
+      ctx.rotate(e.angle + (warp > 0.35 ? Math.sin(tShake * 8 + e.x) * warp * 0.12 : 0));
+      if (warp > 0.4) {
+        ctx.translate(Math.sin(tShake * 14 + e.y) * warp * 1.8, Math.cos(tShake * 11 + e.x) * warp * 1.4);
+      }
 
-      // body
+      // Enzyme body with active-site notch (healthy = round pocket; denatured = warped/collapsed)
       ctx.beginPath();
-      const pts = 16;
+      const pts = 48;
       for (let i = 0; i <= pts; i++) {
         const a = (i / pts) * Math.PI * 2;
-        // notch for active site around angle 0
         let rr = e.r;
+        // mild whole-body crumple when denaturing
+        if (warp > 0.15) {
+          rr += Math.sin(a * 3 + warp * 6) * warp * 4.5
+             + Math.sin(a * 7 + e.cool) * warp * 2.5;
+        }
+        // Active-site sector near angle 0 (right side): deep round notch when healthy
         const notch = Math.cos(a);
-        if (notch > 0.72) {
-          // active site cleft — distort when denatured
-          const depth = 14 - warp * 18;
-          rr = e.r - depth * ((notch - 0.72) / 0.28);
-          if (warp > 0.5) rr += Math.sin(a * 5 + warp * 8) * warp * 6;
-        } else if (warp > 0.3) {
-          rr += Math.sin(a * 3 + e.cool) * warp * 5;
+        if (notch > 0.55) {
+          const k = (notch - 0.55) / 0.45; // 0..1 toward pocket center
+          // healthy pocket depth ~16; denatured: collapses / pinches / becomes jagged
+          const healthyDepth = 16 * k * k;
+          const collapse = warp * 22 * k;           // fills the cleft back in / pushes outward unevenly
+          const pinch = Math.sin(a * 2) * warp * 10 * k; // squeezes top vs bottom asymmetrically
+          const jagged = Math.sin(a * 11 + warp * 9) * warp * 7 * k
+                       + Math.cos(a * 5 - warp * 4) * warp * 5 * k;
+          rr = e.r - healthyDepth + collapse + pinch + jagged;
         }
         const x = Math.cos(a) * rr;
-        const y = Math.sin(a) * rr;
+        const y = Math.sin(a) * rr * (1 + warp * 0.18); // squash vertically when denatured
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      const bodyCol = warp > 0.65 ? '#64748b' : '#16a34a';
+      const bodyCol = warp > 0.65 ? '#64748b' : (warp > 0.3 ? '#4d7c0f' : '#16a34a');
       ctx.fillStyle = bodyCol;
-      ctx.globalAlpha = 0.92;
+      ctx.globalAlpha = 0.94;
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = warp > 0.65 ? '#94a3b8' : '#86efac';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = warp > 0.65 ? '#f87171' : (warp > 0.3 ? '#fbbf24' : '#86efac');
+      ctx.lineWidth = 3 + warp * 1.5;
       ctx.stroke();
 
-      // active site highlight
-      if (warp < 0.7) {
+      // Explicit active-site pocket overlay (shape must match round substrate when healthy)
+      const pocketX = e.r * 0.52;
+      if (warp < 0.55) {
+        // Healthy / mildly stressed: round dark pocket that fits orange substrate
+        const pr = 11 - warp * 5;
         ctx.beginPath();
-        ctx.arc(e.r * 0.55, 0, 9 - warp * 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#bbf7d0';
+        ctx.ellipse(pocketX, warp * 4, pr, pr * (1 + warp * 0.6), warp * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = warp > 0.25 ? '#3f6212' : '#0b1220';
         ctx.fill();
+        ctx.strokeStyle = '#bbf7d0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // faint "correct fit" outline of substrate size
+        ctx.beginPath();
+        ctx.arc(pocketX, 0, 11, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245,158,11,' + (0.35 + (1 - warp) * 0.35) + ')';
+        ctx.setLineDash([3, 3]);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
         ctx.fillStyle = '#0f172a';
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('活性', e.r * 0.15, -e.r * 0.15);
-        ctx.fillText('部位', e.r * 0.15, -e.r * 0.15 + 12);
+        ctx.fillText('活性', e.r * 0.05, -e.r * 0.2);
+        ctx.fillText('部位', e.r * 0.05, -e.r * 0.2 + 12);
       } else {
+        // Denatured: warped / collapsed active-site cleft — round substrate cannot fit
+        ctx.beginPath();
+        ctx.moveTo(e.r * 0.15, -18);
+        ctx.bezierCurveTo(e.r * 0.45, -28 - warp * 6, e.r * 0.85, -8 + warp * 10, e.r * 0.7, 2);
+        ctx.bezierCurveTo(e.r * 0.9, 16 - warp * 8, e.r * 0.4, 26 + warp * 4, e.r * 0.12, 14);
+        ctx.bezierCurveTo(e.r * 0.35, 4, e.r * 0.3, -6, e.r * 0.15, -18);
+        ctx.closePath();
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fill();
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // jagged inner crack to emphasize wrong shape
+        ctx.beginPath();
+        ctx.moveTo(e.r * 0.28, -10);
+        ctx.lineTo(e.r * 0.55, -4 + Math.sin(tShake * 10) * 2);
+        ctx.lineTo(e.r * 0.4, 6);
+        ctx.lineTo(e.r * 0.62, 10);
+        ctx.strokeStyle = '#fecaca';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Ghost of round substrate that NO LONGER FITS (visual mismatch)
+        ctx.beginPath();
+        ctx.arc(pocketX + 4, 2, 11, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245,158,11,0.85)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // red X over ghost substrate
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(pocketX - 4, -6); ctx.lineTo(pocketX + 12, 10);
+        ctx.moveTo(pocketX + 12, -6); ctx.lineTo(pocketX - 4, 10);
+        ctx.stroke();
         ctx.fillStyle = '#fecaca';
-        ctx.font = 'bold 13px sans-serif';
+        ctx.font = 'bold 12px "PingFang TC","Microsoft JhengHei",sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('已變性', 0, 4);
+        ctx.fillText('活性部位變形', 0, -e.r - 6);
+        ctx.fillText('無法嵌合', 0, e.r + 14);
       }
 
-      // bound substrate visual
-      if (e.binding) {
+      // Bound substrate only when pocket still roughly round
+      if (e.binding && warp < 0.55) {
         ctx.beginPath();
-        ctx.arc(e.r * 0.55, 0, 10, 0, Math.PI * 2);
+        ctx.arc(pocketX, 0, 10, 0, Math.PI * 2);
         ctx.fillStyle = '#f59e0b';
         ctx.fill();
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
 
       ctx.restore();
@@ -780,12 +854,14 @@
             while (dAng < -Math.PI) dAng += Math.PI * 2;
             const facing = Math.abs(dAng) < 0.95;
 
-            if (den || denatureProgress > 0.7) {
-              // bounce — denatured active site cannot bind
+            if (den || denatureProgress > 0.55) {
+              // bounce — warped active-site shape no longer complementary
               const nx = dx / (dist || 1), ny = dy / (dist || 1);
               s.vx = nx * Math.abs(s.vx) + rand(-0.3, 0.3);
               s.vy = ny * Math.abs(s.vy) + rand(-0.3, 0.3);
-              floatTexts.push({ x: s.x, y: s.y - 16, text: '無法結合（變性）', life: 40, col: '#fca5a5' });
+              if (Math.random() < 0.35) {
+                floatTexts.push({ x: s.x, y: s.y - 16, text: '形狀不合 · 無法嵌入', life: 42, col: '#fca5a5' });
+              }
             } else if (facing && Math.random() < 0.08 + act * 0.55) {
               // successful bind → enzyme-substrate complex
               s.bound = e;
@@ -836,7 +912,10 @@
       ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 16px "PingFang TC","Microsoft JhengHei",sans-serif';
       ctx.textAlign = 'left';
-      if (mode === 'temp') {
+      if (denatureProgress > 0.55) {
+        ctx.fillStyle = '#fecaca';
+        ctx.fillText((mode === 'temp' ? '高温變性' : '極端 pH 變性') + '：活性部位形狀已改變 → 受質無法嵌入（見紅色扭曲缺口）', 12, 24);
+      } else if (mode === 'temp') {
         ctx.fillText('鎖鑰模型：受質形狀須與活性部位互補，並須碰撞才能結合', 12, 24);
       } else {
         ctx.fillText(ENZYMES[enzymeKey].name + ' · 最適 pH ≈ ' + ENZYMES[enzymeKey].opt, 12, 24);
