@@ -16,7 +16,7 @@
     - [滲透](osmosis.html)
   - [第五課／第5章 · 新陳代謝與酶](f4-l5-enzymes.html)
     - [酶的運作](enzyme_how_it_works.html)
-    - [温度與 pH 對酶活性的影響](enzyme_temp_pH_animation.html)
+    - [温度、pH 與抑制劑](enzyme_temp_pH_animation.html)（同一檔含抑制劑分頁）
     - [酶抑制劑](enzyme_inhibitors.html)
 
 用 Chrome 或 Safari 離線開啟效果最佳。
