@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>温度與 pH 對酶活性的影響｜HKDSE 生物 Ch5 新陳代謝與酶</title>
+<title>温度、pH 與抑制劑對酶活性的影響｜HKDSE 生物 Ch5 新陳代謝與酶</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -18,6 +18,7 @@
     --danger: #f87171;
     --ok: #4ade80;
     --curve: #60a5fa;
+    --inhib: #f87171;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -224,6 +225,38 @@
     border-color: var(--accent);
     background: rgba(56,189,248,0.2);
   }
+
+  .dot.inhib { background: var(--inhib); }
+  .tab-btn.inhib-tab.active { background: #f87171; border-color: #f87171; color: #0f172a; }
+  .mode-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.65rem; }
+  .mode-btn {
+    font-size: clamp(0.95rem, 1.7vw, 1.15rem);
+    font-weight: 700;
+    padding: 0.45rem 0.95rem;
+    border-radius: 999px;
+    border: 2px solid #64748b;
+    background: #0f172a;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .mode-btn.on.comp { border-color: #fbbf24; background: rgba(251,191,36,0.2); color: #fde68a; }
+  .mode-btn.on.noncomp { border-color: #f87171; background: rgba(248,113,113,0.2); color: #fecaca; }
+  .inhib-sub { display: none; }
+  .inhib-sub.active { display: block; }
+  .bullets {
+    list-style: none;
+    font-size: clamp(1.05rem, 1.9vw, 1.22rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .bullets li {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    border-left: 5px solid var(--inhib);
+  }
+
   footer {
     text-align: center;
     color: var(--muted);
@@ -248,13 +281,14 @@
 <body>
 <div class="top-back"><a href="f4-l5-enzymes.html">← 返回課次目錄</a></div>
 <header>
-  <h1>温度與 pH 對酶活性的影響</h1>
-  <p class="sub">HKDSE 生物 · Aristo Ch5《新陳代謝與酶》 · 酶受質碰撞與變性動畫</p>
+  <h1>温度、pH 與抑制劑對酶活性的影響</h1>
+  <p class="sub">HKDSE 生物 · Aristo Ch5《新陳代謝與酶》 · 温度／pH／抑制劑（競爭性與非競爭性）</p>
 </header>
 
 <nav class="tabs">
   <button class="tab-btn active" data-tab="temp" type="button">A｜温度對酶活性的影響</button>
   <button class="tab-btn" data-tab="ph" type="button">B｜pH 對酶活性的影響</button>
+  <button class="tab-btn inhib-tab" data-tab="inhib" type="button">C｜酶抑制劑</button>
 </nav>
 
 <!-- ================= TEMP PANEL ================= -->
@@ -344,7 +378,111 @@
   </div>
 </section>
 
-<footer>對齊 Aristo《新高中生物》第 5 章「新陳代謝與酶」概念用語（鎖鑰模型、酶受質複合物、最適温度／最適 pH 值、變性）。離線單檔 · 適合課堂投影。</footer>
+
+<!-- ================= INHIBITOR PANEL ================= -->
+<section id="panel-inhib" class="panel">
+  <div class="mode-row" style="max-width:1400px;margin:0 auto 0.5rem;padding:0 1.25rem;">
+    <button type="button" class="mode-btn on comp" id="modeComp" data-mode="comp">A｜競爭性（阻止進入活性部位）</button>
+    <button type="button" class="mode-btn noncomp" id="modeNon" data-mode="noncomp">B｜非競爭性（改變活性部位形狀）</button>
+  </div>
+
+  <div id="inhib-comp" class="inhib-sub active">
+    <div class="layout">
+      <div class="scene-card">
+        <h2>🚧 競爭性抑制：搶佔活性部位</h2>
+        <div class="legend">
+          <span><i class="dot enzyme"></i>酶</span>
+          <span><i class="dot substrate"></i>受質（橙圓）</span>
+          <span><i class="dot inhib"></i>抑制劑（紅圓・同形）</span>
+          <span><i class="dot product"></i>生成物</span>
+        </div>
+        <canvas id="canvasComp" width="820" height="420"></canvas>
+        <div class="controls">
+          <div class="slider-row">
+            <label for="compInhib">抑制劑數量</label>
+            <input type="range" id="compInhib" min="0" max="10" value="4" step="1">
+            <div class="val-badge" id="compInhibVal">4</div>
+          </div>
+          <div class="slider-row">
+            <label for="compSub">受質數量</label>
+            <input type="range" id="compSub" min="2" max="16" value="8" step="1">
+            <div class="val-badge" id="compSubVal">8</div>
+          </div>
+          <div class="btn-row">
+            <button class="ctrl" id="compPlay" type="button">⏸ 暫停</button>
+            <button class="ctrl secondary" id="compReset" type="button">↺ 重置</button>
+          </div>
+          <div class="status warn" id="compStatus">抑制劑與受質競逐同一活性部位；被抑制劑佔用時受質無法結合。</div>
+        </div>
+        <p class="takeaway"><strong>觀察：</strong>抑制劑與受質<strong>同為圓形</strong>（僅顏色不同），像「假鑰匙」塞進鎖孔 → <strong>阻止受質進入活性部位</strong>。抑制劑愈多，成功催化愈少；受質愈多，較易搶回活性部位。</p>
+      </div>
+      <div class="side-card">
+        <h2>📊 催化計數</h2>
+        <div class="stats">
+          <div class="stat"><div class="n" id="compHits">0</div><div class="l">成功形成生成物</div></div>
+          <div class="stat"><div class="n" id="compBlocked">0</div><div class="l">活性部位被佔用次數</div></div>
+        </div>
+        <ul class="bullets">
+          <li>抑制劑與受質<strong>同形（圓）</strong>、不同色，都能湊近活性部位</li>
+          <li>同一時間活性部位只能被一個分子佔用</li>
+          <li>對應教科書：「有些則阻止受質進入活性部位」</li>
+        </ul>
+        <div class="key-terms">
+          <b>課堂用語：</b>競爭性抑制劑 competitive inhibitor —— 與受質競爭活性部位。<br>
+          <b>顏色：</b>受質 = 橙色 #f59e0b；抑制劑 = 紅色 #f87171（形狀相同）。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="inhib-noncomp" class="inhib-sub">
+    <div class="layout">
+      <div class="scene-card">
+        <h2>🔀 非競爭性抑制：改變活性部位形狀</h2>
+        <div class="legend">
+          <span><i class="dot enzyme"></i>酶</span>
+          <span><i class="dot substrate"></i>受質（橙圓）</span>
+          <span><i class="dot inhib"></i>抑制劑（紅圓・結合他處）</span>
+          <span><i class="dot product"></i>生成物</span>
+        </div>
+        <canvas id="canvasNon" width="820" height="420"></canvas>
+        <div class="controls">
+          <div class="slider-row">
+            <label for="nonInhib">抑制劑結合</label>
+            <input type="range" id="nonInhib" min="0" max="1" value="1" step="1">
+            <div class="val-badge" id="nonInhibVal">開</div>
+          </div>
+          <div class="btn-row">
+            <button class="ctrl" id="nonPlay" type="button">⏸ 暫停</button>
+            <button class="ctrl secondary" id="nonReset" type="button">↺ 重置</button>
+            <button class="ctrl secondary" id="nonToggle" type="button">切換：抑制劑結合 ↔ 脫離</button>
+          </div>
+          <div class="status danger" id="nonStatus">抑制劑結合於活性部位以外，活性部位形狀改變，受質無法結合。</div>
+        </div>
+        <p class="takeaway"><strong>觀察：</strong>抑制劑（紅圓）不佔活性部位，卻令<strong>活性部位變形</strong> → 受質形狀不再互補。對應教科書：「與酶結合，並改變酶活性部位的形狀」。</p>
+      </div>
+      <div class="side-card">
+        <h2>📊 狀態</h2>
+        <div class="stats">
+          <div class="stat"><div class="n" id="nonHits">0</div><div class="l">成功催化</div></div>
+          <div class="stat"><div class="n" id="nonRejects">0</div><div class="l">因變形而失敗</div></div>
+        </div>
+        <ul class="bullets">
+          <li>抑制劑結合位點 ≠ 活性部位</li>
+          <li>結合後酶構象改變 → 活性部位形狀改變</li>
+          <li>即使受質濃度增加，亦難以恢復</li>
+          <li>重金屬離子等常以此類方式干擾酶</li>
+        </ul>
+        <div class="key-terms">
+          <b>課堂用語：</b>非競爭性抑制劑 non-competitive inhibitor —— 結合他處使活性部位變形。<br>
+          <b>顏色：</b>受質 = 橙色 #f59e0b；抑制劑 = 紅色 #f87171（形狀相同）。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>對齊 Aristo《新高中生物》第 5 章「新陳代謝與酶」概念用語（鎖鑰模型、酶受質複合物、最適温度／最適 pH 值、變性、抑制劑）。離線單檔 · 適合課堂投影。</footer>
 
 <script>
 (function () {
@@ -912,6 +1050,399 @@
     ctx.stroke();
   }
 
+
+  /* ---------- Inhibitor drawing (same circle as substrate; red) ---------- */
+  function drawInhibEnzyme(ctx, x, y, pocketOpen, warped) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (warped) ctx.rotate(0.12);
+    ctx.fillStyle = warped ? '#15803d' : '#16a34a';
+    ctx.beginPath();
+    if (warped) ctx.ellipse(0, 0, 72, 52, 0.25, 0, Math.PI * 2);
+    else ctx.ellipse(0, 0, 70, 54, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#bbf7d0';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = warped ? '#f87171' : '#4ade80';
+    if (warped) {
+      ctx.beginPath();
+      ctx.moveTo(28, -22);
+      ctx.quadraticCurveTo(55, -40, 62, -5);
+      ctx.quadraticCurveTo(50, 30, 22, 18);
+      ctx.quadraticCurveTo(40, 0, 28, -22);
+      ctx.fill();
+      ctx.fillStyle = '#0b1220';
+      ctx.beginPath();
+      ctx.ellipse(48, -5, 10, 14, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(30, -26);
+      ctx.quadraticCurveTo(62, -32, 64, 0);
+      ctx.quadraticCurveTo(62, 32, 30, 26);
+      ctx.quadraticCurveTo(44, 0, 30, -26);
+      ctx.fill();
+      ctx.fillStyle = pocketOpen ? '#0b1220' : '#f87171';
+      ctx.beginPath();
+      ctx.ellipse(52, 0, 18, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#f1f5f9';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('酶', warped ? -8 : -10, 5);
+    ctx.font = '13px sans-serif';
+    ctx.fillStyle = warped ? '#fecaca' : '#bbf7d0';
+    ctx.fillText(warped ? '活性部位（已變形）' : '活性部位', 48, warped ? -48 : -42);
+    ctx.restore();
+  }
+  function drawCircleMol(ctx, x, y, r, fill, stroke) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  function drawSubCircle(ctx, x, y, r) {
+    drawCircleMol(ctx, x, y, r || 12, '#f59e0b', '#fde68a');
+  }
+  function drawInhibCircle(ctx, x, y, r) {
+    drawCircleMol(ctx, x, y, r || 12, '#f87171', '#fecaca');
+  }
+  function drawProdCircle(ctx, x, y) {
+    drawCircleMol(ctx, x, y, 9, '#a78bfa', null);
+  }
+
+  /* ===== COMPETITIVE ===== */
+  const compState = (function () {
+    const canvas = document.getElementById('canvasComp');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let nInhib = 4, nSub = 8;
+    let enzymes = [], substrates = [], inhibitors = [], products = [];
+    let hits = 0, blocked = 0;
+    const timers = [];
+
+    function clearTimers() {
+      while (timers.length) clearTimeout(timers.pop());
+    }
+    function later(fn, ms) {
+      const id = setTimeout(fn, ms);
+      timers.push(id);
+      return id;
+    }
+
+    function reset() {
+      clearTimers();
+      hits = 0; blocked = 0;
+      document.getElementById('compHits').textContent = '0';
+      document.getElementById('compBlocked').textContent = '0';
+      products = [];
+      enzymes = [
+        { x: W * 0.28, y: H * 0.48, binding: null, cool: 0, kind: null },
+        { x: W * 0.55, y: H * 0.55, binding: null, cool: 0, kind: null },
+        { x: W * 0.78, y: H * 0.42, binding: null, cool: 0, kind: null }
+      ];
+      substrates = [];
+      inhibitors = [];
+      for (let i = 0; i < nSub; i++) {
+        substrates.push({
+          x: rand(20, W - 20), y: rand(20, H - 20),
+          vx: rand(-1.2, 1.2), vy: rand(-1.2, 1.2),
+          bound: null
+        });
+      }
+      for (let i = 0; i < nInhib; i++) {
+        inhibitors.push({
+          x: rand(20, W - 20), y: rand(20, H - 20),
+          vx: rand(-1.2, 1.2), vy: rand(-1.2, 1.2),
+          bound: null
+        });
+      }
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const st = document.getElementById('compStatus');
+      if (nInhib === 0) {
+        st.textContent = '沒有抑制劑：受質可自由進入活性部位，形成酶受質複合物。';
+        st.className = 'status ok';
+      } else {
+        st.textContent = '抑制劑與受質競逐同一活性部位；被抑制劑佔用時受質無法結合。';
+        st.className = 'status warn';
+      }
+    }
+
+    function bounce(p) {
+      if (p.x < 15) { p.x = 15; p.vx *= -1; }
+      if (p.x > W - 15) { p.x = W - 15; p.vx *= -1; }
+      if (p.y < 15) { p.y = 15; p.vy *= -1; }
+      if (p.y > H - 15) { p.y = H - 15; p.vy *= -1; }
+    }
+
+    function update(dt) {
+      if (!playing) return;
+      enzymes.forEach(e => { if (e.cool > 0) e.cool -= dt; });
+      substrates.forEach(s => {
+        if (s.bound) return;
+        s.x += s.vx * dt * 55;
+        s.y += s.vy * dt * 55;
+        bounce(s);
+      });
+      inhibitors.forEach(inh => {
+        if (inh.bound) return;
+        inh.x += inh.vx * dt * 55;
+        inh.y += inh.vy * dt * 55;
+        bounce(inh);
+      });
+      products.forEach(p => {
+        p.x += p.vx * dt * 40;
+        p.y += p.vy * dt * 40;
+        p.life -= dt;
+      });
+      products = products.filter(p => p.life > 0);
+
+      enzymes.forEach(e => {
+        if (e.binding || e.cool > 0) return;
+        for (const inh of inhibitors) {
+          if (inh.bound) continue;
+          if (Math.hypot(inh.x - (e.x + 50), inh.y - e.y) < 40) {
+            inh.bound = e;
+            e.binding = inh;
+            e.kind = 'inhib';
+            inh.x = e.x + 52; inh.y = e.y;
+            blocked++;
+            document.getElementById('compBlocked').textContent = String(blocked);
+            later(() => {
+              if (e.binding === inh) {
+                e.binding = null; e.kind = null; e.cool = 0.3;
+                inh.bound = null;
+                inh.vx = rand(-1.5, 1.5); inh.vy = rand(-1.5, 1.5);
+              }
+            }, 1400);
+            return;
+          }
+        }
+        for (const s of substrates) {
+          if (s.bound) continue;
+          if (Math.hypot(s.x - (e.x + 50), s.y - e.y) < 40) {
+            s.bound = e;
+            e.binding = s;
+            e.kind = 'sub';
+            s.x = e.x + 52; s.y = e.y;
+            later(() => {
+              if (e.binding === s) {
+                e.binding = null; e.kind = null; e.cool = 0.25;
+                s.bound = null;
+                hits++;
+                document.getElementById('compHits').textContent = String(hits);
+                products.push({ x: e.x + 60, y: e.y - 10, vx: rand(-0.5, 1.5), vy: rand(-2, -0.5), life: 1.8 });
+                products.push({ x: e.x + 70, y: e.y + 10, vx: rand(0.5, 2), vy: rand(-1.5, 0.5), life: 1.8 });
+                s.x = rand(20, W - 20); s.y = rand(20, 80);
+                s.vx = rand(-1.2, 1.2); s.vy = rand(0.4, 1.2);
+              }
+            }, 900);
+            return;
+          }
+        }
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '15px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('競爭性：紅圓抑制劑與橙圓受質搶同一個活性部位（同形異色）', 16, 28);
+      enzymes.forEach(e => {
+        const occupied = e.kind === 'inhib';
+        drawInhibEnzyme(ctx, e.x, e.y, !occupied && !e.binding, false);
+        if (e.kind === 'inhib' && e.binding) drawInhibCircle(ctx, e.x + 52, e.y, 11);
+        if (e.kind === 'sub' && e.binding) drawSubCircle(ctx, e.x + 52, e.y, 11);
+      });
+      substrates.forEach(s => { if (!s.bound) drawSubCircle(ctx, s.x, s.y, 12); });
+      inhibitors.forEach(inh => { if (!inh.bound) drawInhibCircle(ctx, inh.x, inh.y, 12); });
+      products.forEach(p => drawProdCircle(ctx, p.x, p.y));
+    }
+
+    function step(dt) { update(dt); draw(); }
+
+    document.getElementById('compInhib').addEventListener('input', function () {
+      nInhib = Number(this.value);
+      document.getElementById('compInhibVal').textContent = String(nInhib);
+      reset();
+    });
+    document.getElementById('compSub').addEventListener('input', function () {
+      nSub = Number(this.value);
+      document.getElementById('compSubVal').textContent = String(nSub);
+      reset();
+    });
+    document.getElementById('compPlay').addEventListener('click', function () {
+      playing = !playing;
+      this.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('compReset').addEventListener('click', reset);
+    reset();
+    return { step, reset };
+  })();
+
+  /* ===== NON-COMPETITIVE ===== */
+  const nonState = (function () {
+    const canvas = document.getElementById('canvasNon');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let inhibited = true;
+    let enzyme = { x: W * 0.42, y: H * 0.52 };
+    let substrates = [], products = [];
+    let hits = 0, rejects = 0;
+    let inhibPos = { x: 0, y: 0 };
+    let flash = '', flashT = 0;
+
+    function reset() {
+      hits = 0; rejects = 0;
+      document.getElementById('nonHits').textContent = '0';
+      document.getElementById('nonRejects').textContent = '0';
+      products = [];
+      substrates = [];
+      for (let i = 0; i < 10; i++) {
+        substrates.push({
+          x: rand(W * 0.55, W - 20), y: rand(40, H - 40),
+          vx: rand(-1.5, -0.4), vy: rand(-0.8, 0.8),
+          cool: 0
+        });
+      }
+      inhibPos = { x: enzyme.x - 55, y: enzyme.y + 35 };
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const st = document.getElementById('nonStatus');
+      const badge = document.getElementById('nonInhibVal');
+      document.getElementById('nonInhib').value = inhibited ? 1 : 0;
+      badge.textContent = inhibited ? '開' : '關';
+      if (inhibited) {
+        st.textContent = '抑制劑結合於活性部位以外，活性部位形狀改變，受質無法結合。';
+        st.className = 'status danger';
+      } else {
+        st.textContent = '抑制劑已脫離：活性部位恢復正確形狀，受質可結合。';
+        st.className = 'status ok';
+      }
+    }
+
+    function update(dt) {
+      if (!playing) return;
+      flashT -= dt;
+      substrates.forEach(s => {
+        if (s.cool > 0) s.cool -= dt;
+        s.x += s.vx * dt * 50;
+        s.y += s.vy * dt * 50;
+        if (s.x < 20 || s.x > W - 20) s.vx *= -1;
+        if (s.y < 20 || s.y > H - 20) s.vy *= -1;
+        const dx = s.x - (enzyme.x + 50);
+        const dy = s.y - enzyme.y;
+        if (Math.hypot(dx, dy) < 38 && s.cool <= 0) {
+          s.cool = 1.2;
+          if (inhibited) {
+            s.vx = Math.abs(s.vx) + 0.5;
+            s.vy = rand(-1.5, 1.5);
+            rejects++;
+            document.getElementById('nonRejects').textContent = String(rejects);
+            flash = '活性部位已變形 — 無法結合 ✗';
+            flashT = 1.2;
+          } else {
+            hits++;
+            document.getElementById('nonHits').textContent = String(hits);
+            products.push({ x: enzyme.x + 60, y: enzyme.y, vx: 1.5, vy: -1.2, life: 1.6 });
+            products.push({ x: enzyme.x + 70, y: enzyme.y + 8, vx: 1.8, vy: 0.6, life: 1.6 });
+            s.x = W - 30; s.y = rand(40, H - 40);
+            flash = '形成酶受質複合物 → 生成物 ✓';
+            flashT = 1.2;
+          }
+        }
+      });
+      products.forEach(p => { p.x += p.vx * dt * 45; p.y += p.vy * dt * 45; p.life -= dt; });
+      products = products.filter(p => p.life > 0);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '15px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('非競爭性：紅圓抑制劑結合他處 → 活性部位變形（不直接佔用鎖孔）', 16, 28);
+      drawInhibEnzyme(ctx, enzyme.x, enzyme.y, true, inhibited);
+      if (inhibited) {
+        drawInhibCircle(ctx, inhibPos.x, inhibPos.y, 12);
+        ctx.strokeStyle = 'rgba(248,113,113,0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(inhibPos.x, inhibPos.y);
+        ctx.lineTo(enzyme.x - 30, enzyme.y + 20);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#f87171';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('抑制劑結合位', inhibPos.x, inhibPos.y + 28);
+      }
+      substrates.forEach(s => drawSubCircle(ctx, s.x, s.y, 12));
+      products.forEach(p => drawProdCircle(ctx, p.x, p.y));
+      if (flashT > 0) {
+        ctx.fillStyle = 'rgba(15,23,42,0.9)';
+        ctx.fillRect(W / 2 - 230, H - 64, 460, 44);
+        ctx.fillStyle = inhibited && flash.indexOf('✗') >= 0 ? '#f87171' : '#4ade80';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(flash, W / 2, H - 34);
+      }
+    }
+
+    function step(dt) { update(dt); draw(); }
+
+    document.getElementById('nonInhib').addEventListener('input', function () {
+      inhibited = Number(this.value) === 1;
+      updateStatus();
+    });
+    document.getElementById('nonToggle').addEventListener('click', () => {
+      inhibited = !inhibited;
+      updateStatus();
+    });
+    document.getElementById('nonPlay').addEventListener('click', function () {
+      playing = !playing;
+      this.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('nonReset').addEventListener('click', reset);
+    reset();
+    return { step, reset };
+  })();
+
+  /* Inhibitor mode toggle */
+  document.getElementById('modeComp').addEventListener('click', () => {
+    document.getElementById('modeComp').classList.add('on');
+    document.getElementById('modeNon').classList.remove('on');
+    document.getElementById('inhib-comp').classList.add('active');
+    document.getElementById('inhib-noncomp').classList.remove('active');
+  });
+  document.getElementById('modeNon').addEventListener('click', () => {
+    document.getElementById('modeNon').classList.add('on');
+    document.getElementById('modeComp').classList.remove('on');
+    document.getElementById('inhib-noncomp').classList.add('active');
+    document.getElementById('inhib-comp').classList.remove('active');
+  });
+
+
   /* ---------- Wire UI ---------- */
   const sceneTemp = createScene(document.getElementById('canvasTemp'), 'temp');
   const scenePh = createScene(document.getElementById('canvasPh'), 'ph');
@@ -1026,14 +1557,22 @@
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const tempPanelOn = document.getElementById('panel-temp').classList.contains('active');
+    const phPanelOn = document.getElementById('panel-ph').classList.contains('active');
+    const inhibPanelOn = document.getElementById('panel-inhib').classList.contains('active');
     if (tempPanelOn) {
       sceneTemp.step(dt);
       tempHits.textContent = sceneTemp.getHits();
       drawTempCurve(curveTemp, +tempSlider.value);
-    } else {
+    } else if (phPanelOn) {
       scenePh.step(dt);
       phHits.textContent = scenePh.getHits();
       drawPhCurve(curvePh, +phSlider.value, scenePh.getEnzymeKey());
+    } else if (inhibPanelOn) {
+      if (document.getElementById('inhib-comp').classList.contains('active')) {
+        compState.step(dt);
+      } else {
+        nonState.step(dt);
+      }
     }
     requestAnimationFrame(loop);
   }

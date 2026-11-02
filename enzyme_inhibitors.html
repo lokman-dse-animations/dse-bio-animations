@@ -105,7 +105,7 @@
   .dot.active { background: #86efac; border-radius: 4px; }
   .dot.substrate { background: var(--substrate); }
   .dot.product { background: var(--product); }
-  .dot.inhib { background: var(--inhib); border-radius: 3px; }
+  .dot.inhib { background: var(--inhib); }
   canvas {
     width: 100%;
     height: auto;
@@ -315,7 +315,7 @@
         <span><i class="dot enzyme"></i>酶</span>
         <span><i class="dot active"></i>活性部位</span>
         <span><i class="dot substrate"></i>受質</span>
-        <span><i class="dot inhib"></i>抑制劑（形狀近似，搶佔活性部位）</span>
+        <span><i class="dot inhib"></i>抑制劑（同為圓形，紅色；搶佔活性部位）</span>
         <span><i class="dot product"></i>生成物</span>
       </div>
       <canvas id="canvasComp" width="860" height="440"></canvas>
@@ -345,7 +345,7 @@
         <div class="stat"><div class="n" id="compBlocked">0</div><div class="l">活性部位被佔用次數</div></div>
       </div>
       <ul class="bullets">
-        <li>抑制劑與受質<strong>形狀相近</strong>，都能湊近活性部位</li>
+        <li>抑制劑與受質<strong>同為圓形</strong>（顏色不同），都能湊近活性部位</li>
         <li>同一時間活性部位只能被一個分子佔用</li>
         <li>對應教科書：「有些則阻止受質進入活性部位」</li>
       </ul>
@@ -365,7 +365,7 @@
         <span><i class="dot enzyme"></i>酶</span>
         <span><i class="dot active"></i>活性部位</span>
         <span><i class="dot substrate"></i>受質</span>
-        <span><i class="dot inhib"></i>抑制劑（結合他處）</span>
+        <span><i class="dot inhib"></i>抑制劑（同為圓形，紅色；結合他處）</span>
         <span><i class="dot product"></i>生成物</span>
       </div>
       <canvas id="canvasNon" width="860" height="440"></canvas>
@@ -547,31 +547,18 @@
     ctx.arc(x, y, r || 12, 0, Math.PI * 2);
     ctx.fill();
   }
-  function drawInhibBlock(ctx, x, y) {
+  function drawInhib(ctx, x, y, r) {
+    // Same circle geometry as substrate; different color (red)
     ctx.fillStyle = '#f87171';
     ctx.beginPath();
-    // wedge similar to active site fit
-    ctx.moveTo(x - 14, y - 12);
-    ctx.lineTo(x + 14, y - 5);
-    ctx.lineTo(x + 14, y + 5);
-    ctx.lineTo(x - 14, y + 12);
-    ctx.closePath();
+    ctx.arc(x, y, r || 12, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#7f1d1d';
+    ctx.strokeStyle = '#fecaca';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
-  function drawInhibOther(ctx, x, y) {
-    ctx.fillStyle = '#f87171';
-    ctx.fillRect(x - 10, y - 10, 20, 20);
-    ctx.strokeStyle = '#fecaca';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - 10, y - 10, 20, 20);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('I', x, y + 4);
-  }
+  function drawInhibBlock(ctx, x, y) { drawInhib(ctx, x, y, 12); }
+  function drawInhibOther(ctx, x, y) { drawInhib(ctx, x, y, 12); }
   function drawProd(ctx, x, y) {
     ctx.fillStyle = '#a78bfa';
     ctx.beginPath();
