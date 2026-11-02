@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第五課 · 新陳代謝與酶</title>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #1e6b4f;
+    --accent-soft: #e6f4ee;
+    --border: #d0dae6;
+    --chip: #2c5aa0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #d9efe6 0%, transparent 55%),
+      radial-gradient(900px 400px at 100% 0%, #dce8f8 0%, transparent 50%),
+      var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .top {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.25rem 1.25rem 0;
+  }
+  .top a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .top a:hover { text-decoration: underline; }
+  header {
+    padding: 1.5rem 1.25rem 1.5rem;
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    margin-bottom: 0.85rem;
+  }
+  header h1 {
+    margin: 0 0 0.45rem;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 800;
+  }
+  header p {
+    margin: 0 auto;
+    max-width: 34rem;
+    color: var(--muted);
+    font-size: 1.02rem;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 1.25rem 2.5rem;
+  }
+  h2.section {
+    margin: 0 0 0.85rem;
+    font-size: 1.05rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 560px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  a.card {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.3rem 1.45rem;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 2px rgba(26, 35, 50, 0.04);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  }
+  a.card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(30, 107, 79, 0.12);
+    transform: translateY(-1px);
+  }
+  a.card h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+    color: var(--accent);
+  }
+  a.card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  .meta {
+    margin-top: 0.85rem;
+    font-size: 0.82rem;
+    color: var(--chip);
+    font-weight: 600;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 0 1rem 2.25rem;
+  }
+  html, body { overflow-x: hidden; max-width: 100%; }
+  header, main, footer, .top, .grid, .card, a.card {
+    max-width: 100%;
+    min-width: 0;
+  }
+  @media (max-width: 900px) {
+    header { padding-left: 1rem; padding-right: 1rem; }
+    main, .top { padding-left: 1rem; padding-right: 1rem; }
+    a.card, .card { padding: 1rem 1.05rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="top"><a href="f4-biology.html">← 返回中四 · 生物</a></div>
+  <header>
+    <div class="badge">第五課 · 第5章</div>
+    <h1>新陳代謝與酶</h1>
+    <p>三個互動動畫：酶如何運作、温度與 pH，以及抑制劑。</p>
+  </header>
+  <main>
+    <h2 class="section">動畫</h2>
+    <div class="grid">
+      <a class="card" href="enzyme_how_it_works.html">
+        <h3>酶的運作</h3>
+        <p>活性部位、催化循環與鎖鑰模型：受質結合、酶受質複合物，以及酶的專一性。</p>
+        <div class="meta">催化循環 · 開啟 →</div>
+      </a>
+      <a class="card" href="enzyme_temp_pH_animation.html">
+        <h3>温度與 pH 對酶活性的影響</h3>
+        <p>碰撞動畫：低温碰撞少、最適條件速率最高；高温或極端 pH 會令酶變性。</p>
+        <div class="meta">碰撞動畫 · 開啟 →</div>
+      </a>
+      <a class="card" href="enzyme_inhibitors.html">
+        <h3>酶抑制劑</h3>
+        <p>競爭性抑制劑搶佔活性部位；非競爭性抑制劑結合他處，改變活性部位形狀。</p>
+        <div class="meta">競爭性／非競爭性 · 開啟 →</div>
+      </a>
+    </div>
+  </main>
+  <footer>教學用途 · 用 Chrome 或 Safari 打開效果最佳</footer>
+</body>
+</html>

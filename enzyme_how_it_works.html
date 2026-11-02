@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>酶的運作｜HKDSE 生物 Ch5 新陳代謝與酶</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --card: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --enzyme: #22c55e;
+    --active: #4ade80;
+    --substrate: #f59e0b;
+    --product: #a78bfa;
+    --wrong: #f87171;
+    --ok: #4ade80;
+    --water: #67e8f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.45;
+  }
+  header {
+    text-align: center;
+    padding: 1rem 1.5rem 0.5rem;
+    border-bottom: 2px solid #334155;
+  }
+  header h1 {
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+    margin-top: 0.35rem;
+  }
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.5rem;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+    font-weight: 700;
+    padding: 0.7rem 1.5rem;
+    border: 3px solid var(--accent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tab-btn:hover { background: rgba(56,189,248,0.15); }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0f172a;
+  }
+  .panel { display: none; padding: 0.75rem 1.25rem 1.5rem; max-width: 1440px; margin: 0 auto; }
+  .panel.active { display: block; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .scene-card, .side-card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid #475569;
+  }
+  .scene-card h2, .side-card h2 {
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    margin-bottom: 0.5rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-block; border: 2px solid #fff3;
+  }
+  .dot.enzyme { background: var(--enzyme); border-radius: 4px; }
+  .dot.active { background: #86efac; border-radius: 4px; }
+  .dot.substrate { background: var(--substrate); }
+  .dot.product { background: var(--product); }
+  .dot.wrong { background: var(--wrong); }
+  canvas {
+    width: 100%;
+    height: auto;
+    background: #0b1220;
+    border-radius: 12px;
+    border: 2px solid #475569;
+    display: block;
+  }
+  .controls {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+  button.ctrl {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    font-weight: 700;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: #0f172a;
+  }
+  button.ctrl.secondary { background: var(--card); color: var(--text); border: 2px solid #64748b; }
+  button.ctrl.on {
+    background: #fbbf24;
+    color: #0f172a;
+  }
+  button.ctrl:active { transform: scale(0.97); }
+  .status {
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    font-weight: 700;
+    padding: 0.55rem 0.85rem;
+    border-radius: 10px;
+    background: #0f172a;
+    border-left: 6px solid var(--ok);
+    min-height: 2.6rem;
+  }
+  .status.warn { border-left-color: #fbbf24; }
+  .status.danger { border-left-color: var(--wrong); }
+  .status.ok { border-left-color: var(--ok); }
+  .takeaway {
+    margin-top: 0.75rem;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    background: #172554;
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 0.7rem 1rem;
+    line-height: 1.5;
+  }
+  .takeaway strong { color: #93c5fd; }
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+  .step {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    border: 2px solid #334155;
+    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+    transition: 0.2s;
+  }
+  .step.active-step {
+    border-color: var(--accent);
+    background: rgba(56,189,248,0.12);
+    box-shadow: 0 0 0 2px rgba(56,189,248,0.25);
+  }
+  .step .num {
+    display: inline-block;
+    width: 1.6rem; height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.6rem;
+    margin-right: 0.35rem;
+    font-size: 0.95rem;
+  }
+  .bullets {
+    list-style: none;
+    font-size: clamp(1.05rem, 1.9vw, 1.25rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .bullets li {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    border-left: 5px solid var(--enzyme);
+  }
+  .bullets li .en {
+    color: var(--muted);
+    font-size: 0.9em;
+    margin-left: 0.35rem;
+  }
+  .key-terms {
+    font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+    color: var(--muted);
+    margin-top: 0.6rem;
+  }
+  .key-terms b { color: #e2e8f0; }
+  .cycle-count {
+    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+    font-weight: 800;
+    color: var(--accent);
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem 1.25rem;
+  }
+  .top-back {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0.85rem 1.25rem 0;
+    text-align: left;
+  }
+  .top-back a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .top-back a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="top-back"><a href="f4-l5-enzymes.html">← 返回課次目錄</a></div>
+<header>
+  <h1>酶的運作</h1>
+  <p class="sub">HKDSE 生物 · Aristo Ch5《新陳代謝與酶》§5.2–5.3 · 活性部位、酶受質複合物與鎖鑰模型</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="mech" type="button">A｜酶的催化循環（圖 5.6）</button>
+  <button class="tab-btn" data-tab="lock" type="button">B｜鎖鑰模型與專一性</button>
+  <button class="tab-btn" data-tab="props" type="button">C｜酶的特性 + 活化能</button>
+</nav>
+
+<!-- ========== MECHANISM ========== -->
+<section id="panel-mech" class="panel active">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🔬 蔗糖酶催化蔗糖水解（教科書圖 5.6）</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>酶（蔗糖酶）</span>
+        <span><i class="dot active"></i>活性部位</span>
+        <span><i class="dot substrate"></i>受質（蔗糖）</span>
+        <span><i class="dot product"></i>生成物（葡萄糖＋果糖）</span>
+      </div>
+      <canvas id="canvasMech" width="860" height="460"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="mechPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="mechReset" type="button">↺ 重置</button>
+          <button class="ctrl secondary" id="mechStep" type="button">⏭ 逐步</button>
+          <span class="cycle-count">已完成循環：<span id="cycleN">0</span></span>
+        </div>
+        <div class="status ok" id="mechStatus">① 受質分子與酶分子的活性部位結合。</div>
+      </div>
+      <p class="takeaway"><strong>一句總結：</strong>受質與<strong>活性部位</strong>結合形成<strong>酶受質複合物</strong>，反應以較低活化能進行；生成物釋出後，酶維持原狀，可再與其他受質結合（不被消耗、可重複使用）。</p>
+    </div>
+    <div class="side-card">
+      <h2>📋 圖 5.6 步驟標籤</h2>
+      <div class="steps" id="stepList">
+        <div class="step active-step" data-s="1"><span class="num">①</span>結合：受質與活性部位結合</div>
+        <div class="step" data-s="2"><span class="num">②</span>形成酶受質複合物</div>
+        <div class="step" data-s="3"><span class="num">③</span>水解 → 生成物釋出</div>
+        <div class="step" data-s="4"><span class="num">④</span>酶可再結合其他受質</div>
+      </div>
+      <div class="key-terms">
+        <b>關鍵詞：</b>活性部位 active site · 受質 substrate · 酶受質複合物 enzyme-substrate complex · 生成物 · 水解<br>
+        <b>例子：</b>蔗糖酶催化蔗糖 + 水 → 葡萄糖 + 果糖<br>
+        <b>提提你：</b>反應物與生成物的能量水平不會因為受酶催化而改變。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== LOCK AND KEY ========== -->
+<section id="panel-lock" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🔑 鎖鑰模型：專一性演示（圖 5.7）</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>酶（鎖）</span>
+        <span><i class="dot active"></i>活性部位（鎖孔）</span>
+        <span><i class="dot substrate"></i>形狀相配的受質（鑰匙）</span>
+        <span><i class="dot wrong"></i>形狀不相配的分子</span>
+      </div>
+      <canvas id="canvasLock" width="860" height="460"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="lockPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="lockReset" type="button">↺ 重置</button>
+          <button class="ctrl secondary" id="toggleWrong" type="button">顯示不相配分子：開</button>
+        </div>
+        <div class="status ok" id="lockStatus">形狀與活性部位互補的受質可結合；不相配者無法套進「鎖孔」。</div>
+      </div>
+      <p class="takeaway"><strong>鎖鑰模型：</strong>酶的活性部位只能與特定的受質結合，正如每把鎖都有相對應的鑰匙，只有形狀相配的鑰匙才能套進鎖孔。→ 說明酶作用的<strong>高度專一性</strong>。</p>
+    </div>
+    <div class="side-card">
+      <h2>📌 專一性重點</h2>
+      <ul class="bullets">
+        <li>每種酶的活性部位都有<strong>特別的形狀</strong></li>
+        <li>受質分子的形狀須與活性部位<strong>互補</strong>，酶才可對受質起作用</li>
+        <li>一種酶只能催化一種反應（高度專一性）</li>
+        <li>可用<strong>鎖鑰模型</strong>說明專一性（費歇爾，1894）</li>
+      </ul>
+      <div class="key-terms" style="margin-top:0.85rem">
+        <b>重要概念：</b>酶的作用具專一性，只有形狀與酶的活性部位相配的受質分子，才能與酶結合。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PROPERTIES + Ea ========== -->
+<section id="panel-props" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>⚡ 活化能能線圖（圖 5.4 示意）</h2>
+      <canvas id="canvasEa" width="860" height="400"></canvas>
+      <p class="takeaway" style="margin-top:0.75rem"><strong>酶作為生物催化劑：</strong>讓反應循另一個<strong>活化能較低</strong>的途徑進行，從而加快反應。反應物與生成物的能量水平不變。</p>
+    </div>
+    <div class="side-card">
+      <h2>🧬 酶的特性（p.5-5）</h2>
+      <ul class="bullets">
+        <li>由活細胞製造的<strong>蛋白分子</strong><span class="en">protein</span></li>
+        <li>作為<strong>生物催化劑</strong>，加快代謝反應<span class="en">biological catalyst</span></li>
+        <li>反應完結時<strong>不會被消耗</strong>，化學性質不變</li>
+        <li><strong>可重複使用</strong>——只需少量便足夠催化</li>
+        <li>作用具<strong>高度專一性</strong><span class="en">specific</span></li>
+        <li>活性受<strong>温度</strong>與 <strong>pH</strong> 影響（詳見 §5.4／另一動畫）</li>
+      </ul>
+      <div class="key-terms" style="margin-top:0.85rem">
+        <b>關鍵詞：</b>活化能 activation energy · 酶 enzyme · 催化劑 catalyst · 專一的 specific
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>對齊 Aristo《新高中生物》第 5 章「酶的特性／酶的運作／鎖鑰模型」（圖 5.4–5.7）。離線單檔 · 適合課堂投影。</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Tabs */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  /* ================= MECHANISM SCENE ================= */
+  (function mechScene() {
+    const canvas = document.getElementById('canvasMech');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let stepMode = false;
+    let phase = 0; // 0 wait, 1 approach, 2 complex, 3 react, 4 release, 5 recycle
+    let t = 0;
+    let cycles = 0;
+    let enzyme = { x: W * 0.42, y: H * 0.52 };
+    let substrate = null;
+    let products = [];
+    let water = null;
+    let labelFlash = 0;
+
+    const STATUS = {
+      1: '① 受質分子與酶分子的活性部位結合。',
+      2: '② 形成酶受質複合物。',
+      3: '③ 進行水解。一個蔗糖分子分解為一個葡萄糖分子和一個果糖分子；生成物從活性部位釋出。',
+      4: '④ 酶分子的活性部位可與其他受質分子結合（酶維持原狀、可重複使用）。'
+    };
+
+    function setStepUI(n) {
+      document.querySelectorAll('#stepList .step').forEach(el => {
+        el.classList.toggle('active-step', Number(el.dataset.s) === n);
+      });
+      const st = document.getElementById('mechStatus');
+      st.textContent = STATUS[n] || STATUS[1];
+      st.className = 'status ' + (n === 3 ? 'warn' : 'ok');
+    }
+
+    function spawnSubstrate() {
+      substrate = {
+        x: W + 40, y: H * 0.28,
+        tx: enzyme.x + 8, ty: enzyme.y - 2,
+        shape: 'sucrose', // two linked circles
+        bound: false
+      };
+      water = { x: W * 0.72, y: H * 0.18, visible: false, a: 0 };
+      products = [];
+      phase = 1;
+      t = 0;
+      setStepUI(1);
+    }
+
+    function reset() {
+      cycles = 0;
+      document.getElementById('cycleN').textContent = '0';
+      products = [];
+      water = null;
+      spawnSubstrate();
+    }
+
+    function drawEnzyme(x, y, highlight) {
+      ctx.save();
+      ctx.translate(x, y);
+      // body
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 78, 58, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#bbf7d0';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // active site pocket (U-shaped notch on right)
+      ctx.fillStyle = highlight ? '#86efac' : '#4ade80';
+      ctx.beginPath();
+      ctx.moveTo(35, -28);
+      ctx.quadraticCurveTo(70, -35, 72, 0);
+      ctx.quadraticCurveTo(70, 35, 35, 28);
+      ctx.quadraticCurveTo(48, 0, 35, -28);
+      ctx.fill();
+      ctx.strokeStyle = '#166534';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // pocket cavity
+      ctx.fillStyle = '#0b1220';
+      ctx.beginPath();
+      ctx.ellipse(58, 0, 22, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('蔗糖酶', -12, 6);
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#bbf7d0';
+      ctx.fillText('活性部位', 58, -42);
+      ctx.restore();
+    }
+
+    function drawSucrose(x, y, scale, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha == null ? 1 : alpha;
+      ctx.translate(x, y);
+      ctx.scale(scale || 1, scale || 1);
+      // two rings linked
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.arc(-14, 0, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(14, 0, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath(); ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('蔗糖', 0, 36);
+      ctx.restore();
+    }
+
+    function drawMono(x, y, label, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, 0, 32);
+      ctx.restore();
+    }
+
+    function drawWater(x, y, a) {
+      if (a <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#67e8f9';
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ecfeff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('水', x, y + 26);
+      ctx.restore();
+    }
+
+    function update(dt) {
+      if (!playing && !stepMode) return;
+      t += dt;
+      labelFlash += dt;
+
+      if (phase === 1 && substrate) {
+        // approach
+        const p = clamp(t / 1.8, 0, 1);
+        const e = p * p * (3 - 2 * p);
+        substrate.x = lerp(W + 40, enzyme.x + 58, e);
+        substrate.y = lerp(H * 0.28, enzyme.y, e);
+        setStepUI(1);
+        if (p >= 1) { phase = 2; t = 0; }
+      } else if (phase === 2) {
+        setStepUI(2);
+        if (water) { water.visible = true; water.a = clamp(t / 0.5, 0, 1); water.x = lerp(W * 0.72, enzyme.x + 90, clamp(t / 0.8, 0, 1)); water.y = lerp(H * 0.18, enzyme.y - 40, clamp(t / 0.8, 0, 1)); }
+        if (t >= 1.4) { phase = 3; t = 0; }
+      } else if (phase === 3) {
+        setStepUI(3);
+        if (t >= 0.9 && products.length === 0) {
+          // split
+          substrate = null;
+          if (water) water.a = 0;
+          products = [
+            { x: enzyme.x + 48, y: enzyme.y - 8, vx: -1.2, vy: -1.6, label: '葡萄糖', color: '#a78bfa' },
+            { x: enzyme.x + 68, y: enzyme.y + 8, vx: 1.8, vy: -1.2, label: '果糖', color: '#c4b5fd' }
+          ];
+        }
+        products.forEach(p => {
+          p.x += p.vx * dt * 55;
+          p.y += p.vy * dt * 55;
+          p.vy += 0.4 * dt;
+        });
+        if (t >= 2.0) { phase = 4; t = 0; }
+      } else if (phase === 4) {
+        setStepUI(4);
+        products.forEach(p => {
+          p.x += p.vx * dt * 40;
+          p.y += p.vy * dt * 40;
+        });
+        if (t >= 1.2) {
+          cycles++;
+          document.getElementById('cycleN').textContent = String(cycles);
+          products = [];
+          if (stepMode) { playing = false; stepMode = false; phase = 5; }
+          else { spawnSubstrate(); }
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      // grid bg hint
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // title ribbon
+      ctx.fillStyle = 'rgba(30,41,59,0.85)';
+      ctx.fillRect(12, 10, 420, 36);
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('酶受質複合物 → 生成物；酶可重複使用', 24, 34);
+
+      const hi = phase === 2 || phase === 3;
+      drawEnzyme(enzyme.x, enzyme.y, hi);
+
+      if (phase === 2) {
+        // complex glow
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251,191,36,0.7)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(enzyme.x + 20, enzyme.y, 110, 78, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('酶受質複合物', enzyme.x + 20, enzyme.y - 88);
+        ctx.restore();
+      }
+
+      if (substrate) drawSucrose(substrate.x, substrate.y, phase === 2 ? 0.85 : 1, 1);
+      if (water && water.visible) drawWater(water.x, water.y, water.a);
+      products.forEach(p => drawMono(p.x, p.y, p.label, p.color));
+
+      // phase badge
+      const badge = ['', '① 結合', '② 複合物', '③ 生成物釋出', '④ 酶可再結合'][clamp(phase, 1, 4)] || '';
+      if (badge) {
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        roundRect(ctx, W - 210, 12, 190, 40, 10);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(badge, W - 115, 40);
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+    reset();
+    requestAnimationFrame(loop);
+
+    document.getElementById('mechPlay').addEventListener('click', function () {
+      playing = !playing;
+      stepMode = false;
+      this.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+      if (playing && phase === 5) spawnSubstrate();
+    });
+    document.getElementById('mechReset').addEventListener('click', () => {
+      playing = true;
+      document.getElementById('mechPlay').textContent = '⏸ 暫停';
+      reset();
+    });
+    document.getElementById('mechStep').addEventListener('click', () => {
+      if (phase === 5 || (!substrate && products.length === 0 && phase !== 3)) spawnSubstrate();
+      playing = true;
+      stepMode = true;
+      document.getElementById('mechPlay').textContent = '▶ 播放';
+    });
+  })();
+
+  /* ================= LOCK-AND-KEY SCENE ================= */
+  (function lockScene() {
+    const canvas = document.getElementById('canvasLock');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let showWrong = true;
+    let enzyme = { x: W * 0.38, y: H * 0.55 };
+    let keys = [];
+    let msg = '';
+    let msgT = 0;
+
+    function spawn() {
+      keys = [];
+      // matching sucrose-like (fits pocket)
+      keys.push({
+        x: W + 30, y: H * 0.3, vx: -1.6, vy: 0.15,
+        match: true, bound: false, reject: 0, label: '受質（相配）'
+      });
+      if (showWrong) {
+        keys.push({
+          x: W + 120, y: H * 0.65, vx: -1.4, vy: -0.1,
+          match: false, bound: false, reject: 0, label: '不相配分子'
+        });
+      }
+    }
+
+    function drawEnzymeLock(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 90, 70, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#bbf7d0';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // keyhole / active site: triangular notch
+      ctx.fillStyle = '#0b1220';
+      ctx.beginPath();
+      ctx.moveTo(40, -26);
+      ctx.lineTo(85, -8);
+      ctx.lineTo(85, 8);
+      ctx.lineTo(40, 26);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(38, -28, 8, 56);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('酶（鎖）', -10, 6);
+      ctx.font = '15px sans-serif';
+      ctx.fillStyle = '#bbf7d0';
+      ctx.fillText('活性部位', 55, -48);
+      ctx.restore();
+    }
+
+    function drawKey(k) {
+      ctx.save();
+      ctx.translate(k.x, k.y);
+      if (k.match) {
+        // wedge that fits triangular pocket
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.moveTo(-28, -18);
+        ctx.lineTo(28, -6);
+        ctx.lineTo(28, 6);
+        ctx.lineTo(-28, 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓ 受質', 0, 36);
+      } else {
+        // round / wrong shape
+        ctx.fillStyle = '#f87171';
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✗ 不相配', 0, 40);
+      }
+      ctx.restore();
+    }
+
+    function update(dt) {
+      if (!playing) return;
+      msgT -= dt;
+      keys.forEach(k => {
+        if (k.bound) return;
+        if (k.reject > 0) {
+          k.reject -= dt;
+          k.x += 2.5;
+          k.y += Math.sin(k.reject * 20) * 2;
+          if (k.reject <= 0) { k.x = W + 40; k.y = H * 0.65; k.vx = -1.4; }
+          return;
+        }
+        k.x += k.vx * dt * 60;
+        k.y += k.vy * dt * 60;
+        const dx = k.x - (enzyme.x + 70);
+        const dy = k.y - enzyme.y;
+        if (Math.hypot(dx, dy) < 36) {
+          if (k.match) {
+            k.bound = true;
+            k.x = enzyme.x + 68;
+            k.y = enzyme.y;
+            msg = '形成酶受質複合物 — 形狀互補 ✓';
+            msgT = 2.2;
+            document.getElementById('lockStatus').textContent = '形狀相配的受質成功與活性部位結合，形成酶受質複合物。';
+            document.getElementById('lockStatus').className = 'status ok';
+            setTimeout(() => {
+              k.bound = false;
+              k.x = W + 30;
+              k.y = H * 0.3;
+            }, 1600);
+          } else {
+            k.reject = 0.9;
+            msg = '無法結合 — 形狀不相配 ✗';
+            msgT = 2.0;
+            document.getElementById('lockStatus').textContent = '形狀不相配的分子不能套進活性部位（鎖孔）→ 專一性。';
+            document.getElementById('lockStatus').className = 'status danger';
+          }
+        }
+        if (k.x < -60) { k.x = W + 40; }
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, W, H);
+
+      // analogy labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('比喻：鎖 ↔ 酶　　鎖孔 ↔ 活性部位　　鑰匙 ↔ 受質', 20, 32);
+
+      drawEnzymeLock(enzyme.x, enzyme.y);
+      keys.forEach(drawKey);
+
+      if (msgT > 0) {
+        ctx.fillStyle = 'rgba(15,23,42,0.9)';
+        ctx.fillRect(W / 2 - 220, H - 70, 440, 48);
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(msg, W / 2, H - 38);
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+    spawn();
+    requestAnimationFrame(loop);
+
+    document.getElementById('lockPlay').addEventListener('click', function () {
+      playing = !playing;
+      this.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('lockReset').addEventListener('click', spawn);
+    document.getElementById('toggleWrong').addEventListener('click', function () {
+      showWrong = !showWrong;
+      this.textContent = '顯示不相配分子：' + (showWrong ? '開' : '關');
+      this.classList.toggle('on', showWrong);
+      spawn();
+    });
+  })();
+
+  /* ================= ENERGY DIAGRAM ================= */
+  (function eaScene() {
+    const canvas = document.getElementById('canvasEa');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, W, H);
+
+      const padL = 70, padR = 40, padT = 50, padB = 55;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+
+      // axes
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      ctx.stroke();
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.save();
+      ctx.translate(28, padT + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('能量水平', 0, 0);
+      ctx.restore();
+      ctx.textAlign = 'center';
+      ctx.fillText('反應進度 →', padL + plotW / 2, H - 18);
+
+      const yR = padT + plotH * 0.38;
+      const yP = padT + plotH * 0.78;
+      const yPeakNo = padT + plotH * 0.08;
+      const yPeakEnz = padT + plotH * 0.28;
+
+      function curve(peakY, color, dash) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.setLineDash(dash || []);
+        ctx.beginPath();
+        const x0 = padL + 20, x1 = padL + plotW * 0.45, x2 = padL + plotW - 20;
+        ctx.moveTo(x0, yR);
+        ctx.bezierCurveTo(padL + plotW * 0.2, yR, padL + plotW * 0.28, peakY, x1, peakY);
+        ctx.bezierCurveTo(padL + plotW * 0.58, peakY, padL + plotW * 0.7, yP, x2, yP);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      curve(yPeakNo, '#60a5fa', []);
+      curve(yPeakEnz, '#f87171', []);
+
+      // labels
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('反應物', padL + 24, yR - 10);
+      ctx.fillText('生成物', padL + plotW - 80, yP - 10);
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('缺乏酶的活化能', padL + plotW * 0.32, yPeakNo - 8);
+      ctx.fillStyle = '#f87171';
+      ctx.fillText('有酶的活化能', padL + plotW * 0.32, yPeakEnz + 22);
+
+      // arrows for Ea
+      ctx.strokeStyle = '#60a5fa';
+      ctx.fillStyle = '#60a5fa';
+      drawArrow(padL + plotW * 0.12, yR, padL + plotW * 0.12, yPeakNo);
+      ctx.strokeStyle = '#f87171';
+      ctx.fillStyle = '#f87171';
+      drawArrow(padL + plotW * 0.18, yR, padL + plotW * 0.18, yPeakEnz);
+
+      // legend
+      ctx.font = '15px sans-serif';
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(padL + plotW - 200, padT + 8, 22, 6);
+      ctx.fillText('沒有酶催化', padL + plotW - 170, padT + 16);
+      ctx.fillStyle = '#f87171';
+      ctx.fillRect(padL + plotW - 200, padT + 32, 22, 6);
+      ctx.fillText('受酶催化', padL + plotW - 170, padT + 40);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('提提你：反應物與生成物的能量水平不會因受酶催化而改變', W / 2, padT + plotH + 38);
+    }
+
+    function drawArrow(x1, y1, x2, y2) {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - 8 * Math.cos(ang - 0.4), y2 - 8 * Math.sin(ang - 0.4));
+      ctx.lineTo(x2 - 8 * Math.cos(ang + 0.4), y2 - 8 * Math.sin(ang + 0.4));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    draw();
+  })();
+})();
+</script>
+</body>
+</html>
