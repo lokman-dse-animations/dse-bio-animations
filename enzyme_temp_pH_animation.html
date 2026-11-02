@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>温度與 pH 對酶活性的影響｜HKDSE 生物 Ch5 新陳代謝與酶</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --card: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --enzyme: #22c55e;
+    --substrate: #f59e0b;
+    --product: #a78bfa;
+    --danger: #f87171;
+    --ok: #4ade80;
+    --curve: #60a5fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.45;
+  }
+  header {
+    text-align: center;
+    padding: 1rem 1.5rem 0.5rem;
+    border-bottom: 2px solid #334155;
+  }
+  header h1 {
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+    margin-top: 0.35rem;
+  }
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.5rem;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+    font-weight: 700;
+    padding: 0.7rem 1.6rem;
+    border: 3px solid var(--accent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tab-btn:hover { background: rgba(56,189,248,0.15); }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0f172a;
+  }
+  .panel { display: none; padding: 0.75rem 1.25rem 1.5rem; max-width: 1400px; margin: 0 auto; }
+  .panel.active { display: block; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .scene-card, .side-card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid #475569;
+  }
+  .scene-card h2, .side-card h2 {
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    margin-bottom: 0.5rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-block; border: 2px solid #fff3;
+  }
+  .dot.enzyme { background: var(--enzyme); border-radius: 4px; }
+  .dot.substrate { background: var(--substrate); }
+  .dot.product { background: var(--product); }
+  .dot.complex { background: linear-gradient(90deg, var(--enzyme), var(--substrate)); border-radius: 4px; }
+  canvas {
+    width: 100%;
+    height: auto;
+    background: #0b1220;
+    border-radius: 12px;
+    border: 2px solid #475569;
+    display: block;
+    cursor: default;
+  }
+  .controls {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .slider-row label {
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    font-weight: 700;
+    min-width: 7rem;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    min-width: 160px;
+    height: 10px;
+    accent-color: var(--accent);
+  }
+  .val-badge {
+    font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+    font-weight: 800;
+    background: #0f172a;
+    padding: 0.25rem 0.75rem;
+    border-radius: 8px;
+    border: 2px solid var(--accent);
+    min-width: 5.5rem;
+    text-align: center;
+  }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  button.ctrl {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    font-weight: 700;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: #0f172a;
+  }
+  button.ctrl.secondary { background: var(--card); color: var(--text); border: 2px solid #64748b; }
+  button.ctrl:active { transform: scale(0.97); }
+  .status {
+    font-size: clamp(1.05rem, 2vw, 1.35rem);
+    font-weight: 700;
+    padding: 0.55rem 0.85rem;
+    border-radius: 10px;
+    background: #0f172a;
+    border-left: 6px solid var(--ok);
+    min-height: 2.6rem;
+  }
+  .status.warn { border-left-color: #fbbf24; }
+  .status.danger { border-left-color: var(--danger); }
+  .status.ok { border-left-color: var(--ok); }
+  .takeaway {
+    margin-top: 0.75rem;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    background: #172554;
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 0.7rem 1rem;
+    line-height: 1.5;
+  }
+  .takeaway strong { color: #93c5fd; }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+  .stat {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.5rem 0.65rem;
+    text-align: center;
+  }
+  .stat .n {
+    font-size: clamp(1.4rem, 2.8vw, 1.9rem);
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .stat .l { font-size: 0.95rem; color: var(--muted); }
+  .key-terms {
+    font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+    color: var(--muted);
+    margin-top: 0.6rem;
+  }
+  .key-terms b { color: #e2e8f0; }
+  .ph-select {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.35rem;
+  }
+  .ph-select button {
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    border: 2px solid #64748b;
+    background: #0f172a;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .ph-select button.on {
+    border-color: var(--accent);
+    background: rgba(56,189,248,0.2);
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem 1.25rem;
+  }
+  .top-back {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0.85rem 1.25rem 0;
+    text-align: left;
+  }
+  .top-back a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .top-back a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="top-back"><a href="f4-l5-enzymes.html">← 返回課次目錄</a></div>
+<header>
+  <h1>温度與 pH 對酶活性的影響</h1>
+  <p class="sub">HKDSE 生物 · Aristo Ch5《新陳代謝與酶》 · 酶受質碰撞與變性動畫</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="temp" type="button">A｜温度對酶活性的影響</button>
+  <button class="tab-btn" data-tab="ph" type="button">B｜pH 對酶活性的影響</button>
+</nav>
+
+<!-- ================= TEMP PANEL ================= -->
+<section id="panel-temp" class="panel active">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🔬 碰撞場景：酶＋受質 → 酶受質複合物 → 生成物</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>酶（綠色＝活性部位）</span>
+        <span><i class="dot substrate"></i>受質</span>
+        <span><i class="dot complex"></i>酶受質複合物</span>
+        <span><i class="dot product"></i>生成物</span>
+      </div>
+      <canvas id="canvasTemp" width="820" height="420"></canvas>
+      <div class="controls">
+        <div class="slider-row">
+          <label for="tempSlider">温度 (°C)</label>
+          <input type="range" id="tempSlider" min="0" max="80" value="37" step="1">
+          <div class="val-badge" id="tempVal">37 °C</div>
+        </div>
+        <div class="btn-row">
+          <button class="ctrl" id="tempPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="tempReset" type="button">↺ 重置粒子</button>
+        </div>
+        <div class="status ok" id="tempStatus">最適温度附近：動能高，碰撞成功形成酶受質複合物，反應速率最高。</div>
+      </div>
+      <p class="takeaway"><strong>一句總結：</strong>低温時動能低、碰撞少（酶不活躍，可逆）；升温碰撞增多；超過最適温度後高温令活性部位變形而<strong>變性</strong>（不可逆），反應速率急降。</p>
+    </div>
+    <div class="side-card">
+      <h2>📈 反應速率對温度（示意曲線）</h2>
+      <canvas id="curveTemp" width="520" height="280"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="n" id="tempRate">—</div><div class="l">相對反應速率</div></div>
+        <div class="stat"><div class="n" id="tempHits">0</div><div class="l">成功催化次數</div></div>
+      </div>
+      <div class="key-terms">
+        <b>關鍵詞：</b>酶 · 受質 · 活性部位 · 酶受質複合物 · 動能 · 碰撞 · 最適温度（約 37 °C，人體酶）· 變性 · 反應速率<br>
+        <b>教科書要點：</b>酶反應需「形狀互補」＋「互相碰撞」才能形成酶受質複合物（鎖鑰模型）。低温不活躍≠變性；高温變性不可逆。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PH PANEL ================= -->
+<section id="panel-ph" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🔬 碰撞場景：不同最適 pH 的酶</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>酶（綠色＝活性部位）</span>
+        <span><i class="dot substrate"></i>受質</span>
+        <span><i class="dot complex"></i>酶受質複合物</span>
+        <span><i class="dot product"></i>生成物</span>
+      </div>
+      <canvas id="canvasPh" width="820" height="420"></canvas>
+      <div class="controls">
+        <div class="slider-row">
+          <label for="phSlider">pH 值</label>
+          <input type="range" id="phSlider" min="1" max="12" value="7" step="0.1">
+          <div class="val-badge" id="phVal">7.0</div>
+        </div>
+        <div class="ph-select" id="enzymePick">
+          <button type="button" data-enzyme="pepsin">胃蛋白酶（最適 ≈2）</button>
+          <button type="button" data-enzyme="amylase" class="on">唾液澱粉酶（最適 ≈7）</button>
+          <button type="button" data-enzyme="trypsin">胰蛋白酶（最適 ≈8）</button>
+        </div>
+        <div class="btn-row">
+          <button class="ctrl" id="phPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="phReset" type="button">↺ 重置粒子</button>
+        </div>
+        <div class="status ok" id="phStatus">接近最適 pH：活性部位形狀正確，受質可結合。</div>
+      </div>
+      <p class="takeaway"><strong>一句總結：</strong>每種酶有不同的<strong>最適 pH 值</strong>；偏離最適時活性部位形狀改變，極端 pH 會導致<strong>變性</strong>，受質無法結合，反應速率下降。</p>
+    </div>
+    <div class="side-card">
+      <h2>📈 反應速率對 pH（示意鐘形曲線）</h2>
+      <canvas id="curvePh" width="520" height="280"></canvas>
+      <div class="stats">
+        <div class="stat"><div class="n" id="phRate">—</div><div class="l">相對反應速率</div></div>
+        <div class="stat"><div class="n" id="phHits">0</div><div class="l">成功催化次數</div></div>
+      </div>
+      <div class="key-terms">
+        <b>關鍵詞：</b>最適 pH 值 · 變性 · 活性部位 · 酶受質複合物 · 反應速率<br>
+        <b>例子（教科書圖 5.10）：</b>胃蛋白酶偏酸性（約 pH 2）；唾液澱粉酶接近中性（約 pH 7）；脂肪酶／胰蛋白酶偏鹼性（約 pH 8）。
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>對齊 Aristo《新高中生物》第 5 章「新陳代謝與酶」概念用語（鎖鑰模型、酶受質複合物、最適温度／最適 pH 值、變性）。離線單檔 · 適合課堂投影。</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Tabs ---------- */
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* ---------- Shared helpers ---------- */
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  /* Rate vs temperature (textbook-like): rise to ~37, crash after denaturation */
+  function tempActivity(t) {
+    if (t <= 37) {
+      // roughly exponential / kinetic rise, peak at 37
+      return Math.pow(Math.max(0, t) / 37, 1.35);
+    }
+    // denaturation collapse; near 0 by ~60–65
+    const x = (t - 37) / 23;
+    return Math.max(0, Math.exp(-3.2 * x * x) * (1 - 0.55 * x));
+  }
+  function isDenaturedTemp(t) { return t >= 55; }
+  function isInactiveCold(t) { return t < 8; }
+
+  /* Gaussian bell for pH around optimum */
+  function phActivity(pH, opt, sigma) {
+    const d = (pH - opt) / sigma;
+    return Math.exp(-0.5 * d * d);
+  }
+  function isDenaturedPh(pH, opt, sigma) {
+    return Math.abs(pH - opt) > sigma * 2.2;
+  }
+
+  const ENZYMES = {
+    pepsin:   { name: '胃蛋白酶', opt: 2.0, sigma: 1.1, color: '#4ade80' },
+    amylase:  { name: '唾液澱粉酶', opt: 7.0, sigma: 1.3, color: '#22c55e' },
+    trypsin:  { name: '胰蛋白酶', opt: 8.0, sigma: 1.2, color: '#86efac' }
+  };
+
+  /* ---------- Particle scene engine ---------- */
+  function createScene(canvas, mode) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let hits = 0;
+    let floatTexts = [];
+    let enzymes = [];
+    let substrates = [];
+    let products = [];
+    let param = mode === 'temp' ? 37 : 7;
+    let enzymeKey = 'amylase';
+    let denatureProgress = 0; // 0..1 visual warp
+
+    function spawnSubstrate() {
+      const edge = Math.floor(Math.random() * 4);
+      let x, y, vx, vy;
+      const speed = mode === 'temp'
+        ? 0.35 + (param / 80) * 2.8
+        : 1.2;
+      if (edge === 0) { x = rand(20, W - 20); y = -10; vx = rand(-1, 1); vy = rand(0.4, 1) * speed; }
+      else if (edge === 1) { x = W + 10; y = rand(20, H - 20); vx = -rand(0.4, 1) * speed; vy = rand(-1, 1); }
+      else if (edge === 2) { x = rand(20, W - 20); y = H + 10; vx = rand(-1, 1); vy = -rand(0.4, 1) * speed; }
+      else { x = -10; y = rand(20, H - 20); vx = rand(0.4, 1) * speed; vy = rand(-1, 1); }
+      substrates.push({
+        x, y, vx, vy,
+        r: 11,
+        bound: null,
+        bindT: 0,
+        life: Infinity
+      });
+    }
+
+    function resetParticles() {
+      enzymes = [];
+      substrates = [];
+      products = [];
+      floatTexts = [];
+      hits = 0;
+      const nE = 3;
+      for (let i = 0; i < nE; i++) {
+        enzymes.push({
+          x: W * (0.22 + i * 0.28),
+          y: H * (0.35 + (i % 2) * 0.28),
+          vx: rand(-0.4, 0.4),
+          vy: rand(-0.4, 0.4),
+          r: 36,
+          binding: null,
+          cool: 0,
+          angle: rand(0, Math.PI * 2)
+        });
+      }
+      for (let i = 0; i < 14; i++) spawnSubstrate();
+    }
+
+    function activity() {
+      if (mode === 'temp') return tempActivity(param);
+      const e = ENZYMES[enzymeKey];
+      return phActivity(param, e.opt, e.sigma);
+    }
+
+    function denatured() {
+      if (mode === 'temp') return isDenaturedTemp(param);
+      const e = ENZYMES[enzymeKey];
+      return isDenaturedPh(param, e.opt, e.sigma);
+    }
+
+    function updateDenatureVisual(dt) {
+      const target = denatured() ? 1 : (mode === 'temp' && param > 45 ? (param - 45) / 10 : 0);
+      denatureProgress += (clamp(target, 0, 1) - denatureProgress) * Math.min(1, dt * 3);
+    }
+
+    function drawEnzyme(e) {
+      const warp = denatureProgress;
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.rotate(e.angle);
+
+      // body
+      ctx.beginPath();
+      const pts = 16;
+      for (let i = 0; i <= pts; i++) {
+        const a = (i / pts) * Math.PI * 2;
+        // notch for active site around angle 0
+        let rr = e.r;
+        const notch = Math.cos(a);
+        if (notch > 0.72) {
+          // active site cleft — distort when denatured
+          const depth = 14 - warp * 18;
+          rr = e.r - depth * ((notch - 0.72) / 0.28);
+          if (warp > 0.5) rr += Math.sin(a * 5 + warp * 8) * warp * 6;
+        } else if (warp > 0.3) {
+          rr += Math.sin(a * 3 + e.cool) * warp * 5;
+        }
+        const x = Math.cos(a) * rr;
+        const y = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      const bodyCol = warp > 0.65 ? '#64748b' : '#16a34a';
+      ctx.fillStyle = bodyCol;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = warp > 0.65 ? '#94a3b8' : '#86efac';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // active site highlight
+      if (warp < 0.7) {
+        ctx.beginPath();
+        ctx.arc(e.r * 0.55, 0, 9 - warp * 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#bbf7d0';
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('活性', e.r * 0.15, -e.r * 0.15);
+        ctx.fillText('部位', e.r * 0.15, -e.r * 0.15 + 12);
+      } else {
+        ctx.fillStyle = '#fecaca';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('已變性', 0, 4);
+      }
+
+      // bound substrate visual
+      if (e.binding) {
+        ctx.beginPath();
+        ctx.arc(e.r * 0.55, 0, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawSub(s) {
+      if (s.bound) return;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // key shape hint (small wedge)
+      ctx.beginPath();
+      ctx.moveTo(s.x + s.r * 0.2, s.y);
+      ctx.lineTo(s.x + s.r + 4, s.y - 4);
+      ctx.lineTo(s.x + s.r + 4, s.y + 4);
+      ctx.closePath();
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+    }
+
+    function drawProd(p) {
+      ctx.globalAlpha = clamp(p.life / 60, 0, 1);
+      ctx.beginPath();
+      ctx.arc(p.x - 6, p.y, 7, 0, Math.PI * 2);
+      ctx.arc(p.x + 7, p.y + 2, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#a78bfa';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function step(dt) {
+      if (!playing) { draw(); return; }
+      updateDenatureVisual(dt);
+      const act = activity();
+      const den = denatured();
+      const speedMul = mode === 'temp'
+        ? (0.25 + (param / 80) * 2.4)
+        : (0.9 + act * 0.8);
+
+      // enzyme drift
+      for (const e of enzymes) {
+        e.cool = Math.max(0, e.cool - dt);
+        e.vx += rand(-0.05, 0.05);
+        e.vy += rand(-0.05, 0.05);
+        const sp = Math.hypot(e.vx, e.vy) || 1;
+        const maxSp = 0.55 * speedMul;
+        if (sp > maxSp) { e.vx *= maxSp / sp; e.vy *= maxSp / sp; }
+        e.x += e.vx * speedMul;
+        e.y += e.vy * speedMul;
+        e.angle += 0.004 * speedMul;
+        if (e.x < e.r) { e.x = e.r; e.vx *= -1; }
+        if (e.x > W - e.r) { e.x = W - e.r; e.vx *= -1; }
+        if (e.y < e.r) { e.y = e.r; e.vy *= -1; }
+        if (e.y > H - e.r) { e.y = H - e.r; e.vy *= -1; }
+
+        if (e.binding) {
+          e.binding.bindT += dt;
+          // hold briefly then release products
+          if (e.binding.bindT > 0.55) {
+            products.push({
+              x: e.x + Math.cos(e.angle) * e.r * 0.7,
+              y: e.y + Math.sin(e.angle) * e.r * 0.7,
+              vx: Math.cos(e.angle) * 2 + rand(-0.5, 0.5),
+              vy: Math.sin(e.angle) * 2 + rand(-0.5, 0.5),
+              life: 90
+            });
+            floatTexts.push({
+              x: e.x, y: e.y - e.r - 8,
+              text: '生成物釋出',
+              life: 50,
+              col: '#c4b5fd'
+            });
+            // remove substrate from list
+            const idx = substrates.indexOf(e.binding);
+            if (idx >= 0) substrates.splice(idx, 1);
+            e.binding = null;
+            e.cool = 0.35;
+            hits++;
+            spawnSubstrate();
+          }
+        }
+      }
+
+      // substrates
+      for (const s of substrates) {
+        if (s.bound) continue;
+        s.vx += rand(-0.08, 0.08) * speedMul;
+        s.vy += rand(-0.08, 0.08) * speedMul;
+        let sp = Math.hypot(s.vx, s.vy) || 1;
+        const maxSp = (mode === 'temp' ? (0.6 + param / 40) : 1.6) * (0.7 + act);
+        if (sp > maxSp) { s.vx *= maxSp / sp; s.vy *= maxSp / sp; }
+        // cold: almost frozen
+        if (mode === 'temp' && param < 5) { s.vx *= 0.92; s.vy *= 0.92; }
+        s.x += s.vx;
+        s.y += s.vy;
+        if (s.x < -20 || s.x > W + 20 || s.y < -20 || s.y > H + 20) {
+          s.x = rand(40, W - 40); s.y = rand(40, H - 40);
+          s.vx = rand(-1, 1) * speedMul; s.vy = rand(-1, 1) * speedMul;
+        }
+
+        // collision / binding attempt
+        for (const e of enzymes) {
+          if (e.binding || e.cool > 0) continue;
+          const dx = s.x - e.x, dy = s.y - e.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < e.r + s.r - 4) {
+            // approach from active-site direction roughly
+            const ang = Math.atan2(dy, dx);
+            let dAng = ang - e.angle;
+            while (dAng > Math.PI) dAng -= Math.PI * 2;
+            while (dAng < -Math.PI) dAng += Math.PI * 2;
+            const facing = Math.abs(dAng) < 0.95;
+
+            if (den || denatureProgress > 0.7) {
+              // bounce — denatured active site cannot bind
+              const nx = dx / (dist || 1), ny = dy / (dist || 1);
+              s.vx = nx * Math.abs(s.vx) + rand(-0.3, 0.3);
+              s.vy = ny * Math.abs(s.vy) + rand(-0.3, 0.3);
+              floatTexts.push({ x: s.x, y: s.y - 16, text: '無法結合（變性）', life: 40, col: '#fca5a5' });
+            } else if (facing && Math.random() < 0.08 + act * 0.55) {
+              // successful bind → enzyme-substrate complex
+              s.bound = e;
+              s.bindT = 0;
+              e.binding = s;
+              // snap near active site
+              s.x = e.x + Math.cos(e.angle) * e.r * 0.55;
+              s.y = e.y + Math.sin(e.angle) * e.r * 0.55;
+              floatTexts.push({ x: e.x, y: e.y - e.r - 10, text: '酶受質複合物', life: 45, col: '#86efac' });
+            } else {
+              // bounce off wrong angle / fail
+              const nx = dx / (dist || 1), ny = dy / (dist || 1);
+              s.vx += nx * 1.2; s.vy += ny * 1.2;
+              e.vx -= nx * 0.3; e.vy -= ny * 0.3;
+            }
+          }
+        }
+      }
+
+      // keep substrate count
+      while (substrates.filter(s => !s.bound).length < 12) spawnSubstrate();
+      if (substrates.length > 28) substrates.splice(0, substrates.length - 28);
+
+      for (const p of products) {
+        p.x += p.vx; p.y += p.vy; p.life -= 1;
+      }
+      products = products.filter(p => p.life > 0);
+
+      for (const f of floatTexts) {
+        f.y -= 0.6; f.life -= 1;
+      }
+      floatTexts = floatTexts.filter(f => f.life > 0);
+
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      // grid
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // title strip
+      ctx.fillStyle = 'rgba(15,23,42,0.75)';
+      ctx.fillRect(0, 0, W, 36);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 16px "PingFang TC","Microsoft JhengHei",sans-serif';
+      ctx.textAlign = 'left';
+      if (mode === 'temp') {
+        ctx.fillText('鎖鑰模型：受質形狀須與活性部位互補，並須碰撞才能結合', 12, 24);
+      } else {
+        ctx.fillText(ENZYMES[enzymeKey].name + ' · 最適 pH ≈ ' + ENZYMES[enzymeKey].opt, 12, 24);
+      }
+
+      for (const p of products) drawProd(p);
+      for (const s of substrates) drawSub(s);
+      for (const e of enzymes) drawEnzyme(e);
+
+      for (const f of floatTexts) {
+        ctx.globalAlpha = clamp(f.life / 40, 0, 1);
+        ctx.fillStyle = f.col;
+        ctx.font = 'bold 15px "PingFang TC","Microsoft JhengHei",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(f.text, f.x, f.y);
+        ctx.globalAlpha = 1;
+      }
+
+      if (!playing) {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('已暫停', W / 2, H / 2);
+      }
+    }
+
+    resetParticles();
+
+    return {
+      step,
+      setParam(v) { param = v; },
+      setEnzyme(k) { enzymeKey = k; resetParticles(); },
+      toggle() { playing = !playing; return playing; },
+      setPlaying(v) { playing = v; },
+      isPlaying() { return playing; },
+      reset: resetParticles,
+      getHits() { return hits; },
+      activity,
+      denatured,
+      getParam() { return param },
+      getEnzymeKey() { return enzymeKey }
+    };
+  }
+
+  /* ---------- Curve drawers ---------- */
+  function drawTempCurve(canvas, tNow) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { l: 52, r: 18, t: 28, b: 42 };
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, W, H);
+
+    const xOf = t => pad.l + (t / 80) * (W - pad.l - pad.r);
+    const yOf = r => pad.t + (1 - r) * (H - pad.t - pad.b);
+
+    // axes
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t);
+    ctx.lineTo(pad.l, H - pad.b);
+    ctx.lineTo(W - pad.r, H - pad.b);
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    for (let t = 0; t <= 80; t += 20) {
+      ctx.fillText(t + '', xOf(t), H - pad.b + 18);
+      ctx.strokeStyle = '#1e293b';
+      ctx.beginPath(); ctx.moveTo(xOf(t), pad.t); ctx.lineTo(xOf(t), H - pad.b); ctx.stroke();
+    }
+    ctx.fillText('温度 (°C)', (pad.l + W - pad.r) / 2, H - 8);
+    ctx.save();
+    ctx.translate(16, (pad.t + H - pad.b) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('反應速率', 0, 0);
+    ctx.restore();
+
+    // curve
+    ctx.beginPath();
+    for (let t = 0; t <= 80; t += 0.5) {
+      const x = xOf(t), y = yOf(tempActivity(t));
+      if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // optimum marker
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.moveTo(xOf(37), pad.t);
+    ctx.lineTo(xOf(37), H - pad.b);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 13px "PingFang TC",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('最適温度 ≈37°C', xOf(37), pad.t - 8);
+
+    // labels
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px "PingFang TC",sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('不活躍', xOf(5), yOf(0.15));
+    ctx.fillText('酶已變性', xOf(62), yOf(0.12));
+
+    // current point
+    const r = tempActivity(tNow);
+    ctx.beginPath();
+    ctx.arc(xOf(tNow), yOf(r), 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f472b6';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawPhCurve(canvas, pH, enzymeKey) {
+    const e = ENZYMES[enzymeKey];
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { l: 52, r: 18, t: 36, b: 42 };
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, W, H);
+
+    const xOf = p => pad.l + ((p - 1) / 11) * (W - pad.l - pad.r);
+    const yOf = r => pad.t + (1 - r) * (H - pad.t - pad.b);
+
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t);
+    ctx.lineTo(pad.l, H - pad.b);
+    ctx.lineTo(W - pad.r, H - pad.b);
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    for (let p = 1; p <= 12; p++) {
+      if (p % 2 === 1 || p === 12) ctx.fillText(p + '', xOf(p), H - pad.b + 18);
+    }
+    ctx.fillText('pH', (pad.l + W - pad.r) / 2, H - 8);
+    ctx.save();
+    ctx.translate(16, (pad.t + H - pad.b) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('反應速率', 0, 0);
+    ctx.restore();
+
+    // reference curves for three enzymes (faint)
+    const refs = [
+      { key: 'pepsin', col: 'rgba(248,113,113,0.35)' },
+      { key: 'amylase', col: 'rgba(96,165,250,0.35)' },
+      { key: 'trypsin', col: 'rgba(167,139,250,0.35)' }
+    ];
+    for (const ref of refs) {
+      const er = ENZYMES[ref.key];
+      ctx.beginPath();
+      for (let p = 1; p <= 12; p += 0.1) {
+        const x = xOf(p), y = yOf(phActivity(p, er.opt, er.sigma));
+        if (p === 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = ref.col;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // active enzyme bold
+    ctx.beginPath();
+    for (let p = 1; p <= 12; p += 0.1) {
+      const x = xOf(p), y = yOf(phActivity(p, e.opt, e.sigma));
+      if (p === 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.moveTo(xOf(e.opt), pad.t);
+    ctx.lineTo(xOf(e.opt), H - pad.b);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 13px "PingFang TC",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('最適 pH ≈' + e.opt, xOf(e.opt), pad.t - 10);
+
+    // legend
+    ctx.font = '12px "PingFang TC",sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f87171'; ctx.fillText('胃蛋白酶', pad.l + 8, pad.t + 8);
+    ctx.fillStyle = '#60a5fa'; ctx.fillText('唾液澱粉酶', pad.l + 90, pad.t + 8);
+    ctx.fillStyle = '#a78bfa'; ctx.fillText('胰蛋白酶', pad.l + 190, pad.t + 8);
+
+    const r = phActivity(pH, e.opt, e.sigma);
+    ctx.beginPath();
+    ctx.arc(xOf(pH), yOf(r), 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f472b6';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  /* ---------- Wire UI ---------- */
+  const sceneTemp = createScene(document.getElementById('canvasTemp'), 'temp');
+  const scenePh = createScene(document.getElementById('canvasPh'), 'ph');
+
+  const tempSlider = document.getElementById('tempSlider');
+  const tempVal = document.getElementById('tempVal');
+  const tempStatus = document.getElementById('tempStatus');
+  const tempRate = document.getElementById('tempRate');
+  const tempHits = document.getElementById('tempHits');
+  const tempPlay = document.getElementById('tempPlay');
+  const curveTemp = document.getElementById('curveTemp');
+
+  const phSlider = document.getElementById('phSlider');
+  const phVal = document.getElementById('phVal');
+  const phStatus = document.getElementById('phStatus');
+  const phRate = document.getElementById('phRate');
+  const phHits = document.getElementById('phHits');
+  const phPlay = document.getElementById('phPlay');
+  const curvePh = document.getElementById('curvePh');
+
+  function updateTempStatus(t) {
+    const r = tempActivity(t);
+    tempRate.textContent = (r * 100).toFixed(0) + '%';
+    if (t < 8) {
+      tempStatus.className = 'status warn';
+      tempStatus.textContent = '低温：動能很低，碰撞機會極小 → 酶不活躍（結構未變，升温可恢復）。';
+    } else if (t < 30) {
+      tempStatus.className = 'status ok';
+      tempStatus.textContent = '温度上升：動能增加，分子運動加快，碰撞並形成酶受質複合物的機會增加。';
+    } else if (t <= 42) {
+      tempStatus.className = 'status ok';
+      tempStatus.textContent = '接近／處於最適温度（約 37 °C）：反應速率最高。';
+    } else if (t < 55) {
+      tempStatus.className = 'status warn';
+      tempStatus.textContent = '高於最適温度：開始損害維持形狀的鍵，活性部位漸變形，速率下降。';
+    } else {
+      tempStatus.className = 'status danger';
+      tempStatus.textContent = '高温變性：活性部位形狀改變，不能與受質結合，催化功能喪失（不可逆）！';
+    }
+  }
+
+  function updatePhStatus(pH, key) {
+    const e = ENZYMES[key];
+    const r = phActivity(pH, e.opt, e.sigma);
+    phRate.textContent = (r * 100).toFixed(0) + '%';
+    if (isDenaturedPh(pH, e.opt, e.sigma)) {
+      phStatus.className = 'status danger';
+      phStatus.textContent = '極端 pH：' + e.name + ' 活性部位變形（變性），受質無法結合，反應速率極低。';
+    } else if (Math.abs(pH - e.opt) < 0.6) {
+      phStatus.className = 'status ok';
+      phStatus.textContent = '處於 ' + e.name + ' 的最適 pH（≈' + e.opt + '）：活性部位形狀正確，反應速率最高。';
+    } else {
+      phStatus.className = 'status warn';
+      phStatus.textContent = '偏離最適 pH：活性部位形狀受影響，與受質結合效率下降。';
+    }
+  }
+
+  tempSlider.addEventListener('input', () => {
+    const t = +tempSlider.value;
+    tempVal.textContent = t + ' °C';
+    sceneTemp.setParam(t);
+    updateTempStatus(t);
+    drawTempCurve(curveTemp, t);
+  });
+  phSlider.addEventListener('input', () => {
+    const p = +phSlider.value;
+    phVal.textContent = p.toFixed(1);
+    scenePh.setParam(p);
+    updatePhStatus(p, scenePh.getEnzymeKey());
+    drawPhCurve(curvePh, p, scenePh.getEnzymeKey());
+  });
+
+  tempPlay.addEventListener('click', () => {
+    const on = sceneTemp.toggle();
+    tempPlay.textContent = on ? '⏸ 暫停' : '▶ 播放';
+  });
+  phPlay.addEventListener('click', () => {
+    const on = scenePh.toggle();
+    phPlay.textContent = on ? '⏸ 暫停' : '▶ 播放';
+  });
+  document.getElementById('tempReset').addEventListener('click', () => sceneTemp.reset());
+  document.getElementById('phReset').addEventListener('click', () => scenePh.reset());
+
+  document.querySelectorAll('#enzymePick button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#enzymePick button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      const key = btn.dataset.enzyme;
+      scenePh.setEnzyme(key);
+      // snap slider near optimum for teaching clarity (keep user's freedom — only hint)
+      const opt = ENZYMES[key].opt;
+      // don't force slider; just refresh status/curve
+      updatePhStatus(+phSlider.value, key);
+      drawPhCurve(curvePh, +phSlider.value, key);
+      // optional: gently move toward opt for demo
+      phSlider.value = opt;
+      phVal.textContent = opt.toFixed(1);
+      scenePh.setParam(opt);
+      updatePhStatus(opt, key);
+      drawPhCurve(curvePh, opt, key);
+    });
+  });
+
+  // init
+  updateTempStatus(37);
+  drawTempCurve(curveTemp, 37);
+  updatePhStatus(7, 'amylase');
+  drawPhCurve(curvePh, 7, 'amylase');
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const tempPanelOn = document.getElementById('panel-temp').classList.contains('active');
+    if (tempPanelOn) {
+      sceneTemp.step(dt);
+      tempHits.textContent = sceneTemp.getHits();
+      drawTempCurve(curveTemp, +tempSlider.value);
+    } else {
+      scenePh.step(dt);
+      phHits.textContent = scenePh.getHits();
+      drawPhCurve(curvePh, +phSlider.value, scenePh.getEnzymeKey());
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

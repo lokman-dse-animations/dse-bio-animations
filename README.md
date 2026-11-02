@@ -4,7 +4,7 @@
 
 ## 導航結構
 
-`index.html`（年級／科目）→ `f4-biology.html`（中四生物課次）→ `f4-l4-membrane.html`（第四課動畫）
+`index.html`（年級／科目）→ `f4-biology.html`（中四生物課次）→ `f4-l4-membrane.html`（第四課動畫）／ `f4-l5-enzymes.html`（第五課動畫）
 
 ## 現有內容
 
@@ -14,5 +14,9 @@
     - [物質穿越細胞膜](transport.html)
     - [擴散](diffusion.html)
     - [滲透](osmosis.html)
+  - [第五課／第5章 · 新陳代謝與酶](f4-l5-enzymes.html)
+    - [酶的運作](enzyme_how_it_works.html)
+    - [温度與 pH 對酶活性的影響](enzyme_temp_pH_animation.html)
+    - [酶抑制劑](enzyme_inhibitors.html)
 
 用 Chrome 或 Safari 離線開啟效果最佳。
