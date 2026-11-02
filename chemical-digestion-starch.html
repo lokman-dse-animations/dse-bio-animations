@@ -235,7 +235,7 @@
     {
       id: "break",
       title: "場景 2：酶把鏈切斷",
-      desc: "澱粉酶作用：澱粉鏈<strong>斷開</strong>→ 變成<strong>麥芽糖</strong>等較簡單物質。學生版可記：<strong>澱粉 → 糖</strong>（旁註：主要先成<strong>麥芽糖</strong>）。"
+      desc: "同一粒<strong>澱粉酶</strong>：先切整條鏈<strong>中間</strong>→兩邊各四單位；再切每邊<strong>中間鍵</strong>→拆成<strong>兩個兩個</strong>（麥芽糖）。學生版可記：<strong>澱粉 → 糖</strong>（旁註：主要先成<strong>麥芽糖</strong>）。"
     },
     {
       id: "new",
@@ -321,36 +321,81 @@
     ctx.stroke();
   }
 
-  function drawStarchChain(cx, cy, n, gap, scale, brokenAt) {
-    // brokenAt: index after which chain is split (null = intact)
+  function drawStarchChain(cx, cy, n, gap, scale, brokenAt, opts) {
+    // brokenAt: bond index that is cut (null = intact)
+    // opts.gapFrac: 0–1 how far the right half has moved away
+    // opts.highlightBond: bond index to emphasize (before cut)
+    // opts.omitBond: bond index to draw with a visible gap (partial snap)
+    opts = opts || {};
+    const gapFrac = opts.gapFrac || 0;
+    const highlightBond = opts.highlightBond;
+    const omitBond = opts.omitBond;
     const units = [];
     const totalW = (n - 1) * gap;
     const x0 = cx - totalW / 2;
+    const sep = (brokenAt != null ? 55 : 0) * scale * gapFrac;
     for (let i = 0; i < n; i++) {
       let x = x0 + i * gap;
       let y = cy;
       if (brokenAt != null && i > brokenAt) {
-        x += 40 * scale; // separate after break
-        y += 10 * Math.sin(i);
+        x += sep;
+        y += 8 * Math.sin(i + gapFrac * 2) * gapFrac;
       }
       units.push({ x: x, y: y });
     }
     // bonds
-    ctx.strokeStyle = "#5a3d8a";
-    ctx.lineWidth = 5 * scale;
     ctx.lineCap = "round";
     for (let i = 0; i < n - 1; i++) {
-      if (brokenAt != null && i === brokenAt) continue; // broken bond
+      if (omitBond != null && i === omitBond) continue;
+      if (brokenAt != null && i === brokenAt && gapFrac > 0.15) continue;
+      const isHi = highlightBond != null && i === highlightBond;
+      ctx.strokeStyle = isHi ? "#c0392b" : "#5a3d8a";
+      ctx.lineWidth = (isHi ? 9 : 5) * scale;
+      if (isHi) {
+        ctx.shadowColor = "rgba(192,57,43,0.55)";
+        ctx.shadowBlur = 12;
+      }
       ctx.beginPath();
       ctx.moveTo(units[i].x, units[i].y);
       ctx.lineTo(units[i + 1].x, units[i + 1].y);
       ctx.stroke();
+      ctx.shadowBlur = 0;
     }
     // hex units
     for (let i = 0; i < n; i++) {
       drawHex(units[i].x, units[i].y, 22 * scale, "#7b5ea7", "#5a3d8a");
     }
     return units;
+  }
+
+  function drawCutMark(x, y, progress) {
+    // Zig-zag snap mark that grows with progress (0–1)
+    const p = Math.max(0, Math.min(1, progress));
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.65 * p;
+    ctx.strokeStyle = "#c0392b";
+    ctx.lineWidth = 3 + 2 * p;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const h = 55 * p;
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - h);
+    ctx.lineTo(x + 10, y - h * 0.45);
+    ctx.lineTo(x - 8, y + h * 0.1);
+    ctx.lineTo(x + 12, y + h);
+    ctx.stroke();
+    // Small spark dots near the cut
+    if (p > 0.4) {
+      ctx.fillStyle = "#e74c3c";
+      for (let i = 0; i < 4; i++) {
+        const a = i * 1.7 + progress * 4;
+        const rr = 18 + i * 6;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.6, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   function drawEnzyme(x, y, label) {
@@ -479,53 +524,266 @@
   }
 
   function drawScene2(t) {
-    const cut = smoothstep(0.8, 2.8, t);
-    const brokenAt = cut > 0.3 ? 3 : null;
+    // Same amylase, three cuts (classroom-slow):
+    // 0–2.0s   dock on 8-chain middle bond
+    // 2.0–4.5s cut → two tetramers separate
+    // 4.5–6.0s move to LEFT tetramer middle
+    // 6.0–8.5s cut left → two maltose pairs
+    // 8.5–10.0s move to RIGHT tetramer middle
+    // 10.0–12.5s cut right → two maltose pairs
+    // 12.5s+   hold four maltose (idle bob)
+    const GAP = 50;
+    const SCALE = 1.0;
+    const R = 22 * SCALE;
+    const cy = H * 0.40;
+    const baseCx = W * 0.42;
+
+    const T1_APPROACH = 2.0;
+    const T1_CUT0 = 2.0, T1_CUT1 = 4.5;
+    const T2_MOVE0 = 4.5, T2_MOVE1 = 6.0;
+    const T2_CUT0 = 6.0, T2_CUT1 = 8.5;
+    const T3_MOVE0 = 8.5, T3_MOVE1 = 10.0;
+    const T3_CUT0 = 10.0, T3_CUT1 = 12.5;
+    const HOLD = 12.5;
 
     ctx.fillStyle = "#7b5ea7";
     ctx.font = "bold 28px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("澱粉 → 較簡單糖類", 80, 70);
 
-    if (cut < 0.5) {
-      drawStarchChain(W * 0.4, H * 0.38, 8, 52, 1.05, brokenAt);
-      // Enzyme at cut site
-      const pulse = 1 + 0.08 * Math.sin(t * 6);
-      ctx.save();
-      ctx.translate(W * 0.4, H * 0.38);
-      ctx.scale(pulse, pulse);
-      ctx.translate(-W * 0.4, -H * 0.38);
-      drawEnzyme(W * 0.4 + 20, H * 0.38 - 70, null);
-      ctx.restore();
-      if (cut > 0.25) {
-        // Lightning / cut mark
-        ctx.strokeStyle = "#c0392b";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(W * 0.4 + 10, H * 0.38 - 50);
-        ctx.lineTo(W * 0.4 + 25, H * 0.38 - 10);
-        ctx.lineTo(W * 0.4 + 5, H * 0.38 + 10);
-        ctx.lineTo(W * 0.4 + 30, H * 0.38 + 45);
-        ctx.stroke();
-        drawCallout(W * 0.72, H * 0.28, "切斷！", "#c0392b", 32);
-      }
-    } else {
-      // Show maltose products
-      const fade = smoothstep(0.5, 1, cut);
-      ctx.globalAlpha = fade;
-      const positions = [
-        [W * 0.22, H * 0.35], [W * 0.42, H * 0.32],
-        [W * 0.62, H * 0.36], [W * 0.38, H * 0.52]
-      ];
-      positions.forEach(function (p, i) {
-        const bob = Math.sin(t * 2.5 + i) * 6;
-        drawMaltose(p[0], p[1] + bob, 1.15);
-      });
-      ctx.globalAlpha = 1;
+    // Separation of the two tetramers after first cut
+    const sep1 = smoothstep(T1_CUT0 + 0.4, T1_CUT1, t) * 95;
+    const leftCx = baseCx - 1.5 * GAP - sep1 * 0.55;
+    const rightCx = baseCx + 1.5 * GAP + sep1 * 0.55;
+    const leftCy = cy + smoothstep(T1_CUT0 + 0.5, T1_CUT1, t) * 18;
+    const rightCy = cy - smoothstep(T1_CUT0 + 0.5, T1_CUT1, t) * 10;
 
-      drawEnzyme(W * 0.82, H * 0.4, "澱粉酶");
-      drawCallout(W * 0.4, H * 0.68, "澱粉 → 糖（麥芽糖）", "#27ae60", 30);
-      drawFootnote(W * 0.4, H * 0.78, "較簡單物質 · 課文常寫可進一步成葡萄糖");
+    // Progress helpers for each cut (0–1)
+    const cut1 = smoothstep(T1_CUT0, T1_CUT1, t);
+    const cut2 = smoothstep(T2_CUT0, T2_CUT1, t);
+    const cut3 = smoothstep(T3_CUT0, T3_CUT1, t);
+
+    // Left/right tetramer further split into pairs (extra gap after secondary cuts)
+    const leftPairSep = smoothstep(0.4, 1, cut2) * 38;
+    const rightPairSep = smoothstep(0.4, 1, cut3) * 38;
+
+    // Maltose fade-in (after each secondary cut is well underway)
+    const leftMaltA = smoothstep(T2_CUT0 + 1.4, T2_CUT0 + 2.2, t);
+    const leftMaltB = smoothstep(T2_CUT0 + 1.9, T2_CUT0 + 2.7, t);
+    const rightMaltA = smoothstep(T3_CUT0 + 1.4, T3_CUT0 + 2.2, t);
+    const rightMaltB = smoothstep(T3_CUT0 + 1.9, T3_CUT0 + 2.7, t);
+
+    // Hide purple fragments as they convert to green maltose
+    const leftFragAlpha = 1 - smoothstep(T2_CUT0 + 1.5, T2_CUT0 + 2.4, t);
+    const rightFragAlpha = 1 - smoothstep(T3_CUT0 + 1.5, T3_CUT0 + 2.4, t);
+
+    function unitXs(cx, n, gap, extraMidGap) {
+      // extraMidGap: extra space inserted after bond index 1 (middle of tetramer)
+      const mid = Math.floor((n - 1) / 2); // 1 for n=4
+      const total = (n - 1) * gap + (extraMidGap || 0);
+      const x0 = cx - total / 2;
+      const xs = [];
+      let x = x0;
+      for (let i = 0; i < n; i++) {
+        xs.push(x);
+        if (i < n - 1) x += gap + (i === mid ? (extraMidGap || 0) : 0);
+      }
+      return xs;
+    }
+
+    function drawBondLine(x1, y1, x2, y2, highlight) {
+      ctx.strokeStyle = highlight ? "#c0392b" : "#5a3d8a";
+      ctx.lineWidth = (highlight ? 9 : 5) * SCALE;
+      ctx.lineCap = "round";
+      if (highlight) {
+        ctx.shadowColor = "rgba(192,57,43,0.55)";
+        ctx.shadowBlur = 12;
+      }
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawPurpleUnits(xs, y) {
+      for (let i = 0; i < xs.length; i++) {
+        drawHex(xs[i], y, R, "#7b5ea7", "#5a3d8a");
+      }
+    }
+
+    function drawFragmentCutFX(xs, y, midBond, cutProg) {
+      // midBond: bond index being cut (1 for tetramer)
+      if (cutProg <= 0.12) return;
+      const xL = xs[midBond];
+      const xR = xs[midBond + 1];
+      const mx = (xL + xR) / 2;
+      if (cutProg > 0.2 && cutProg < 0.95) {
+        const stub = 8 + 5 * (1 - cutProg);
+        ctx.strokeStyle = "#c0392b";
+        ctx.lineWidth = 7 * SCALE;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(xL, y);
+        ctx.lineTo(xL + stub, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(xR - stub, y);
+        ctx.lineTo(xR, y);
+        ctx.stroke();
+      }
+      drawCutMark(mx, y, cutProg);
+    }
+
+    // ---- Draw starch: intact 8, then two tetramers, then splitting ----
+    if (t < T1_CUT0 + 0.45) {
+      // Intact / just-snapping 8-unit chain (extra gap at middle as it opens)
+      const xs = unitXs(baseCx, 8, GAP, sep1);
+      const hiMid = t >= T1_CUT0 - 0.35 && cut1 < 0.55;
+      const omitMid = cut1 > 0.35;
+      for (let i = 0; i < 7; i++) {
+        if (omitMid && i === 3) continue;
+        drawBondLine(xs[i], cy, xs[i + 1], cy, hiMid && i === 3);
+      }
+      drawPurpleUnits(xs, cy);
+      if (cut1 > 0.12) drawFragmentCutFX(xs, cy, 3, cut1);
+    } else {
+      // Two tetramers (may still be cutting / converting)
+      if (leftFragAlpha > 0.02) {
+        ctx.globalAlpha = leftFragAlpha;
+        const lxs = unitXs(leftCx, 4, GAP, leftPairSep);
+        const hiL = t >= T2_CUT0 - 0.25 && cut2 < 0.55;
+        const omitL = cut2 > 0.4;
+        for (let i = 0; i < 3; i++) {
+          if (omitL && i === 1) continue;
+          drawBondLine(lxs[i], leftCy, lxs[i + 1], leftCy, hiL && i === 1);
+        }
+        drawPurpleUnits(lxs, leftCy);
+        if (t >= T2_CUT0 && cut2 < 0.98) drawFragmentCutFX(lxs, leftCy, 1, cut2);
+        ctx.globalAlpha = 1;
+      }
+      if (rightFragAlpha > 0.02) {
+        ctx.globalAlpha = rightFragAlpha;
+        const rxs = unitXs(rightCx, 4, GAP, rightPairSep);
+        const hiR = t >= T3_CUT0 - 0.25 && cut3 < 0.55;
+        const omitR = cut3 > 0.4;
+        for (let i = 0; i < 3; i++) {
+          if (omitR && i === 1) continue;
+          drawBondLine(rxs[i], rightCy, rxs[i + 1], rightCy, hiR && i === 1);
+        }
+        drawPurpleUnits(rxs, rightCy);
+        if (t >= T3_CUT0 && cut3 < 0.98) drawFragmentCutFX(rxs, rightCy, 1, cut3);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // ---- Maltose products from each half ----
+    function drawMaltoseFade(x, y, fade, phase) {
+      if (fade <= 0) return;
+      const bob = Math.sin(t * 2.0 + phase) * 6;
+      const pop = 0.75 + 0.25 * fade;
+      ctx.globalAlpha = fade;
+      ctx.save();
+      ctx.translate(x, y + bob);
+      ctx.scale(pop * 1.1, pop * 1.1);
+      drawMaltose(0, 0, 1);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // Left half → two pairs (inner positions of left tetramer)
+    drawMaltoseFade(leftCx - GAP * 0.7 - leftPairSep * 0.35, leftCy, leftMaltA, 0.2);
+    drawMaltoseFade(leftCx + GAP * 0.7 + leftPairSep * 0.35, leftCy, leftMaltB, 1.1);
+    // Right half → two pairs
+    drawMaltoseFade(rightCx - GAP * 0.7 - rightPairSep * 0.35, rightCy, rightMaltA, 2.0);
+    drawMaltoseFade(rightCx + GAP * 0.7 + rightPairSep * 0.35, rightCy, rightMaltB, 2.8);
+
+    // ---- Single amylase path (one instance) ----
+    // Waypoints: start right → dock mid-8 → left tetramer mid → right tetramer mid → rest
+    const mid8X = baseCx;
+    const mid8Y = cy - 78;
+    const leftMidX = leftCx;
+    const leftMidY = leftCy - 78;
+    const rightMidX = rightCx;
+    const rightMidY = rightCy - 78;
+    const restX = W * 0.86;
+    const restY = H * 0.42;
+
+    let ex, ey;
+    if (t < T1_APPROACH) {
+      const a = smoothstep(0, T1_APPROACH, t);
+      ex = W * 0.88 + (mid8X - W * 0.88) * a;
+      ey = cy + Math.sin(t * 1.6) * 6 * (1 - a) + (mid8Y - cy) * a;
+    } else if (t < T2_MOVE0) {
+      ex = (leftCx + rightCx) / 2;
+      ey = mid8Y + Math.sin(t * 4) * 3;
+    } else if (t < T2_CUT0) {
+      const a = smoothstep(T2_MOVE0, T2_CUT0, t);
+      const fromX = (leftCx + rightCx) / 2;
+      const fromY = mid8Y;
+      ex = fromX + (leftMidX - fromX) * a;
+      ey = fromY + (leftMidY - fromY) * a;
+    } else if (t < T3_MOVE0) {
+      ex = leftMidX;
+      ey = leftMidY + Math.sin(t * 5) * 4;
+    } else if (t < T3_CUT0) {
+      const a = smoothstep(T3_MOVE0, T3_CUT0, t);
+      ex = leftMidX + (rightMidX - leftMidX) * a;
+      ey = leftMidY + (rightMidY - leftMidY) * a;
+    } else if (t < HOLD) {
+      ex = rightMidX;
+      ey = rightMidY + Math.sin(t * 5) * 4;
+    } else {
+      const a = smoothstep(HOLD, HOLD + 1.2, t);
+      ex = rightMidX + (restX - rightMidX) * a;
+      ey = rightMidY + (restY - rightMidY) * a;
+    }
+
+    const cutting =
+      (t >= T1_CUT0 && t < T1_CUT1) ||
+      (t >= T2_CUT0 && t < T2_CUT1) ||
+      (t >= T3_CUT0 && t < T3_CUT1);
+    const pulseAmp = cutting ? 0.12 : 0.05;
+    const pulse = 1 + pulseAmp * Math.sin(t * (cutting ? 5 : 2.2));
+    const showFullLabel = t >= HOLD + 0.4;
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.scale(pulse, pulse);
+    ctx.translate(-ex, -ey);
+    drawEnzyme(ex, ey, showFullLabel ? "澱粉酶" : null);
+    ctx.restore();
+    if (!showFullLabel) {
+      ctx.fillStyle = "#c45f0e";
+      ctx.font = "bold 20px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("澱粉酶", ex, ey + 52);
+      ctx.font = "15px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.fillStyle = "#5a6a7a";
+      ctx.fillText("amylase", ex, ey + 72);
+    }
+
+    // ---- Callouts ----
+    if (t < T1_CUT0) {
+      drawCallout(W * 0.5, H * 0.78, "澱粉酶對準中間的化學鍵", "#e67e22", 28);
+      drawFootnote(W * 0.5, H * 0.88, "同一粒酶會再切兩邊的片段");
+    } else if (t < T2_MOVE0) {
+      drawCallout(W * 0.72, H * 0.72, "切斷！變成兩邊各四單位", "#c0392b", 26);
+      drawFootnote(W * 0.72, H * 0.82, "鏈慢慢分開");
+    } else if (t < T2_CUT0) {
+      drawCallout(W * 0.28, H * 0.78, "移去左邊：對準中間鍵", "#e67e22", 24);
+      drawFootnote(W * 0.28, H * 0.88, "四單位 → 準備拆成兩個兩個");
+    } else if (t < T3_MOVE0) {
+      drawCallout(W * 0.28, H * 0.78, "切開左邊 → 兩個麥芽糖", "#27ae60", 24);
+      drawFootnote(W * 0.28, H * 0.88, "四單位拆成 2＋2");
+    } else if (t < T3_CUT0) {
+      drawCallout(W * 0.72, H * 0.78, "同一粒酶移去右邊", "#e67e22", 24);
+      drawFootnote(W * 0.72, H * 0.88, "再切另一邊的中間鍵");
+    } else if (t < HOLD) {
+      drawCallout(W * 0.72, H * 0.78, "切開右邊 → 兩個麥芽糖", "#27ae60", 24);
+      drawFootnote(W * 0.72, H * 0.88, "四單位拆成 2＋2");
+    } else {
+      drawCallout(W * 0.42, H * 0.78, "澱粉 → 四分子麥芽糖", "#27ae60", 28);
+      drawFootnote(W * 0.42, H * 0.88, "較簡單物質 · 課文常寫可進一步成葡萄糖");
     }
   }
 
