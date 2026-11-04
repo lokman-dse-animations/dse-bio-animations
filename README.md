@@ -15,7 +15,8 @@
     - [擴散](diffusion.html)
     - [滲透](osmosis.html)
   - [第五課／第5章 · 新陳代謝與酶](f4-l5-enzymes.html)
-    - [酶的運作](enzyme_how_it_works.html)
+    - [酶的運作](enzyme_how_it_works.html)（蔗糖酶催化循環、鎖鑰模型）
+    - [過氧化氫酶紙碟實驗](catalase_disc_experiment.html)
     - [温度、pH 與抑制劑](enzyme_temp_pH_animation.html)（同一檔含抑制劑分頁）
     - [酶抑制劑](enzyme_inhibitors.html)
 

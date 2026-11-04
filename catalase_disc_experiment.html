@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>過氧化氫酶紙碟實驗｜HKDSE 生物 Ch5 新陳代謝與酶</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --card: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --enzyme: #22c55e;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --o2: #67e8f9;
+    --h2o2: #93c5fd;
+    --liver: #c45c4a;
+    --pork: #e8a0a0;
+    --apple: #86efac;
+    --potato: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.45;
+  }
+  header {
+    text-align: center;
+    padding: 1rem 1.5rem 0.5rem;
+    border-bottom: 2px solid #334155;
+  }
+  header h1 {
+    font-size: clamp(1.55rem, 3.4vw, 2.3rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+    margin-top: 0.35rem;
+  }
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.5rem;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    font-size: clamp(1.05rem, 2.1vw, 1.35rem);
+    font-weight: 700;
+    padding: 0.65rem 1.4rem;
+    border: 3px solid var(--accent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tab-btn:hover { background: rgba(56,189,248,0.15); }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0f172a;
+  }
+  .panel { display: none; padding: 0.75rem 1.25rem 1.5rem; max-width: 1440px; margin: 0 auto; }
+  .panel.active { display: block; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .scene-card, .side-card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid #475569;
+  }
+  .scene-card h2, .side-card h2 {
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+    margin-bottom: 0.5rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-block; border: 2px solid #fff3;
+  }
+  .dot.disc { background: #e2e8f0; border-radius: 3px; }
+  .dot.o2 { background: var(--o2); }
+  .dot.h2o2 { background: var(--h2o2); }
+  .dot.enzyme { background: var(--enzyme); border-radius: 4px; }
+  canvas {
+    width: 100%;
+    height: auto;
+    background: #0b1220;
+    border-radius: 12px;
+    border: 2px solid #475569;
+    display: block;
+  }
+  .controls {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+  button.ctrl {
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    font-weight: 700;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: #0f172a;
+  }
+  button.ctrl.secondary { background: var(--card); color: var(--text); border: 2px solid #64748b; }
+  button.ctrl:active { transform: scale(0.97); }
+  .status {
+    font-size: clamp(1.05rem, 2vw, 1.28rem);
+    font-weight: 700;
+    padding: 0.55rem 0.85rem;
+    border-radius: 10px;
+    background: #0f172a;
+    border-left: 6px solid var(--ok);
+    min-height: 2.6rem;
+  }
+  .status.warn { border-left-color: var(--warn); }
+  .status.danger { border-left-color: var(--danger); }
+  .status.ok { border-left-color: var(--ok); }
+  .takeaway {
+    margin-top: 0.75rem;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    background: #172554;
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 0.7rem 1rem;
+    line-height: 1.5;
+  }
+  .takeaway strong { color: #93c5fd; }
+  .bullets {
+    list-style: none;
+    font-size: clamp(1.05rem, 1.9vw, 1.25rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .bullets li {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    border-left: 5px solid var(--enzyme);
+  }
+  .bullets li.rate { border-left-color: var(--accent); }
+  .bullets li.warn { border-left-color: var(--warn); }
+  .bullets li.danger { border-left-color: var(--danger); }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.4rem;
+    font-size: clamp(0.95rem, 1.7vw, 1.15rem);
+  }
+  .data-table th, .data-table td {
+    border: 1px solid #475569;
+    padding: 0.45rem 0.55rem;
+    text-align: center;
+  }
+  .data-table th { background: #0f172a; color: var(--accent); }
+  .data-table tr.hi { background: rgba(34,197,94,0.15); }
+  .data-table tr.lo { background: rgba(248,113,113,0.12); }
+  .timer-badge {
+    font-size: clamp(1.15rem, 2.3vw, 1.5rem);
+    font-weight: 800;
+    background: #0f172a;
+    padding: 0.25rem 0.75rem;
+    border-radius: 8px;
+    border: 2px solid var(--accent);
+    min-width: 5rem;
+    text-align: center;
+  }
+  .key-terms {
+    font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+    color: var(--muted);
+    margin-top: 0.75rem;
+  }
+  .key-terms b { color: #e2e8f0; }
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    margin: 0.4rem 0 0.6rem;
+  }
+  .step {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid #334155;
+    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+    transition: 0.2s;
+  }
+  .step.active-step {
+    border-color: var(--accent);
+    background: rgba(56,189,248,0.12);
+    box-shadow: 0 0 0 2px rgba(56,189,248,0.25);
+  }
+  .step .num {
+    display: inline-block;
+    width: 1.6rem; height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.6rem;
+    margin-right: 0.35rem;
+    font-size: 0.95rem;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem 1.25rem;
+  }
+  .top-back {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0.85rem 1.25rem 0;
+    text-align: left;
+  }
+  .top-back a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .top-back a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="top-back"><a href="f4-l5-enzymes.html">← 返回課次目錄</a></div>
+<header>
+  <h1>過氧化氫酶 · 紙碟浮起實驗</h1>
+  <p class="sub">HKDSE 生物 · Aristo Ch5《新陳代謝與酶》p.5-18 · 比較不同組織提取液的相對過氧化氫酶含量</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="exp" type="button">A｜四管比較實驗</button>
+  <button class="tab-btn" data-tab="why" type="button">B｜為何會浮起？</button>
+  <button class="tab-btn" data-tab="rate" type="button">C｜速率與結果</button>
+  <button class="tab-btn" data-tab="boil" type="button">D｜煮沸肝提取液</button>
+</nav>
+
+<!-- ========== A: EXPERIMENT ========== -->
+<section id="panel-exp" class="panel active">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🧪 紙碟浸提取液 → 放入 H₂O₂ → 下沉後浮起</h2>
+      <div class="legend">
+        <span><i class="dot disc"></i>濾紙碟</span>
+        <span><i class="dot h2o2"></i>過氧化氫溶液</span>
+        <span><i class="dot o2"></i>氧氣氣泡</span>
+        <span><i class="dot enzyme"></i>過氧化氫酶</span>
+      </div>
+      <canvas id="canvasExp" width="900" height="480"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="expPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="expReset" type="button">↺ 重新開始</button>
+          <span class="timer-badge">t = <span id="expT">0.0</span> s</span>
+          <span style="color:var(--muted);font-size:0.95rem;">（動畫時間軸已加速；真實時間見標籤）</span>
+        </div>
+        <div class="status ok" id="expStatus">準備：四支試管各盛相同濃度／體積的 H₂O₂。紙碟浸入提取液後放入試管，先沉底。</div>
+      </div>
+      <p class="takeaway"><strong>公平測試：</strong>相同質量組織製提取液、相同紙碟大小／物料、相同 H₂O₂ 體積與濃度——只改變<strong>提取液來源</strong>（組織種類）。</p>
+    </div>
+    <div class="side-card">
+      <h2>📋 實驗步驟</h2>
+      <div class="steps" id="expSteps">
+        <div class="step active-step" data-s="0"><span class="num">1</span>製備 A–D 四種組織提取液</div>
+        <div class="step" data-s="1"><span class="num">2</span>濾紙碟浸入提取液</div>
+        <div class="step" data-s="2"><span class="num">3</span>放入 H₂O₂ → 紙碟沉底</div>
+        <div class="step" data-s="3"><span class="num">4</span>計時至紙碟浮至液面</div>
+        <div class="step" data-s="4"><span class="num">5</span>比較浮起時間 → 推斷相對酶量</div>
+      </div>
+      <h2 style="margin-top:0.85rem">🧪 試管內容</h2>
+      <table class="data-table">
+        <thead><tr><th>試管</th><th>提取液</th><th>浮起時間</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td>A</td><td>豬肝</td><td>10 s</td></tr>
+          <tr><td>B</td><td>豬肉</td><td>20 s</td></tr>
+          <tr class="lo"><td>C</td><td>蘋果</td><td>40 s</td></tr>
+          <tr><td>D</td><td>馬鈴薯</td><td>30 s</td></tr>
+        </tbody>
+      </table>
+      <div class="key-terms">
+        <b>關鍵詞：</b>過氧化氫酶 catalase · 提取液 extract · 濾紙碟 · 相對含量
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== B: WHY FLOAT ========== -->
+<section id="panel-why" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🫧 紙碟為何會浮起？（機制放大）</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>過氧化氫酶</span>
+        <span><i class="dot h2o2"></i>H₂O₂</span>
+        <span><i class="dot o2"></i>O₂ 氣泡</span>
+        <span><i class="dot disc"></i>紙碟</span>
+      </div>
+      <canvas id="canvasWhy" width="900" height="460"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="whyPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="whyReset" type="button">↺ 重置</button>
+        </div>
+        <div class="status ok" id="whyStatus">提取液中的過氧化氫酶催化 H₂O₂ 分解，放出 O₂。</div>
+      </div>
+      <p class="takeaway"><strong>一句總結：</strong>過氧化氫酶分解 H₂O₂ → 產生<strong>氧氣氣泡</strong>附著於紙碟 → 浮力增大 → 紙碟浮起。浮起愈快，相對酶含量／反應速率愈高。</p>
+    </div>
+    <div class="side-card">
+      <h2>📌 教學重點（例題 5.1b）</h2>
+      <ul class="bullets">
+        <li>提取液含<strong>過氧化氫酶</strong>（catalase）</li>
+        <li>催化反應：<strong>2 H₂O₂ → 2 H₂O + O₂</strong></li>
+        <li>O₂ 氣泡在紙碟表面形成</li>
+        <li>氣泡提供<strong>浮力（buoyancy）</strong>，紙碟上升</li>
+        <li class="warn">浮起時間短 → 氣泡產生快 → 酶較多／活性較高</li>
+      </ul>
+      <div class="key-terms">
+        <b>記住：</strong>紙碟本身不會「變輕」——是附著的氧氣氣泡令整體密度降低。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== C: RATE ========== -->
+<section id="panel-rate" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>📊 反應速率 ≈ 1／t（條形圖動畫）</h2>
+      <canvas id="canvasRate" width="900" height="460"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="ratePlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="rateReset" type="button">↺ 重置</button>
+        </div>
+        <div class="status ok" id="rateStatus">速率以 1／時間（s⁻¹）表示。豬肝最高，蘋果最低。</div>
+      </div>
+      <p class="takeaway"><strong>解讀：</strong>相對過氧化氫酶含量：<strong>豬肝 &gt; 豬肉 &gt; 馬鈴薯 &gt; 蘋果</strong>。動物肝臟代謝活躍，過氧化氫酶特別豐富（解毒／分解有毒 H₂O₂）。</p>
+    </div>
+    <div class="side-card">
+      <h2>📋 結果表（例題 5.1c）</h2>
+      <table class="data-table">
+        <thead>
+          <tr><th>試管</th><th>提取液</th><th>t (s)</th><th>速率 1/t (s⁻¹)</th></tr>
+        </thead>
+        <tbody>
+          <tr class="hi"><td>A</td><td>豬肝</td><td>10</td><td><strong>0.100</strong></td></tr>
+          <tr><td>B</td><td>豬肉</td><td>20</td><td>0.050</td></tr>
+          <tr><td>D</td><td>馬鈴薯</td><td>30</td><td>0.033</td></tr>
+          <tr class="lo"><td>C</td><td>蘋果</td><td>40</td><td>0.025</td></tr>
+        </tbody>
+      </table>
+      <ul class="bullets" style="margin-top:0.85rem">
+        <li class="rate">速率 = <strong>1／t</strong>（單位 s⁻¹）</li>
+        <li>時間愈短 → 速率愈大</li>
+        <li>速率愈大 → 相對酶含量愈高</li>
+      </ul>
+      <div class="key-terms">
+        <b>注意：</b>此為相對比較，非絕對酶濃度。須控制公平測試變項。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== D: BOILED ========== -->
+<section id="panel-boil" class="panel">
+  <div class="layout">
+    <div class="scene-card">
+      <h2>🔥 對照：煮沸豬肝提取液 → 紙碟不浮</h2>
+      <div class="legend">
+        <span><i class="dot enzyme"></i>活性酶</span>
+        <span><i class="dot" style="background:#64748b;border-radius:4px"></i>變性酶</span>
+        <span><i class="dot disc"></i>紙碟</span>
+        <span><i class="dot o2"></i>O₂（僅左管）</span>
+      </div>
+      <canvas id="canvasBoil" width="900" height="460"></canvas>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="ctrl" id="boilPlay" type="button">⏸ 暫停</button>
+          <button class="ctrl secondary" id="boilReset" type="button">↺ 重置</button>
+        </div>
+        <div class="status danger" id="boilStatus">左：新鮮肝提取液（浮起）。右：煮沸後（酶變性，不浮）。</div>
+      </div>
+      <p class="takeaway"><strong>例題 5.1d：</strong>高溫使過氧化氫酶（蛋白質）<strong>變性（denature）</strong>，活性部位永久破壞 → 無法催化 H₂O₂ 分解 → 無 O₂ 氣泡 → 紙碟<strong>不會浮起</strong>。</p>
+    </div>
+    <div class="side-card">
+      <h2>📌 變性重點</h2>
+      <ul class="bullets">
+        <li>酶是<strong>蛋白質</strong>，對高溫敏感</li>
+        <li class="danger">煮沸 → 三維結構破壞 → <strong>變性</strong></li>
+        <li>活性部位形狀改變，不能再結合受質</li>
+        <li>變性通常<strong>不可逆</strong>（冷卻後活性不恢復）</li>
+        <li class="warn">此對照證明：浮起依賴<strong>活性酶</strong>，而非提取液其他成分</li>
+      </ul>
+      <div class="key-terms">
+        <b>關鍵詞：</b>變性 denaturation · 活性部位 · 對照實驗 · 不可逆
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>對齊 Aristo《新高中生物》第 5 章 p.5-18 例題 5.1「紙碟浮起實驗」。離線單檔 · 適合課堂投影。</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Tabs ---------- */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  const SAMPLES = [
+    { id: 'A', name: '豬肝',   tReal: 10, color: '#c45c4a', rate: 0.100 },
+    { id: 'B', name: '豬肉',   tReal: 20, color: '#e8a0a0', rate: 0.050 },
+    { id: 'C', name: '蘋果',   tReal: 40, color: '#86efac', rate: 0.025 },
+    { id: 'D', name: '馬鈴薯', tReal: 30, color: '#fbbf24', rate: 0.033 }
+  ];
+
+  /* ================================================================
+     A｜四管比較實驗
+     Timeline (anim seconds): soak 0–2, drop 2–3.5, wait+float to ~15
+     Real times mapped: A@6s, B@9s, D@12s, C@15s after drop start
+     ================================================================ */
+  (function expScene() {
+    const canvas = document.getElementById('canvasExp');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let t = 0; // anim time
+    const SPEED = 1;
+    // anim float times after drop completes (t=3.5)
+    const floatAt = [3.5 + 2.5, 3.5 + 5.5, 3.5 + 11.5, 3.5 + 8.5]; // A B C D
+    const bubbles = [[], [], [], []];
+
+    const playBtn = document.getElementById('expPlay');
+    const statusEl = document.getElementById('expStatus');
+    const tEl = document.getElementById('expT');
+
+    function setStep(n) {
+      document.querySelectorAll('#expSteps .step').forEach(el => {
+        el.classList.toggle('active-step', Number(el.dataset.s) === n);
+      });
+    }
+
+    function reset() {
+      t = 0;
+      for (let i = 0; i < 4; i++) bubbles[i] = [];
+      playing = true;
+      playBtn.textContent = '⏸ 暫停';
+      statusEl.className = 'status ok';
+      statusEl.textContent = '準備：四支試管各盛相同濃度／體積的 H₂O₂。紙碟浸入提取液後放入試管，先沉底。';
+      setStep(0);
+    }
+
+    playBtn.addEventListener('click', () => {
+      playing = !playing;
+      playBtn.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('expReset').addEventListener('click', reset);
+
+    function tubeX(i) { return 90 + i * 210; }
+    const tubeTop = 90, tubeBot = 400, tubeW = 70, liquidTop = 130;
+
+    function discY(i, time) {
+      const bottom = tubeBot - 28;
+      const surface = liquidTop + 18;
+      if (time < 2.0) {
+        // soaking above tubes in beakers
+        return 55;
+      }
+      if (time < 3.5) {
+        // dropping
+        const p = (time - 2.0) / 1.5;
+        return lerp(55, bottom, easeOut(clamp(p, 0, 1)));
+      }
+      const ft = floatAt[i];
+      if (time < ft - 0.8) return bottom;
+      if (time < ft) {
+        const p = (time - (ft - 0.8)) / 0.8;
+        return lerp(bottom, surface, easeOut(p));
+      }
+      return surface + Math.sin((time - ft) * 3) * 2;
+    }
+
+    function spawnBubbles(i, time, discYpos) {
+      if (time < 3.5) return;
+      const ft = floatAt[i];
+      const intensity = time >= ft ? 0.55 : clamp((time - 3.5) / (ft - 3.5), 0, 1);
+      if (Math.random() < intensity * 0.35) {
+        const cx = tubeX(i);
+        bubbles[i].push({
+          x: cx + (Math.random() - 0.5) * 36,
+          y: discYpos,
+          r: 2 + Math.random() * 4,
+          vy: -(0.6 + Math.random() * 1.4),
+          life: 1
+        });
+      }
+      for (let b of bubbles[i]) {
+        b.y += b.vy;
+        b.life -= 0.012;
+        b.r += 0.02;
+      }
+      bubbles[i] = bubbles[i].filter(b => b.life > 0 && b.y > liquidTop - 10);
+    }
+
+    function drawBeaker(x, color, label) {
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.fillStyle = color + '55';
+      ctx.beginPath();
+      ctx.moveTo(x - 28, 20);
+      ctx.lineTo(x - 24, 70);
+      ctx.lineTo(x + 24, 70);
+      ctx.lineTo(x + 28, 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // disc soaking
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(x, 52, 16, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(x - 16, 48, 32, 5);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, 88);
+      ctx.restore();
+    }
+
+    function drawTube(i, time) {
+      const x = tubeX(i);
+      const s = SAMPLES[i];
+      // glass
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - tubeW / 2, tubeTop);
+      ctx.lineTo(x - tubeW / 2, tubeBot);
+      ctx.quadraticCurveTo(x, tubeBot + 18, x + tubeW / 2, tubeBot);
+      ctx.lineTo(x + tubeW / 2, tubeTop);
+      ctx.stroke();
+      // liquid
+      const grad = ctx.createLinearGradient(x, liquidTop, x, tubeBot);
+      grad.addColorStop(0, 'rgba(147,197,253,0.25)');
+      grad.addColorStop(1, 'rgba(56,189,248,0.45)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(x - tubeW / 2 + 2, liquidTop);
+      ctx.lineTo(x - tubeW / 2 + 2, tubeBot);
+      ctx.quadraticCurveTo(x, tubeBot + 14, x + tubeW / 2 - 2, tubeBot);
+      ctx.lineTo(x + tubeW / 2 - 2, liquidTop);
+      ctx.closePath();
+      ctx.fill();
+      // meniscus
+      ctx.strokeStyle = 'rgba(186,230,253,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - tubeW / 2 + 2, liquidTop);
+      ctx.lineTo(x + tubeW / 2 - 2, liquidTop);
+      ctx.stroke();
+
+      // label
+      ctx.fillStyle = s.color;
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.id, x, tubeBot + 42);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '16px sans-serif';
+      ctx.fillText(s.name, x, tubeBot + 64);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px sans-serif';
+      ctx.fillText(s.tReal + ' s', x, tubeBot + 82);
+
+      // disc
+      if (time >= 2.0) {
+        const dy = discY(i, time);
+        spawnBubbles(i, time, dy);
+        // bubbles behind
+        for (let b of bubbles[i]) {
+          ctx.globalAlpha = clamp(b.life, 0, 0.85);
+          ctx.fillStyle = '#67e8f9';
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        // paper disc
+        ctx.fillStyle = '#f1f5f9';
+        ctx.beginPath();
+        ctx.ellipse(x, dy, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // tint from extract
+        ctx.fillStyle = s.color + '66';
+        ctx.beginPath();
+        ctx.ellipse(x, dy, 18, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // floated check
+        if (time >= floatAt[i]) {
+          ctx.fillStyle = '#4ade80';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('✓ 浮起', x, liquidTop - 12);
+        }
+      }
+      ctx.restore();
+    }
+
+    function draw(dt) {
+      if (playing) t += dt * SPEED;
+      if (t > 18) { t = 18; playing = false; playBtn.textContent = '▶ 播放'; }
+
+      // status / steps
+      let realT = 0;
+      if (t < 2) { setStep(0); statusEl.textContent = '① 製備提取液：A 豬肝、B 豬肉、C 蘋果、D 馬鈴薯。'; statusEl.className = 'status ok'; }
+      else if (t < 3.5) { setStep(1); statusEl.textContent = '②③ 紙碟浸提取液後放入 H₂O₂——紙碟先沉至管底。'; statusEl.className = 'status warn'; }
+      else if (t < floatAt[0]) { setStep(2); statusEl.textContent = '④ 過氧化氫酶開始分解 H₂O₂，O₂ 氣泡逐漸在紙碟上形成……'; statusEl.className = 'status warn'; }
+      else if (t < floatAt[1]) { setStep(3); statusEl.textContent = 'A 豬肝最快浮起（真實 10 s）→ 相對酶含量最高！'; statusEl.className = 'status ok'; realT = 10; }
+      else if (t < floatAt[3]) { setStep(3); statusEl.textContent = 'B 豬肉接著浮起（真實 20 s）。'; statusEl.className = 'status ok'; realT = 20; }
+      else if (t < floatAt[2]) { setStep(3); statusEl.textContent = 'D 馬鈴薯浮起（真實 30 s）。C 蘋果仍在管底……'; statusEl.className = 'status ok'; realT = 30; }
+      else { setStep(4); statusEl.textContent = '⑤ 全部浮起。浮起愈快＝相對過氧化氫酶含量愈高。順序：肝 > 肉 > 薯 > 蘋果。'; statusEl.className = 'status ok'; realT = 40; }
+
+      // display mapped real-ish clock
+      let showT = 0;
+      if (t < 3.5) showT = 0;
+      else {
+        const progress = (t - 3.5) / (floatAt[2] - 3.5);
+        showT = clamp(progress * 40, 0, 40);
+      }
+      tEl.textContent = showT.toFixed(1);
+
+      ctx.clearRect(0, 0, W, H);
+      // title strip
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, W, 14);
+
+      // soaking beakers (early)
+      if (t < 2.2) {
+        const alpha = t < 1.8 ? 1 : 1 - (t - 1.8) / 0.4;
+        ctx.globalAlpha = clamp(alpha, 0, 1);
+        for (let i = 0; i < 4; i++) {
+          drawBeaker(tubeX(i), SAMPLES[i].color, SAMPLES[i].id + ' 提取液');
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('← 紙碟浸泡於提取液', W / 2, 110);
+      }
+
+      // H2O2 label
+      ctx.fillStyle = '#67e8f9';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('H₂O₂ 溶液（各管相同）', 20, 28);
+
+      for (let i = 0; i < 4; i++) drawTube(i, t);
+
+      // equation
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('過氧化氫酶', W / 2, H - 18);
+      ctx.font = '15px sans-serif';
+      ctx.fillText('2 H₂O₂  ───→  2 H₂O + O₂↑', W / 2, H - 38);
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      draw(dt);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  /* ================================================================
+     B｜為何浮起
+     ================================================================ */
+  (function whyScene() {
+    const canvas = document.getElementById('canvasWhy');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let t = 0;
+    let bubbles = [];
+    let phase = 0; // 0 bind, 1 react, 2 bubble, 3 rise
+
+    const playBtn = document.getElementById('whyPlay');
+    const statusEl = document.getElementById('whyStatus');
+
+    function reset() {
+      t = 0; bubbles = []; phase = 0; playing = true;
+      playBtn.textContent = '⏸ 暫停';
+    }
+    playBtn.addEventListener('click', () => {
+      playing = !playing;
+      playBtn.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('whyReset').addEventListener('click', reset);
+
+    function drawEnzyme(x, y, active) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = active ? '#4ade80' : '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(-36, -10);
+      ctx.quadraticCurveTo(-40, -40, -10, -36);
+      ctx.quadraticCurveTo(10, -42, 28, -28);
+      ctx.quadraticCurveTo(42, -8, 30, 18);
+      ctx.quadraticCurveTo(10, 38, -16, 30);
+      ctx.quadraticCurveTo(-42, 18, -36, -10);
+      ctx.closePath();
+      ctx.fill();
+      // active site cleft
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.ellipse(4, 0, 16, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#86efac';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('過氧化氫酶', 0, 52);
+      ctx.restore();
+    }
+
+    function drawH2O2(x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#93c5fd';
+      ctx.beginPath(); ctx.arc(-10, 0, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, 0, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#bfdbfe';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+      ctx.fillStyle = '#1e3a5f';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('H₂O₂', 0, 4);
+      ctx.restore();
+    }
+
+    function drawO2(x, y, r) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(103,232,249,0.85)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5; ctx.stroke();
+      if (r > 8) {
+        ctx.fillStyle = '#0c4a6e';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('O₂', x, y + 4);
+      }
+      ctx.restore();
+    }
+
+    function drawDisc(x, y, withBubbles) {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(x, y, 70, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#c45c4a88';
+      ctx.beginPath();
+      ctx.ellipse(x, y, 58, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('濾紙碟（浸過提取液）', x, y + 36);
+    }
+
+    function draw(dt) {
+      if (playing) {
+        t += dt;
+        if (t > 10) t = 0;
+      }
+      ctx.clearRect(0, 0, W, H);
+
+      // left panel: molecular
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(10, 20, 420, 400);
+      ctx.strokeStyle = '#334155';
+      ctx.strokeRect(10, 20, 420, 400);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('分子層面', 24, 48);
+
+      const cycle = t % 4;
+      drawEnzyme(160, 200, cycle > 0.8 && cycle < 2.5);
+      if (cycle < 1.2) {
+        const p = cycle / 1.2;
+        drawH2O2(lerp(320, 168, p), lerp(100, 200, p), 1);
+        drawH2O2(lerp(360, 168, p), lerp(280, 200, p), 1);
+        statusEl.textContent = '① H₂O₂（受質）接近過氧化氫酶的活性部位。';
+        statusEl.className = 'status ok';
+        phase = 0;
+      } else if (cycle < 2.2) {
+        drawH2O2(168, 200, 0.85);
+        statusEl.textContent = '② 形成酶－受質複合物；催化 2 H₂O₂ → 2 H₂O + O₂。';
+        statusEl.className = 'status warn';
+        phase = 1;
+      } else {
+        const p = (cycle - 2.2) / 1.8;
+        drawO2(lerp(168, 280, p), lerp(200, 120, p), 12);
+        drawO2(lerp(168, 300, p), lerp(200, 260, p), 10);
+        // water
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath(); ctx.arc(lerp(168, 100, p), lerp(200, 140, p), 8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(lerp(168, 90, p), lerp(200, 250, p), 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#93c5fd';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('H₂O', lerp(168, 100, p), lerp(200, 140, p) + 22);
+        ctx.fillText('H₂O', lerp(168, 90, p), lerp(200, 250, p) + 22);
+        statusEl.textContent = '③ 釋出 O₂ 與 H₂O；酶保持原狀，可再催化。';
+        statusEl.className = 'status ok';
+        phase = 2;
+      }
+
+      // right panel: disc buoyancy
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(450, 20, 440, 400);
+      ctx.strokeStyle = '#334155';
+      ctx.strokeRect(450, 20, 440, 400);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('宏觀：氣泡 → 浮力', 464, 48);
+
+      // tube liquid
+      const rx = 670, rTop = 70, rBot = 380;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(rx - 55, rTop);
+      ctx.lineTo(rx - 55, rBot);
+      ctx.quadraticCurveTo(rx, rBot + 16, rx + 55, rBot);
+      ctx.lineTo(rx + 55, rTop);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(147,197,253,0.3)';
+      ctx.fillRect(rx - 53, 100, 106, rBot - 100);
+
+      const riseT = (t % 5);
+      const discY = riseT < 1.5 ? 340 : (riseT < 3.2 ? lerp(340, 130, easeOut((riseT - 1.5) / 1.7)) : 130);
+      if (riseT > 0.5 && Math.random() < 0.4) {
+        bubbles.push({ x: rx + (Math.random() - 0.5) * 50, y: discY, r: 3 + Math.random() * 5, vy: -1 - Math.random(), life: 1 });
+      }
+      for (let b of bubbles) { b.y += b.vy; b.life -= 0.015; b.r += 0.03; }
+      bubbles = bubbles.filter(b => b.life > 0 && b.y > 90);
+      for (let b of bubbles) drawO2(b.x, b.y, b.r);
+      drawDisc(rx, discY);
+
+      if (riseT > 3.2) {
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('↑ 浮力 > 重力 → 浮起', rx, 95);
+        statusEl.textContent = '④ O₂ 氣泡附著紙碟 → 浮力增大 → 紙碟浮至液面。';
+        statusEl.className = 'status ok';
+      }
+
+      // arrow between panels
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('→', 435, 230);
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      draw(dt);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  /* ================================================================
+     C｜速率條形圖
+     ================================================================ */
+  (function rateScene() {
+    const canvas = document.getElementById('canvasRate');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let t = 0;
+
+    const playBtn = document.getElementById('ratePlay');
+    const statusEl = document.getElementById('rateStatus');
+    // order by rate desc for display: A B D C
+    const order = [0, 1, 3, 2];
+
+    function reset() { t = 0; playing = true; playBtn.textContent = '⏸ 暫停'; }
+    playBtn.addEventListener('click', () => {
+      playing = !playing;
+      playBtn.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('rateReset').addEventListener('click', reset);
+
+    function draw(dt) {
+      if (playing) t += dt;
+      const reveal = clamp(t / 2.5, 0, 1);
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('相對反應速率（1／t）', 40, 40);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '15px sans-serif';
+      ctx.fillText('單位：s⁻¹　　速率愈高 → 相對過氧化氫酶含量愈高', 40, 66);
+
+      const maxR = 0.12;
+      const baseY = 400;
+      const barW = 100;
+      const gap = 160;
+      const startX = 120;
+
+      // axis
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(70, 90);
+      ctx.lineTo(70, baseY);
+      ctx.lineTo(W - 40, baseY);
+      ctx.stroke();
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'right';
+      for (let v = 0; v <= 0.10; v += 0.025) {
+        const y = baseY - (v / maxR) * 280;
+        ctx.fillText(v.toFixed(3), 64, y + 4);
+        ctx.strokeStyle = '#1e293b';
+        ctx.beginPath(); ctx.moveTo(70, y); ctx.lineTo(W - 40, y); ctx.stroke();
+      }
+      ctx.save();
+      ctx.translate(28, 250);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('速率 1/t (s⁻¹)', 0, 0);
+      ctx.restore();
+
+      order.forEach((si, idx) => {
+        const s = SAMPLES[si];
+        const x = startX + idx * gap;
+        const targetH = (s.rate / maxR) * 280;
+        const h = targetH * easeOut(reveal);
+        const y = baseY - h;
+        // bar
+        const grad = ctx.createLinearGradient(x, y, x, baseY);
+        grad.addColorStop(0, s.color);
+        grad.addColorStop(1, s.color + '88');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, barW, h);
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, barW, h);
+        // value
+        if (reveal > 0.85) {
+          ctx.fillStyle = '#f1f5f9';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.rate.toFixed(3), x + barW / 2, y - 12);
+        }
+        // labels
+        ctx.fillStyle = s.color;
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.id, x + barW / 2, baseY + 30);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(s.name, x + barW / 2, baseY + 52);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('t = ' + s.tReal + ' s', x + barW / 2, baseY + 72);
+      });
+
+      if (reveal >= 1) {
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('相對酶含量：豬肝 > 豬肉 > 馬鈴薯 > 蘋果', 200, 100);
+        statusEl.textContent = '完成！速率 = 1/t。豬肝 0.100 s⁻¹ 最高；蘋果 0.025 s⁻¹ 最低。';
+        statusEl.className = 'status ok';
+      } else {
+        statusEl.textContent = '速率以 1／時間（s⁻¹）表示。條形圖正在繪製……';
+        statusEl.className = 'status warn';
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      draw(dt);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  /* ================================================================
+     D｜煮沸對照
+     ================================================================ */
+  (function boilScene() {
+    const canvas = document.getElementById('canvasBoil');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let playing = true;
+    let t = 0;
+    let bubblesL = [];
+
+    const playBtn = document.getElementById('boilPlay');
+    const statusEl = document.getElementById('boilStatus');
+
+    function reset() { t = 0; bubblesL = []; playing = true; playBtn.textContent = '⏸ 暫停'; }
+    playBtn.addEventListener('click', () => {
+      playing = !playing;
+      playBtn.textContent = playing ? '⏸ 暫停' : '▶ 播放';
+    });
+    document.getElementById('boilReset').addEventListener('click', reset);
+
+    function drawTube(x, label, sub, discY, bubbles, denatured) {
+      const top = 100, bot = 380, tw = 80, liq = 140;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - tw / 2, top);
+      ctx.lineTo(x - tw / 2, bot);
+      ctx.quadraticCurveTo(x, bot + 16, x + tw / 2, bot);
+      ctx.lineTo(x + tw / 2, top);
+      ctx.stroke();
+      ctx.fillStyle = denatured ? 'rgba(100,116,139,0.25)' : 'rgba(147,197,253,0.35)';
+      ctx.beginPath();
+      ctx.moveTo(x - tw / 2 + 2, liq);
+      ctx.lineTo(x - tw / 2 + 2, bot);
+      ctx.quadraticCurveTo(x, bot + 12, x + tw / 2 - 2, bot);
+      ctx.lineTo(x + tw / 2 - 2, liq);
+      ctx.closePath();
+      ctx.fill();
+
+      if (bubbles) {
+        for (let b of bubbles) {
+          ctx.globalAlpha = clamp(b.life, 0, 0.85);
+          ctx.fillStyle = '#67e8f9';
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // disc
+      ctx.fillStyle = denatured ? '#94a3b8' : '#f1f5f9';
+      ctx.beginPath();
+      ctx.ellipse(x, discY, 26, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      if (!denatured) {
+        ctx.fillStyle = '#c45c4a66';
+        ctx.beginPath();
+        ctx.ellipse(x, discY, 20, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = denatured ? '#f87171' : '#4ade80';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, bot + 40);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '15px sans-serif';
+      ctx.fillText(sub, x, bot + 64);
+    }
+
+    function drawEnzymeIcon(x, y, denatured) {
+      ctx.save();
+      ctx.translate(x, y);
+      if (denatured) {
+        ctx.rotate(0.4);
+        ctx.fillStyle = '#64748b';
+        ctx.beginPath();
+        ctx.moveTo(-20, -8);
+        ctx.bezierCurveTo(-30, -25, 5, -30, 18, -12);
+        ctx.bezierCurveTo(28, 5, 10, 28, -12, 20);
+        ctx.bezierCurveTo(-28, 12, -18, 5, -20, -8);
+        ctx.fill();
+        // X
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-14, -14); ctx.lineTo(14, 14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(14, -14); ctx.lineTo(-14, 14); ctx.stroke();
+        ctx.fillStyle = '#f87171';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('變性', 0, 42);
+      } else {
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.ellipse(4, 0, 10, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('活性酶', 0, 42);
+      }
+      ctx.restore();
+    }
+
+    function draw(dt) {
+      if (playing) {
+        t += dt;
+        if (t > 8) t = 8;
+      }
+      ctx.clearRect(0, 0, W, H);
+
+      // headers
+      ctx.fillStyle = '#4ade80';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('新鮮豬肝提取液', 250, 36);
+      ctx.fillStyle = '#f87171';
+      ctx.fillText('煮沸後豬肝提取液', 650, 36);
+
+      // boil icon on right early
+      if (t < 2) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 40px sans-serif';
+        ctx.fillText('🔥', 650, 80);
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText('加熱至沸騰', 650, 100);
+        statusEl.textContent = '右管提取液先煮沸數分鐘，再冷卻，然後浸紙碟……';
+        statusEl.className = 'status warn';
+      }
+
+      const leftFloat = t > 3.5;
+      const discL = t < 2.5 ? 350 : (t < 3.5 ? lerp(350, 160, easeOut((t - 2.5) / 1)) : 160 + Math.sin(t * 3) * 2);
+      const discR = 350; // never floats
+
+      if (t > 2 && Math.random() < 0.35) {
+        bubblesL.push({
+          x: 250 + (Math.random() - 0.5) * 40,
+          y: discL,
+          r: 2 + Math.random() * 4,
+          vy: -(0.8 + Math.random()),
+          life: 1
+        });
+      }
+      for (let b of bubblesL) { b.y += b.vy; b.life -= 0.015; }
+      bubblesL = bubblesL.filter(b => b.life > 0 && b.y > 130);
+
+      drawTube(250, leftFloat ? '✓ 浮起' : '產生 O₂…', '活性過氧化氫酶', discL, bubblesL, false);
+      drawTube(650, t > 4 ? '✗ 不浮起' : '無氣泡…', '酶已變性', discR, null, true);
+
+      drawEnzymeIcon(250, 70, false);
+      drawEnzymeIcon(650, 70, true);
+
+      // VS
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VS', W / 2, 240);
+
+      if (t > 4) {
+        statusEl.textContent = '煮沸 → 蛋白質變性 → 無催化 → 無 O₂ → 紙碟不浮。證明浮起依賴活性酶！';
+        statusEl.className = 'status danger';
+        ctx.fillStyle = '#fca5a5';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('高溫破壞活性部位（變性通常不可逆）', 650, H - 24);
+      } else if (t >= 2) {
+        statusEl.textContent = '左管：新鮮提取液 → O₂ 氣泡形成 → 紙碟浮起。右管：無反應。';
+        statusEl.className = 'status ok';
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      draw(dt);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+
+})();
+</script>
+</body>
+</html>
