@@ -4,10 +4,14 @@
 
 ## 導航結構
 
-`index.html`（年級／科目）→ `f4-biology.html`（中四生物課次）→ `f4-l4-membrane.html`（第四課動畫）／ `f4-l5-enzymes.html`（第五課動畫）
+`index.html`（年級／科目）→ `f3-biology.html`（中三生物單元12）／ `f4-biology.html`（中四生物課次）→ `f4-l4-membrane.html`（第四課動畫）／ `f4-l5-enzymes.html`（第五課動畫）
 
 ## 現有內容
 
+- [中三 · 生物](f3-biology.html)
+  - [機械消化](mechanical-digestion.html)
+  - [化學消化（澱粉）](chemical-digestion-starch.html)
+  - [小腸吸收](absorption-small-intestine.html)
 - [中四 · 生物](f4-biology.html)
   - [第四課 · 物質穿越細胞膜的活動](f4-l4-membrane.html)
     - [流動鑲嵌模型](fluid-mosaic.html)
