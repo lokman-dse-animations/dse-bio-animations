@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小腸吸收 — 食物物質穿過小腸壁進入微血管</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5a6a7a;
+    --accent: #2c5aa0;
+    --accent-soft: #e8f0fa;
+    --border: #d0dae6;
+    --ok: #2e7d4f;
+    --warn: #c0392b;
+    --food-lg: #4a7ec8;
+    --food-sm: #4a7ec8;
+    --vitamin: #3cb86a;
+    --water: #4aa3d9;
+    --mineral: #8b5cbf;
+    --epithelium: #f0dfb0;
+    --capillary: #d16565;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", "PingFang TC",
+                 "Heiti TC", "Source Han Sans TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  header .sub { font-size: 0.9rem; color: var(--muted); }
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    padding: 16px 24px 12px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 1fr; }
+    .canvas-box { min-height: 0; max-height: 60vh; }
+    .controls { flex-wrap: wrap; }
+  }
+  .stage-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .canvas-box {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 45%, #eef4fb 100%);
+    aspect-ratio: 16 / 10;
+    min-height: 380px;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: #fafcfe;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+  }
+  .swatch.hex {
+    background: #4a7ec8;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    border: none;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  }
+  .swatch.tri {
+    width: 0; height: 0; border: none;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 14px solid #3cb86a;
+    background: none;
+    border-radius: 0;
+  }
+  .swatch.sq { border-radius: 3px; background: #8b5cbf; }
+  .swatch.rect { border-radius: 3px; width: 18px; height: 12px; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(26,35,50,0.06);
+  }
+  .card h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .scene-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .scene-desc { font-size: 0.92rem; line-height: 1.55; color: var(--ink); }
+  .scene-desc strong { color: var(--accent); }
+  .def-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  .def-box.warn {
+    background: #fff5f0;
+    border-left-color: #c0392b;
+  }
+  .def-box.ok {
+    background: #f0faf4;
+    border-left-color: #2e7d4f;
+  }
+  .steps { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .step-btn {
+    text-align: left; border: 1px solid var(--border); background: #fff;
+    border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 0.88rem;
+    cursor: pointer; color: var(--ink);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .step-btn:hover { background: var(--accent-soft); }
+  .step-btn.active {
+    background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.4em; opacity: 0.7; font-variant-numeric: tabular-nums;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; font: inherit;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary { background: #eef2f7; color: var(--ink); }
+  .btn.secondary:hover { background: #e0e8f0; }
+  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-top: 10px; }
+  footer {
+    text-align: center; padding: 8px 16px 14px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  kbd {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: #fff;
+    font-family: ui-monospace, monospace; font-size: 0.85em;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>小腸吸收</h1>
+  <span class="sub">雅集單元12《健康的身體》· 2. 吸收 · 在小腸內 · 香港中學生物／科學</span>
+</header>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="canvas-box">
+      <canvas id="cv" width="1280" height="800" aria-label="小腸吸收過程動畫：大分子不能穿過小腸壁，小分子、水、維生素和礦物質進入微血管並經血液轉運"></canvas>
+    </div>
+    <div class="legend-bar" id="legendBar">
+      <span class="legend-item"><span class="swatch hex"></span>較大／細小的食物物質</span>
+      <span class="legend-item"><span class="swatch tri"></span>維生素</span>
+      <span class="legend-item"><span class="swatch" style="background:#4aa3d9"></span>水</span>
+      <span class="legend-item"><span class="swatch sq"></span>礦物質</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#f0dfb0"></span>小腸壁細胞</span>
+      <span class="legend-item"><span class="swatch rect" style="background:#d16565"></span>微血管</span>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <div class="scene-title" id="sceneTitle">場景 A：消化後的物質</div>
+      <p class="scene-desc" id="sceneDesc"></p>
+      <div class="def-box" id="defBox"></div>
+    </div>
+    <div class="card">
+      <h2>場景選單</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="card">
+      <h2>播放控制</h2>
+      <div class="controls">
+        <button class="btn" id="btnPlay" type="button">暫停</button>
+        <button class="btn secondary" id="btnPrev" type="button">上一步</button>
+        <button class="btn secondary" id="btnNext" type="button">下一步</button>
+        <button class="btn secondary" id="btnRestart" type="button">重設</button>
+      </div>
+      <p class="hint">
+        鍵盤：<kbd>←</kbd><kbd>→</kbd> 切換 · <kbd>空白鍵</kbd> 播放／暫停 · <kbd>R</kbd> 重設<br>
+        適合投影：全螢幕開啟本頁（F11），按場景逐步講解。
+      </p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  原創教學動畫 · 概念對應雅集單元12《健康的身體》小腸吸收 · 離線單檔 · Safari／Chrome 開啟
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("cv");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const FONT = "'Noto Sans TC', 'Noto Sans CJK TC', 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', sans-serif";
+
+  const WALL_L = 200;
+  const WALL_R = 980;
+  const WALL_TOP = 350;
+  const WALL_BOT = 555;
+  const CAP_TOP = 555;
+  const CAP_BOT = 678;
+  const N_CELLS = 5;
+  const CELL_W = (WALL_R - WALL_L) / N_CELLS;
+  const BOX_T = 148;
+
+  const COL = {
+    food: "#4a7ec8",
+    foodStroke: "#2c5a9a",
+    foodDark: "#3b6cb0",
+    vitamin: "#3cb86a",
+    vitaminStroke: "#2a8a4e",
+    water: "#4aa3d9",
+    waterStroke: "#2b7db0",
+    mineral: "#8b5cbf",
+    mineralStroke: "#6a3d9a",
+    epithelium: "#f0dfb0",
+    epitheliumDark: "#c9a86a",
+    brush: "#e0c36a",
+    brushTip: "#c9a84a",
+    nucleus: "#c9bdd6",
+    nucleusStroke: "#8a7aa3",
+    capillary: "#d16565",
+    capillaryDark: "#b84a4a",
+    capillaryLight: "#e8a0a0",
+    ink: "#1a2332",
+    muted: "#5a6a7a",
+    accent: "#2c5aa0",
+    ok: "#2e7d4f",
+    warn: "#c0392b"
+  };
+
+  const scenes = [
+    {
+      id: "afterDigest",
+      title: "場景 A：消化後的物質",
+      short: "消化後的物質",
+      desc: "食物經消化後，會分解成<strong>細小簡單且可溶</strong>的物質。圖中可見兩類對比：尚未完全分解的<strong>較大及結構複雜</strong>食物物質，以及已消化的<strong>細小及結構簡單</strong>食物物質，還有水、維生素和礦物質。",
+      def: "<strong>重點</strong>：吸收主要在<strong>小腸</strong>內進行。胃也會吸收少量食物物質。",
+      defClass: ""
+    },
+    {
+      id: "blocked",
+      title: "場景 B：不能穿過小腸壁",
+      short: "不能穿過小腸壁",
+      desc: "<strong>較大及結構複雜</strong>的食物物質<strong>不能</strong>穿過小腸壁，因此無法進入微血管被吸收。它們必須先經消化，變成細小、簡單且可溶的物質。",
+      def: "<strong>對比</strong>：分子太大、結構太複雜 → 過不了小腸壁（見紅色「×」）。",
+      defClass: "warn"
+    },
+    {
+      id: "absorb",
+      title: "場景 C：吸收",
+      short: "吸收",
+      desc: "<strong>細小及結構簡單</strong>的食物物質，連同<strong>水</strong>、<strong>維生素</strong>和<strong>礦物質</strong>，會穿過小腸壁，進入<strong>微血管</strong>中。這個過程稱為<strong>吸收</strong>。",
+      def: "<strong>吸收</strong>＝可溶的細小物質穿過小腸壁，進入微血管（血液）的過程。",
+      defClass: "ok"
+    },
+    {
+      id: "transport",
+      title: "場景 D：轉運",
+      short: "轉運",
+      desc: "已吸收的食物物質經<strong>轉運系統</strong>（血液循環）運往<strong>身體各部分</strong>，供細胞使用。",
+      def: "<strong>轉運</strong>：微血管中的養分隨血液送到全身各組織。",
+      defClass: "ok"
+    }
+  ];
+
+  let sceneIndex = 0;
+  let playing = true;
+  let t0 = performance.now();
+  let sceneT = 0;
+
+  const stepsEl = document.getElementById("steps");
+  const titleEl = document.getElementById("sceneTitle");
+  const descEl = document.getElementById("sceneDesc");
+  const defEl = document.getElementById("defBox");
+  const btnPlay = document.getElementById("btnPlay");
+
+  scenes.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "step-btn" + (i === 0 ? " active" : "");
+    const labels = ["A", "B", "C", "D"];
+    b.innerHTML = '<span class="num">' + labels[i] + ".</span> " + s.short;
+    b.addEventListener("click", () => goScene(i));
+    stepsEl.appendChild(b);
+  });
+
+  function updateUI() {
+    const s = scenes[sceneIndex];
+    titleEl.textContent = s.title;
+    descEl.innerHTML = s.desc;
+    defEl.innerHTML = s.def;
+    defEl.className = "def-box" + (s.defClass ? " " + s.defClass : "");
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle("active", i === sceneIndex);
+    });
+    btnPlay.textContent = playing ? "暫停" : "播放";
+  }
+
+  function goScene(i) {
+    sceneIndex = (i + scenes.length) % scenes.length;
+    sceneT = 0;
+    t0 = performance.now();
+    updateUI();
+  }
+
+  function restartScene() {
+    sceneT = 0;
+    t0 = performance.now();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function smoothstep(a, b, x) {
+    if (b === a) return x >= b ? 1 : 0;
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function lerpPath(points, p) {
+    if (p <= 0) return { x: points[0][0], y: points[0][1] };
+    if (p >= 1) return { x: points[points.length - 1][0], y: points[points.length - 1][1] };
+    let total = 0;
+    const segs = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const dx = points[i + 1][0] - points[i][0];
+      const dy = points[i + 1][1] - points[i][1];
+      const len = Math.hypot(dx, dy) || 1;
+      segs.push(len);
+      total += len;
+    }
+    let d = p * total;
+    for (let i = 0; i < segs.length; i++) {
+      if (d <= segs[i]) {
+        const u = d / segs[i];
+        return {
+          x: lerp(points[i][0], points[i + 1][0], u),
+          y: lerp(points[i][1], points[i + 1][1], u)
+        };
+      }
+      d -= segs[i];
+    }
+    const last = points[points.length - 1];
+    return { x: last[0], y: last[1] };
+  }
+
+  function drawCallout(x, y, text, color, fontSize) {
+    fontSize = fontSize || 24;
+    ctx.save();
+    ctx.font = "bold " + fontSize + "px " + FONT;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const tw = ctx.measureText(text).width;
+    const pad = 14;
+    roundRect(x - tw / 2 - pad, y - fontSize / 2 - 10, tw + pad * 2, fontSize + 20, 10);
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawMultiline(lines, x, y, lineHeight, color, font, align) {
+    ctx.save();
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = align || "center";
+    ctx.textBaseline = "top";
+    lines.forEach(function (line, i) {
+      ctx.fillText(line, x, y + i * lineHeight);
+    });
+    ctx.restore();
+  }
+
+  function drawBadge() {
+    const labels = ["A", "B", "C", "D"];
+    ctx.save();
+    ctx.fillStyle = "rgba(44,90,160,0.9)";
+    roundRect(W - 170, 16, 150, 36, 8);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 20px " + FONT;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("步驟 " + labels[sceneIndex] + " / 4", W - 95, 34);
+    ctx.restore();
+  }
+
+  function drawPencil(x, y, ang) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang || -0.7);
+    // body
+    ctx.fillStyle = "#e8b84a";
+    ctx.fillRect(-4, -22, 8, 30);
+    ctx.fillStyle = "#f0d078";
+    ctx.fillRect(-4, -22, 3, 30);
+    // wood tip
+    ctx.beginPath();
+    ctx.moveTo(-4, 8);
+    ctx.lineTo(4, 8);
+    ctx.lineTo(0, 18);
+    ctx.closePath();
+    ctx.fillStyle = "#e8d0a0";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-1.4, 14);
+    ctx.lineTo(1.4, 14);
+    ctx.lineTo(0, 18);
+    ctx.closePath();
+    ctx.fillStyle = "#4a4a4a";
+    ctx.fill();
+    // ferrule + eraser
+    ctx.fillStyle = "#c0c4c8";
+    ctx.fillRect(-4, -26, 8, 5);
+    ctx.fillStyle = "#e07a8a";
+    ctx.fillRect(-4, -32, 8, 6);
+    ctx.restore();
+  }
+
+  function drawStomachNote(alpha) {
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const x = 28, y = 20;
+    drawPencil(x + 10, y + 22, -0.65);
+    ctx.font = "18px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("胃也會吸收少量食物物質。", x + 28, y + 26);
+    ctx.strokeStyle = "#e0b429";
+    ctx.setLineDash([3, 5]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 26, y + 42);
+    ctx.lineTo(x + 250, y + 42);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function cellCenterX(i) {
+    return WALL_L + CELL_W * (i + 0.5);
+  }
+
+  function drawHex(x, y, r, fill, stroke, lineW) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const px = x + r * Math.cos(a);
+      const py = y + r * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineW || 2;
+    ctx.stroke();
+  }
+
+  function drawTriangle(x, y, r, fill, stroke) {
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = -Math.PI / 2 + i * (Math.PI * 2 / 3);
+      const px = x + r * Math.cos(a);
+      const py = y + r * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawSquare(x, y, r, fill, stroke) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4 * 0.15);
+    roundRect(-r, -r, r * 2, r * 2, 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawWater(x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = COL.water;
+    ctx.fill();
+    ctx.strokeStyle = COL.waterStroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fill();
+  }
+
+  // Branched polymer of hexagons (relative coords, roughly textbook shape)
+  const CHAIN_NODES = [
+    { x: 0, y: 0 },
+    { x: 20, y: -16 },
+    { x: 40, y: 0 },
+    { x: 60, y: -16 },
+    { x: 80, y: 0 },
+    { x: 100, y: -16 },
+    { x: 120, y: 2 },
+    { x: 36, y: 20 },
+    { x: 54, y: 36 },
+    { x: 74, y: 50 },
+    { x: 16, y: 20 },
+    { x: -2, y: 34 }
+  ];
+  const CHAIN_EDGES = [
+    [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6],
+    [2, 7], [7, 8], [8, 9],
+    [0, 10], [10, 11]
+  ];
+
+  function largeState(t, scene) {
+    const restX = cellCenterX(0) + 18;
+    const restY = 232;
+    const hitY = 278;
+    let x = restX;
+    let y = restY;
+    let ang = -0.32;
+    let showX = false;
+    let xPulse = 0;
+    if (scene === 0) {
+      y = restY + Math.sin(t * 0.9) * 5;
+      ang = -0.32 + Math.sin(t * 0.7) * 0.04;
+    } else if (scene === 1) {
+      const tau = t % 5.8;
+      if (tau < 1.7) {
+        const p = smoothstep(0, 1.7, tau);
+        y = lerp(restY, hitY, p);
+      } else if (tau < 2.35) {
+        y = hitY + Math.sin((tau - 1.7) * 28) * 5;
+        showX = true;
+        xPulse = 1;
+      } else if (tau < 3.5) {
+        y = lerp(hitY, hitY - 22, smoothstep(2.35, 3.5, tau));
+        showX = true;
+        xPulse = 1 - smoothstep(2.35, 3.5, tau) * 0.3;
+      } else {
+        y = hitY - 22 + Math.sin((tau - 3.5) * 1.2) * 3;
+        showX = true;
+        xPulse = 0.7;
+      }
+    } else {
+      y = hitY - 18 + Math.sin(t * 0.8) * 3;
+      showX = true;
+      xPulse = 0.85;
+    }
+    return { x: x, y: y, ang: ang, showX: showX, xPulse: xPulse };
+  }
+
+  function drawLargeMolecule(state) {
+    const s = 1.05;
+    ctx.save();
+    ctx.translate(state.x, state.y);
+    ctx.rotate(state.ang);
+    // bonds
+    ctx.strokeStyle = COL.foodStroke;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    CHAIN_EDGES.forEach(function (e) {
+      const a = CHAIN_NODES[e[0]], b = CHAIN_NODES[e[1]];
+      ctx.beginPath();
+      ctx.moveTo(a.x * s, a.y * s);
+      ctx.lineTo(b.x * s, b.y * s);
+      ctx.stroke();
+    });
+    CHAIN_NODES.forEach(function (n) {
+      drawHex(n.x * s, n.y * s, 12, COL.food, COL.foodStroke, 2);
+    });
+    ctx.restore();
+
+    // fixed label above the section, leader to the chain (does not overlap)
+    const lx = cellCenterX(0) + 8, ly = 78;
+    ctx.save();
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly + 44);
+    ctx.lineTo(state.x - 6, state.y - 40);
+    ctx.stroke();
+    ctx.font = "bold 18px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("較大及結構複雜", lx, ly);
+    ctx.fillText("的食物物質", lx, ly + 22);
+    ctx.restore();
+  }
+
+  function drawBlockMark(state) {
+    if (!state.showX) return;
+    const tipX = cellCenterX(0) + 4;
+    const tipY = WALL_TOP - 6;
+    // arrow from molecule toward wall
+    const fromX = state.x + 8;
+    const fromY = state.y + 58;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.35, state.xPulse);
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(tipX, tipY - 16);
+    ctx.stroke();
+    // arrow head
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY - 8);
+    ctx.lineTo(tipX - 7, tipY - 22);
+    ctx.lineTo(tipX + 7, tipY - 22);
+    ctx.closePath();
+    ctx.fillStyle = COL.ink;
+    ctx.fill();
+
+    // red ×
+    const p = 8 + state.xPulse * 6;
+    ctx.strokeStyle = "#e53935";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(tipX - p, tipY - p);
+    ctx.lineTo(tipX + p, tipY + p);
+    ctx.moveTo(tipX + p, tipY - p);
+    ctx.lineTo(tipX - p, tipY + p);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Small foods, vitamins, water, minerals
+  // gateX = x through the cell (beside nucleus)
+  const SMALLS = [
+    { kind: "food", lx: 500, ly: 168, gateX: 480, bx: 505, by: 612, delay: 0.25, r: 13 },
+    { kind: "food", lx: 548, ly: 200, gateX: 500, bx: 548, by: 640, delay: 0.55, r: 12 },
+    { kind: "food", lx: 590, ly: 172, gateX: 640, bx: 592, by: 618, delay: 0.80, r: 13 },
+    { kind: "food", lx: 575, ly: 236, gateX: 555, bx: 530, by: 656, delay: 1.05, r: 12 },
+    { kind: "food", lx: 630, ly: 214, gateX: 655, bx: 625, by: 648, delay: 1.25, r: 12 },
+    { kind: "food", lx: 535, ly: 248, gateX: 490, bx: 570, by: 630, delay: 0.40, r: 11 }
+  ];
+
+  const OTHERS = [
+    { kind: "vitamin", lx: 742, ly: 210, gateX: 710, bx: 735, by: 622, delay: 0.55, r: 13 },
+    { kind: "water",    lx: 778, ly: 198, gateX: 800, bx: 770, by: 648, delay: 0.75, r: 6.5 },
+    { kind: "water",    lx: 798, ly: 226, gateX: 808, bx: 800, by: 632, delay: 0.95, r: 6 },
+    { kind: "mineral",  lx: 820, ly: 218, gateX: 818, bx: 822, by: 658, delay: 0.85, r: 9 },
+    { kind: "water",    lx: 760, ly: 236, gateX: 700, bx: 752, by: 668, delay: 1.05, r: 6 }
+  ];
+
+  function particleProgress(item, t, scene) {
+    if (scene <= 1) return 0;
+    if (scene === 2) return smoothstep(item.delay, item.delay + 2.4, t);
+    // scene 3: already absorbed; keep at 1 (transport handled separately)
+    return 1;
+  }
+
+  function particlePos(item, t, scene) {
+    const bobX = Math.sin(t * 1.1 + item.lx * 0.02) * 3;
+    const bobY = Math.cos(t * 1.3 + item.ly * 0.03) * 4;
+    const start = { x: item.lx + (scene <= 1 ? bobX : 0), y: item.ly + (scene <= 1 ? bobY : 0) };
+    const mid1 = { x: item.lx, y: WALL_TOP - 8 };
+    const mid2 = { x: item.gateX, y: (WALL_TOP + WALL_BOT) / 2 };
+    const mid3 = { x: item.bx, y: CAP_TOP + 16 };
+    const end = { x: item.bx, y: item.by };
+    const p = particleProgress(item, t, scene);
+    const pt = lerpPath(
+      [[start.x, start.y], [mid1.x, mid1.y], [mid2.x, mid2.y], [mid3.x, mid3.y], [end.x, end.y]],
+      p
+    );
+    let alpha = 1;
+    if (scene === 3) {
+      // Continue from the landing spot after absorption, then flow right — no jump.
+      const left = WALL_L + 28;
+      const right = WALL_R + 8;
+      const span = right - left + 50;
+      const raw = item.bx + t * 70;
+      const dist = ((raw - left) % span + span) % span;
+      const wrapped = raw >= right;
+      pt.x = left + dist;
+      const bob = Math.sin(t * 2 + item.bx * 0.05) * 5 * smoothstep(0.15, 0.9, t);
+      pt.y = item.by + bob;
+      if (wrapped && dist < 22) alpha = dist / 22;
+      else if (pt.x > right - 36) alpha = Math.max(0, (right - pt.x) / 36);
+    }
+    return { x: pt.x, y: pt.y, p: p, inBlood: p >= 0.86 || scene === 3, alpha: alpha };
+  }
+
+  function drawParticle(kind, x, y, r) {
+    if (kind === "food") drawHex(x, y, r, COL.food, COL.foodStroke, 2);
+    else if (kind === "vitamin") drawTriangle(x, y, r + 2, COL.vitamin, COL.vitaminStroke);
+    else if (kind === "water") drawWater(x, y, r);
+    else if (kind === "mineral") drawSquare(x, y, r, COL.mineral, COL.mineralStroke);
+  }
+
+  function drawDownArrow(x1, y1, x2, y2, alpha) {
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = COL.ink;
+    ctx.fillStyle = COL.ink;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2 - 8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 6, y2 - 12);
+    ctx.lineTo(x2 + 6, y2 - 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawWallAndCapillary(t) {
+    const boxH = CAP_BOT - BOX_T;
+    const boxW = WALL_R - WALL_L;
+
+    ctx.save();
+    roundRect(WALL_L, BOX_T, boxW, boxH, 18);
+    ctx.clip();
+
+    // lumen
+    const lumen = ctx.createLinearGradient(0, BOX_T, 0, WALL_TOP);
+    lumen.addColorStop(0, "#fbf6e8");
+    lumen.addColorStop(1, "#f6ead0");
+    ctx.fillStyle = lumen;
+    ctx.fillRect(WALL_L, BOX_T, boxW, WALL_TOP - BOX_T + 2);
+
+    // epithelium body
+    const epi = ctx.createLinearGradient(0, WALL_TOP, 0, WALL_BOT);
+    epi.addColorStop(0, "#f3e4b8");
+    epi.addColorStop(0.45, "#eed9a8");
+    epi.addColorStop(1, "#e4cc96");
+    ctx.fillStyle = epi;
+    ctx.fillRect(WALL_L, WALL_TOP, boxW, WALL_BOT - WALL_TOP);
+
+    // brush border (microvilli)
+    const brushH = 20;
+    for (let i = 0; i < boxW; i += 5) {
+      const h = brushH - 3 + (i * 13) % 7;
+      const x = WALL_L + i;
+      ctx.fillStyle = (i % 10 === 0) ? COL.brushTip : COL.brush;
+      roundRect(x, WALL_TOP - h + 4, 4, h, 1.5);
+      ctx.fill();
+    }
+    // gold band under brush
+    ctx.fillStyle = "#e8d08a";
+    ctx.fillRect(WALL_L, WALL_TOP, boxW, 8);
+
+    // cell partitions + nuclei
+    for (let i = 0; i < N_CELLS; i++) {
+      const x0 = WALL_L + i * CELL_W;
+      if (i > 0) {
+        ctx.strokeStyle = "rgba(160, 120, 60, 0.45)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x0, WALL_TOP + 8);
+        ctx.lineTo(x0, WALL_BOT);
+        ctx.stroke();
+      }
+      const cx = cellCenterX(i);
+      const cy = (WALL_TOP + WALL_BOT) / 2 + 8;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 28, 40, 0, 0, Math.PI * 2);
+      ctx.fillStyle = COL.nucleus;
+      ctx.fill();
+      ctx.strokeStyle = COL.nucleusStroke;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      // speckles
+      ctx.fillStyle = "rgba(90, 70, 120, 0.45)";
+      const dots = [
+        [-10, -12], [8, -16], [0, 4], [-12, 10], [12, 8],
+        [-4, -22], [14, -4], [-16, -2], [4, 18], [-8, 20],
+        [10, 16], [2, -8], [-14, 16]
+      ];
+      dots.forEach(function (d, di) {
+        ctx.beginPath();
+        ctx.arc(cx + d[0], cy + d[1], (di % 3 === 0) ? 2.4 : 1.7, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // capillary
+    const capGrad = ctx.createLinearGradient(0, CAP_TOP, 0, CAP_BOT);
+    capGrad.addColorStop(0, "#c45454");
+    capGrad.addColorStop(0.18, "#e08a8a");
+    capGrad.addColorStop(0.5, "#efb0b0");
+    capGrad.addColorStop(0.82, "#e08a8a");
+    capGrad.addColorStop(1, "#c45454");
+    ctx.fillStyle = capGrad;
+    ctx.fillRect(WALL_L, CAP_TOP, boxW, CAP_BOT - CAP_TOP);
+
+    // vessel wall lines
+    ctx.strokeStyle = "rgba(150, 50, 50, 0.45)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(WALL_L, CAP_TOP + 2);
+    ctx.lineTo(WALL_R, CAP_TOP + 2);
+    ctx.stroke();
+
+    // blood flow streaks
+    const flow = (t * 70) % 90;
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    for (let i = 0; i < 10; i++) {
+      const sx = WALL_L + 20 + ((i * 95 + flow) % (boxW - 40));
+      const sy = CAP_TOP + 28 + (i % 3) * 28;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 22, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // outer stroke of the section
+    ctx.save();
+    roundRect(WALL_L, BOX_T, boxW, boxH, 18);
+    ctx.strokeStyle = "rgba(160, 120, 70, 0.55)";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.restore();
+
+    // left labels: 小腸壁細胞、微血管
+    ctx.save();
+    ctx.font = "20px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("小腸壁細胞", WALL_L - 28, (WALL_TOP + WALL_BOT) / 2 + 6);
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(WALL_L - 22, (WALL_TOP + WALL_BOT) / 2 + 6);
+    ctx.lineTo(WALL_L, (WALL_TOP + WALL_BOT) / 2 + 6);
+    ctx.stroke();
+
+    ctx.fillText("微血管", WALL_L - 28, (CAP_TOP + CAP_BOT) / 2);
+    ctx.beginPath();
+    ctx.moveTo(WALL_L - 22, (CAP_TOP + CAP_BOT) / 2);
+    ctx.lineTo(WALL_L, (CAP_TOP + CAP_BOT) / 2);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawSmallLabels(showOthersBrace, braceAlpha, leaderAlpha) {
+    if (leaderAlpha == null) leaderAlpha = 1;
+    // 細小及結構簡單的食物物質
+    const lx = 575, ly = 102;
+    ctx.save();
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(560, 158);
+    ctx.lineTo(lx, ly + 44);
+    ctx.stroke();
+    ctx.font = "bold 18px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("細小及結構簡單", lx, ly);
+    ctx.fillText("的食物物質", lx, ly + 22);
+    ctx.restore();
+
+    if (braceAlpha <= 0 && !showOthersBrace) return;
+
+    // individual labels 維生素 / 水 / 礦物質
+    const a = Math.max(braceAlpha, showOthersBrace ? 1 : 0);
+    const leadA = leaderAlpha;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.3;
+    ctx.font = "18px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    if (leadA > 0.04) {
+      ctx.save();
+      ctx.globalAlpha = a * leadA;
+      ctx.beginPath();
+      ctx.moveTo(754, 210);
+      ctx.lineTo(868, 128);
+      ctx.lineTo(888, 128);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(786, 200);
+      ctx.lineTo(868, 168);
+      ctx.lineTo(888, 168);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(828, 220);
+      ctx.lineTo(868, 210);
+      ctx.lineTo(888, 210);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillText("維生素", 894, 128);
+    ctx.fillText("水", 894, 168);
+    ctx.fillText("礦物質", 894, 210);
+
+    // brace + text
+    const bx = 980;
+    const y1 = 110, y2 = 230, mid = (y1 + y2) / 2;
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bx, y1);
+    ctx.bezierCurveTo(bx + 16, y1, bx + 16, mid - 14, bx + 28, mid);
+    ctx.bezierCurveTo(bx + 16, mid + 14, bx + 16, y2, bx, y2);
+    ctx.stroke();
+    ctx.font = "18px " + FONT;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("這些可穿過小腸壁", bx + 38, mid - 14);
+    ctx.fillText("直接進入血液中。", bx + 38, mid + 12);
+    ctx.restore();
+  }
+
+  function drawCaption(alpha) {
+    if (alpha <= 0) return;
+    const cx = (WALL_L + WALL_R) / 2;
+    const top = CAP_BOT + 10;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // bracket under capillary
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.6;
+    const left = cellCenterX(1) - 20;
+    const right = cellCenterX(3) + 40;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(left, top + 10);
+    ctx.lineTo(right, top + 10);
+    ctx.lineTo(right, top);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, top + 10);
+    ctx.lineTo(cx, top + 18);
+    ctx.stroke();
+    ctx.font = "20px " + FONT;
+    ctx.fillStyle = COL.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("細小及結構簡單的食物物質和水", cx, top + 22);
+    ctx.fillText("可穿過小腸壁進入血液中。", cx, top + 46);
+    ctx.restore();
+  }
+
+  function drawTransportArrow(alpha, t) {
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const ax = WALL_R + 18;
+    const ay = (CAP_TOP + CAP_BOT) / 2;
+    const pulse = 1 + Math.sin(t * 4) * 0.04;
+    ctx.translate(ax, ay);
+    ctx.scale(pulse, 1);
+    // shaft
+    ctx.fillStyle = COL.accent;
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(70, -16);
+    ctx.lineTo(70, -28);
+    ctx.lineTo(108, 0);
+    ctx.lineTo(70, 28);
+    ctx.lineTo(70, 16);
+    ctx.lineTo(0, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = "bold 18px " + FONT;
+    ctx.fillStyle = COL.accent;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const tx = WALL_R + 136;
+    const ty = (CAP_TOP + CAP_BOT) / 2;
+    ctx.fillText("已吸收的食物物質", tx, ty - 24);
+    ctx.fillText("經轉運系統運往", tx, ty);
+    ctx.fillText("身體各部分。", tx, ty + 24);
+    ctx.restore();
+  }
+
+  function drawScene() {
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#eef4fb");
+    bg.addColorStop(0.5, "#f8fafc");
+    bg.addColorStop(1, "#eef4fb");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const t = sceneT;
+    const scene = sceneIndex;
+
+    drawStomachNote(1);
+    drawWallAndCapillary(t);
+
+    const lg = largeState(t, scene);
+    drawLargeMolecule(lg);
+    drawBlockMark(lg);
+
+    // small particles: draw lumen ones first, then crossing, then blood (so blood is on top of capillary)
+    const all = SMALLS.concat(OTHERS);
+    const drawn = all.map(function (item) {
+      return { item: item, pos: particlePos(item, t, scene) };
+    });
+    drawn.sort(function (a, b) { return a.pos.y - b.pos.y; });
+    drawn.forEach(function (d) {
+      const a = (d.pos.alpha == null) ? 1 : d.pos.alpha;
+      if (a <= 0.02) return;
+      ctx.save();
+      ctx.globalAlpha = a;
+      drawParticle(d.item.kind, d.pos.x, d.pos.y, d.item.r);
+      ctx.restore();
+    });
+
+    // downward arrows while crossing (scene 2)
+    if (scene === 2) {
+      const foodCrossing = drawn.filter(function (d) {
+        return d.item.kind === "food" && d.pos.p > 0.08 && d.pos.p < 0.75;
+      });
+      if (foodCrossing.length) {
+        const avgX = 570;
+        drawDownArrow(avgX, 155, avgX, WALL_TOP - 4, 0.7);
+      }
+      const otherStart = drawn.find(function (d) { return d.item.kind === "vitamin"; });
+      if (otherStart && otherStart.pos.p > 0.05 && otherStart.pos.p < 0.8) {
+        drawDownArrow(780, 185, 780, WALL_TOP - 4, 0.7);
+      }
+    }
+
+    const braceOn = scene >= 0;
+    const braceAlpha = scene === 0 ? smoothstep(1.6, 2.6, t)
+                      : 1;
+    const leaderAlpha = scene <= 1 ? 1
+                      : scene === 2 ? (1 - smoothstep(1.5, 2.5, t))
+                      : 0;
+    drawSmallLabels(true, braceAlpha, leaderAlpha);
+
+    const capAlpha = scene === 2 ? smoothstep(2.2, 3.2, t)
+                   : scene === 3 ? 1
+                   : 0;
+    drawCaption(capAlpha);
+
+    const arrowAlpha = scene === 3 ? smoothstep(0, 0.9, t)
+                     : scene === 2 ? smoothstep(3.6, 5.2, t)
+                     : 0;
+    drawTransportArrow(arrowAlpha, t);
+
+    // scene callouts
+    if (scene === 0) {
+      const a = smoothstep(0.4, 1.3, t);
+      if (a > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = a;
+        drawCallout(W * 0.52, 52, "消化後：細小、簡單、可溶的物質", COL.accent, 24);
+        ctx.restore();
+      }
+    } else if (scene === 1) {
+      const show = lg.showX ? 1 : smoothstep(1.4, 1.8, t % 5.8);
+      if (show > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(show, lg.xPulse);
+        drawCallout(W * 0.52, 52, "分子太大，不能穿過小腸壁", COL.warn, 24);
+        ctx.restore();
+      }
+    } else if (scene === 2) {
+      const a = smoothstep(0.2, 1.0, t);
+      if (a > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = a;
+        drawCallout(W * 0.5, 52, "吸收：穿過小腸壁，進入微血管", COL.ok, 24);
+        ctx.restore();
+      }
+    } else {
+      // Cross-fade from the absorption callout into transport
+      const fadeOut = 1 - smoothstep(0, 0.7, t);
+      const fadeIn = smoothstep(0.25, 1.05, t);
+      if (fadeOut > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = fadeOut;
+        drawCallout(W * 0.5, 52, "吸收：穿過小腸壁，進入微血管", COL.ok, 24);
+        ctx.restore();
+      }
+      if (fadeIn > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = fadeIn;
+        drawCallout(W * 0.48, 52, "已吸收的物質經血液運往全身", COL.accent, 24);
+        ctx.restore();
+      }
+    }
+
+    drawBadge();
+  }
+
+  function loop(now) {
+    if (playing) {
+      sceneT = (now - t0) / 1000;
+      // After absorption finishes, ease into transport without a cut
+      if (sceneIndex === 2 && sceneT >= 5.5) {
+        goScene(3);
+      }
+    } else {
+      t0 = now - sceneT * 1000;
+    }
+    drawScene();
+    requestAnimationFrame(loop);
+  }
+
+  btnPlay.addEventListener("click", function () {
+    playing = !playing;
+    if (playing) t0 = performance.now() - sceneT * 1000;
+    updateUI();
+  });
+  document.getElementById("btnPrev").addEventListener("click", function () { goScene(sceneIndex - 1); });
+  document.getElementById("btnNext").addEventListener("click", function () { goScene(sceneIndex + 1); });
+  document.getElementById("btnRestart").addEventListener("click", restartScene);
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "ArrowLeft") { e.preventDefault(); goScene(sceneIndex - 1); }
+    else if (e.code === "ArrowRight") { e.preventDefault(); goScene(sceneIndex + 1); }
+    else if (e.code === "Space") {
+      e.preventDefault();
+      playing = !playing;
+      if (playing) t0 = performance.now() - sceneT * 1000;
+      updateUI();
+    } else if (e.code === "KeyR") { restartScene(); }
+  });
+
+  updateUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
