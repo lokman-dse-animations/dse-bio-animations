@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小測一：逐步繪畫光線圖</title>
+<!--
+  中三物理 · 小測一（2026-2027）丁部及獎分題
+  單一離線檔案，無 CDN、無外連。canvas 自繪，逐步發出光線。
+  快捷鍵：←/→ 換步　Space 暫停／自動播放　R 重播　F 全螢幕　1–4 切換場景
+-->
+<style>
+  :root {
+    --bg: #0b1730;
+    --panel: #12233f;
+    --text: #f4f7fb;
+    --ray: #ffd84a;
+    --accent: #7fdcff;
+    --reflect: #ff8a6a;
+    --image: #ff7ad9;
+    --object: #f4f7fb;
+    --mirror: #c8d6e8;
+    --ok: #7dffa0;
+    --muted: #b8c6dc;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang HK", "PingFang TC",
+                 "Noto Sans CJK HK", "Noto Sans CJK TC", "Noto Sans TC", "Heiti TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 2px solid #ffffff22;
+  }
+  header h1 { margin: 0; font-size: clamp(18px, 2vw, 32px); }
+  header .sub { font-size: clamp(14px, 1.3vw, 22px); color: #ffe27a; font-weight: bold; }
+  header .spacer { flex: 1; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  #nav {
+    width: clamp(200px, 18vw, 280px);
+    padding: 12px 12px; background: #0e1c36;
+    display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto; border-right: 2px solid #ffffff22;
+  }
+  #nav .nav-title {
+    font-size: 15px; font-weight: bold; color: var(--accent);
+    margin-bottom: 2px;
+  }
+  .scene-btn {
+    text-align: left; font-size: 15px; font-weight: 700;
+    padding: 10px 12px; border-radius: 10px;
+    border: 2px solid #ffffff33; background: #12233f; color: var(--text);
+    cursor: pointer; line-height: 1.35;
+  }
+  .scene-btn small { display: block; font-weight: 600; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .scene-btn.active {
+    background: #e0a400; color: #111; border-color: #ffd84a;
+  }
+  .scene-btn.active small { color: #3a2a00; }
+  .scene-btn:hover { filter: brightness(1.12); }
+
+  #stage { flex: 1; position: relative; min-width: 0; min-height: 0; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  aside {
+    width: clamp(280px, 24vw, 400px);
+    padding: 12px 14px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 12px;
+    overflow-y: auto; font-size: 18px;
+  }
+  body.hide-aside aside { display: none; }
+  body.hide-nav #nav { display: none; }
+
+  button {
+    font: inherit; font-size: 18px; font-weight: bold;
+    padding: 9px 14px; border-radius: 12px;
+    border: 2px solid #ffffff55; background: #1f3a66; color: #fff; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: #e0a400; color: #111; border-color: #ffd84a; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row button { flex: 1 1 auto; min-width: 0; }
+
+  .step-title {
+    font-size: clamp(17px, 1.4vw, 24px);
+    font-weight: bold; color: var(--accent); line-height: 1.35;
+  }
+  .step-desc {
+    font-size: clamp(15px, 1.2vw, 20px);
+    line-height: 1.55; color: var(--text);
+  }
+  .step-desc strong { color: #ffe27a; }
+
+  .steps {
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .step-btn {
+    text-align: left; font-size: 14px; font-weight: 600;
+    padding: 7px 10px; border-radius: 8px;
+    border: 1px solid #ffffff33; background: #0e1c36; color: var(--text);
+    cursor: pointer;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.6em; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-btn.active {
+    background: #e0a400; color: #111; border-color: #ffd84a;
+  }
+  .step-btn.active .num { color: #111; }
+  .step-btn.done { border-color: #7dffa055; }
+
+  .check {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 16px; cursor: pointer;
+  }
+  .check input { width: 22px; height: 22px; accent-color: #ffd84a; }
+
+  .legend {
+    font-size: 15px; line-height: 1.7;
+    border-top: 2px solid #ffffff22; padding-top: 8px;
+  }
+  .legend .sw {
+    display: inline-block; width: 28px; height: 4px;
+    vertical-align: middle; margin-right: 8px; border-radius: 2px;
+  }
+  .hint { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+  footer {
+    padding: 8px 16px 10px; background: #081022;
+    border-top: 2px solid #ffffff22; text-align: center;
+  }
+  #conclusion {
+    font-size: clamp(16px, 1.6vw, 28px);
+    font-weight: bold; color: #ffe27a; line-height: 1.4;
+  }
+  #formula {
+    font-size: clamp(14px, 1.2vw, 22px);
+    margin-top: 4px; line-height: 1.45; color: var(--muted);
+  }
+
+  kbd {
+    display: inline-block; padding: 1px 6px;
+    border: 1px solid #ffffff44; border-radius: 4px;
+    background: #1a2d4d; font-family: ui-monospace, monospace; font-size: 0.9em;
+  }
+
+  @media (max-width: 1100px) {
+    #nav { width: 200px; }
+    aside { width: 280px; }
+  }
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow: auto; }
+    main { flex-direction: column; }
+    #nav { width: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 2px solid #ffffff22; }
+    .scene-btn { flex: 1 1 140px; }
+    #stage { flex: none; height: 52vh; }
+    aside { width: auto; }
+    .steps { max-height: 180px; flex-direction: row; flex-wrap: wrap; }
+    .step-btn { flex: 1 1 140px; }
+  }
+
+  a.back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: clamp(18px, 1.4vw, 24px);
+    white-space: nowrap;
+  }
+  a.back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="f3-physics.html">← 返回中三物理</a>
+  <h1>小測一：逐步繪畫光線圖</h1>
+  <span class="sub" id="headerSub">中三物理 · 光</span>
+  <span class="spacer"></span>
+  <button type="button" id="btnPrev" title="快捷鍵 ←">◀ 上一步</button>
+  <button type="button" id="btnNext" class="primary" title="快捷鍵 →">下一步 ▶</button>
+  <button type="button" id="btnAuto" title="快捷鍵 Space">▶ 自動播放</button>
+  <button type="button" id="btnReplay" title="快捷鍵 R">重播</button>
+  <button type="button" id="btnFull" title="快捷鍵 F">全螢幕</button>
+  <button type="button" id="btnAside">控制面板</button>
+</header>
+
+<main>
+  <div id="nav">
+    <div class="nav-title">題目選單 <span style="font-weight:600;color:#b8c6dc;font-size:12px">（按 1–4）</span></div>
+    <button type="button" class="scene-btn active" data-scene="0" id="btnScene0">
+      A　第 1 題 (b)
+      <small>為何能看見書本（光束）</small>
+    </button>
+    <button type="button" class="scene-btn" data-scene="1" id="btnScene1">
+      B　第 2 題
+      <small>鉛筆在平面鏡前的成像</small>
+    </button>
+    <button type="button" class="scene-btn" data-scene="2" id="btnScene2">
+      C　第 3 題
+      <small>潛望鏡（兩次 45° 反射）</small>
+    </button>
+    <button type="button" class="scene-btn" data-scene="3" id="btnScene3">
+      D　第 19 題
+      <small>透視箱（獎分題）</small>
+    </button>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv" aria-label="光線圖逐步動畫"></canvas>
+  </div>
+
+  <aside>
+    <div class="step-title" id="stepTitle">步驟 0</div>
+    <div class="step-desc" id="stepDesc"></div>
+
+    <div class="row">
+      <button type="button" id="btnPrev2">◀ 上一步</button>
+      <button type="button" id="btnNext2" class="primary">下一步 ▶</button>
+    </div>
+
+    <div>
+      <div style="font-weight:bold;margin-bottom:6px;color:var(--accent)">步驟選單</div>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="chkNormal" checked> 顯示法線</label>
+    <label class="check"><input type="checkbox" id="chkAngles" checked> 顯示角度標籤</label>
+    <label class="check"><input type="checkbox" id="chkGrid" checked> 顯示方格</label>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#ffd84a"></span>入射線（實線＋箭號）</div>
+      <div><span class="sw" style="background:#ff8a6a"></span>反射線（實線＋箭號）</div>
+      <div><span class="sw" style="background:#ff7ad9;height:0;border-top:3px dashed #ff7ad9"></span>鏡後虛線／虛像（無箭號延長）</div>
+      <div><span class="sw" style="background:#7fdcff;height:2px"></span>法線（垂直鏡面）</div>
+    </div>
+
+    <div class="hint">
+      教學規則：入射／反射用實線＋箭號；鏡後方用<strong style="color:#ff7ad9">無箭號虛線</strong>；虛像用虛線。<br>
+      快捷鍵：<kbd>←</kbd><kbd>→</kbd> 換步　<kbd>Space</kbd> 暫停／自動播放　<kbd>R</kbd> 重播　<kbd>F</kbd> 全螢幕　<kbd>1</kbd>–<kbd>4</kbd> 切換場景
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div id="conclusion">準備開始：先認識場景</div>
+  <div id="formula">反射定律：入射角 i ＝ 反射角 r（法線垂直於鏡面）</div>
+</footer>
+
+<script>
+
+(() => {
+  'use strict';
+
+  const COL = {
+    I: '#ffd84a',
+    R: '#ff8a6a',
+    V: '#ff7ad9',
+    N: 'rgba(127,220,255,0.9)',
+    ink: '#e8eef8',
+    mute: '#9eb0c8',
+    ok: '#7dffa0',
+    acc: '#7fdcff',
+    text: '#f4f7fb'
+  };
+
+  const AUTO_HOLD_MS = 1700;
+  const GROW_MS = 1100;
+
+  // =========================================================
+  // 數學工具（y 向上的世界座標）
+  // =========================================================
+  const hypot = Math.hypot;
+  function add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+  function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+  function mul(a, s) { return { x: a.x * s, y: a.y * s }; }
+  function dot(a, b) { return a.x * b.x + a.y * b.y; }
+  function len(a) { return hypot(a.x, a.y) || 1e-9; }
+  function norm(a) { const L = len(a); return { x: a.x / L, y: a.y / L }; }
+  function lerp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+  function seg(p, a, b) {
+    if (p <= a) return 0;
+    if (p >= b) return 1;
+    return (p - a) / (b - a);
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  // 點對直線（通過 p0、單位方向 d 或兩點 a-b）的鏡像
+  function reflectPoint(p, a, b) {
+    const d = norm(sub(b, a));
+    const ap = sub(p, a);
+    const proj = add(a, mul(d, dot(ap, d)));
+    return sub(mul(proj, 2), p); // 2*proj - p
+  }
+  // 單位法線（指向 side 這一側）
+  function normalToward(a, b, sidePoint) {
+    const d = norm(sub(b, a));
+    let n = { x: -d.y, y: d.x };
+    const mid = lerp(a, b, 0.5);
+    if (dot(n, sub(sidePoint, mid)) < 0) n = { x: -n.x, y: -n.y };
+    return n;
+  }
+  // 線段 a-b 與線段 c-d 的交點（無限直線）
+  function lineIntersect(a, b, c, d) {
+    const r = sub(b, a), s = sub(d, c);
+    const den = r.x * s.y - r.y * s.x;
+    if (Math.abs(den) < 1e-9) return null;
+    const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den;
+    return add(a, mul(r, t));
+  }
+  // 反射方向：入射速度 I（指向鏡面），N 為指向入射側的單位法線
+  function reflectDirI(I, N) {
+    const n = norm(N);
+    const i = I; // 不必單位
+    const k = 2 * dot(i, n);
+    return sub(i, mul(n, k));
+  }
+
+  // =========================================================
+  // 場景幾何（預先計算）
+  // =========================================================
+
+  // ---------- A. 第 1 題 (b)：枱燈、書本、眼睛 ----------
+  const A = (() => {
+    const bookTop = 0;
+    const book = { x: 0, y: bookTop, w: 4.4, d: 1.7, h: 1.45 }; // 中心、半寬、厚度視覺、高度
+    const lampBulb = { x: 6.6, y: 4.35 };
+    const eye = { x: -6.4, y: 5.15 };
+    // 眼睛對書面的鏡像，用來求正確擊中點（保證 i＝r）
+    const eyeImg = { x: eye.x, y: -eye.y };
+    const hit = lineIntersect(lampBulb, eyeImg, { x: -20, y: 0 }, { x: 20, y: 0 });
+    const coneHits = [
+      { x: hit.x - 1.55, y: 0 },
+      hit,
+      { x: hit.x + 1.65, y: 0 }
+    ];
+    return { book, lampBulb, eye, hit, coneHits, bookTop };
+  })();
+
+  // ---------- B. 第 2 題：鉛筆與平面鏡（1 格＝1 cm） ----------
+  const B = (() => {
+    const MIRROR_X = 8;
+    const tip = { x: 0, y: 6 };
+    const base = { x: 0, y: 0 };
+    const imgTip = { x: 16, y: 6 };
+    const imgBase = { x: 16, y: 0 };
+    // 題目已給的兩條筆尖入射線（擊中點在格線上：低 2 cm、4 cm）
+    const givenHits = [ { x: 8, y: 4 }, { x: 8, y: 2 } ];
+    // 筆底兩條入射線（如標答，斜向上射向鏡面）
+    const baseHits = [ { x: 8, y: 2.6 }, { x: 8, y: 1.3 } ];
+    // 眼睛（左上方，如標答）：各接收一條來自筆尖虛像的反射線
+    const eyes = [ { x: -2.3, y: 9.15 }, { x: -2.15, y: 7.35 } ];
+    const eyeHits = eyes.map(e => {
+      const hit = lineIntersect(imgTip, e, { x: 8, y: -20 }, { x: 8, y: 20 });
+      return hit;
+    });
+    function rEnd(from, hit, length) {
+      const I = sub(hit, from);
+      const R = { x: -I.x, y: I.y }; // 垂直鏡：只反轉 x
+      return add(hit, mul(norm(R), length));
+    }
+    return {
+      MIRROR_X, tip, base, imgTip, imgBase, givenHits, baseHits, eyes, eyeHits,
+      givenRefl: givenHits.map(h => rEnd(tip, h, 5.5)),
+      baseRefl: baseHits.map(h => rEnd(base, h, 4.2)),
+      pencilW: 0.55
+    };
+  })();
+
+  // ---------- C. 第 3 題：潛望鏡（兩塊 45°、斜率 +1 的平面鏡） ----------
+  const C = (() => {
+    // 上鏡：y - x = 165；下鏡：y - x = -90
+    const cU = 165, cL = -90;
+    const sceneTop = { x: 292, y: 320 };
+    const sceneBot = { x: 292, y: 285 }; // 三角形底
+    const rayYs = [320, 285];
+    const upperHits = rayYs.map(y => ({ x: y - cU, y }));
+    const lowerHits = upperHits.map(h => ({ x: h.x, y: h.x + cL }));
+    const eyePts = lowerHits.map(h => ({ x: -28, y: h.y }));
+    const upperMir = { a: { x: 105, y: 270 }, b: { x: 175, y: 340 } };
+    const lowerMir = { a: { x: 100, y: 10 },  b: { x: 185, y: 95 } };
+    // 景物：正立三角箭號
+    const scene = { x: 292, baseY: 285, topY: 328, half: 16 };
+    const image = { x: 350, baseY: 285, topY: 328, half: 16 };
+    const eye = { x: -28, y: (lowerHits[0].y + lowerHits[1].y) / 2 };
+    // 潛望鏡外殼
+    const body = [
+      { x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 255 },
+      { x: 252, y: 255 }, { x: 252, y: 350 }, { x: 78, y: 350 },
+      { x: 78, y: 100 }, { x: 0, y: 100 }
+    ];
+    return {
+      cU, cL, upperHits, lowerHits, eyePts, upperMir, lowerMir,
+      scene, image, eye, body, rayYs, sceneTop, sceneBot
+    };
+  })();
+
+  // ---------- D. 第 19 題：透視箱（斜鏡，點對鏡面對稱） ----------
+  const D = (() => {
+    const box = { x: 0, y: 0, w: 420, h: 270 };
+    // 斜鏡：由左上到右下，斜率 -1（約 45°，接近原圖）
+    // 線：x + y = 310
+    const mir = { a: { x: 78, y: 232 }, b: { x: 262, y: 48 } };
+    const c = 310; // x+y
+    function imgOf(p) { return { x: c - p.y, y: c - p.x }; }
+    // 杯子（左下，鏡前）
+    const cup = {
+      cx: 95, y0: 14, y1: 70, r0: 22, r1: 16 // 底半徑、頂半徑
+    };
+    // 杯子輪廓上的取樣點，用來畫真正的鏡像
+    function cupPoints() {
+      const pts = [];
+      // 頂緣（左→右）
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8, ang = Math.PI - t * Math.PI;
+        pts.push({ x: cup.cx + cup.r1 * Math.cos(ang), y: cup.y1 + 3 * Math.sin(ang) * 0.15 });
+      }
+      // 右側到杯底
+      pts.push({ x: cup.cx + cup.r0, y: cup.y0 + 6 });
+      // 底緣右→左
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        pts.push({ x: cup.cx + cup.r0 * (1 - 2 * t), y: cup.y0 });
+      }
+      pts.push({ x: cup.cx - cup.r0, y: cup.y0 + 6 });
+      pts.push({ x: cup.cx - cup.r1, y: cup.y1 });
+      return pts;
+    }
+    const cupPts = cupPoints();
+    const cupImgPts = cupPts.map(imgOf);
+    // 取杯子頂緣中點作為光線起點
+    const src = { x: cup.cx, y: cup.y1 };
+    const srcImg = imgOf(src);
+    // 眼睛（箱外左方，向右望入觀景孔）
+    const eye = { x: -48, y: 168 };
+    const hole = { x: 0, y1: 148, y2: 188 };
+    const hit = lineIntersect(eye, srcImg, mir.a, mir.b);
+    const paper = { x: 400, y: 18, w: 14, h: 234 };
+    return { box, mir, c, cup, cupPts, cupImgPts, src, srcImg, eye, hole, hit, paper, imgOf };
+  })();
+
+  // =========================================================
+  // 步驟定義
+  // =========================================================
+  const SCENES = [
+    {
+      id: 'A',
+      title: '第 1 題 (b)：為何能看見書本',
+      headerSub: '丁部 · 第 1 題 (b)',
+      formulaDefault: '反射定律：入射角 i ＝ 反射角 r（法線垂直於書面）',
+      steps: [
+        {
+          title: '步驟 0：出示枱燈、書本與小華的眼睛',
+          sub: '出示場景',
+          desc: '右上方是<strong>枱燈</strong>（發光體），桌上是<strong>書本</strong>（非發光體），左上方是<strong>小華的眼睛</strong>。想一想：書本自己會發光嗎？小華為甚麼看得見它？',
+          footer: '書本是非發光體，自己不會發光',
+          anim: 'none'
+        },
+        {
+          title: '步驟 1：枱燈發出光束射向書本',
+          sub: '畫出入射光線',
+          desc: '由枱燈畫出<strong>光束</strong>（兩三條入射光線，實線＋箭號）射向書本。標註「入射光線」。這些光線來自發光體。',
+          footer: '入射光線：實線＋箭號，由枱燈射向書本',
+          anim: 'inc'
+        },
+        {
+          title: '步驟 2：在擊中點畫法線',
+          sub: '作法線',
+          desc: '在書面的擊中點畫<strong>法線</strong>：垂直於書面的虛線，<strong>沒有箭號</strong>。書本表面近乎水平，所以法線幾乎是鉛垂線。',
+          footer: '法線垂直鏡面（這裏是書面），用虛線、無箭號',
+          anim: 'normal'
+        },
+        {
+          title: '步驟 3：依反射定律畫反射線進入眼睛',
+          sub: '反射線與 i＝r',
+          desc: '依<strong>反射定律</strong>畫出反射光線（實線＋箭號），射入小華的眼睛。標示入射角 <strong>i</strong> 與反射角 <strong>r</strong>，可見 <strong>i ＝ r</strong>。',
+          footer: '入射角 i ＝ 反射角 r；反射光線進入眼睛',
+          anim: 'ref'
+        },
+        {
+          title: '步驟 4：總結——為甚麼看得見書本',
+          sub: '總結',
+          desc: '書本是<strong>非發光體</strong>，把枱燈射來的光反射出去；<strong>反射光線進入眼睛</strong>，小華才能看見書本。',
+          footer: '非發光體要靠反射發光體的光，反射光線進入眼睛才看得見',
+          anim: 'sum'
+        }
+      ]
+    },
+    {
+      id: 'B',
+      title: '第 2 題：鉛筆在平面鏡前的成像',
+      headerSub: '丁部 · 第 2 題',
+      formulaDefault: '反射定律：入射角 i ＝ 反射角 r；平面鏡：物距＝像距',
+      steps: [
+        {
+          title: '步驟 0：出示方格、平面鏡、鉛筆與已給入射線',
+          sub: '題目已給的圖',
+          desc: '鉛筆直立在平面鏡前 <strong>8 cm</strong>。圖上已畫出平面鏡（右側短斜線為鏡背）、鉛筆，以及由<strong>筆尖</strong>射向鏡面的<strong>兩條入射光線</strong>。先問學生：還缺甚麼才能畫出成像？',
+          footer: '還缺：反射線、鏡後虛線延長，以及虛像的位置',
+          anim: 'none'
+        },
+        {
+          title: '步驟 1：為已給的入射線加上箭號',
+          sub: '入射線加箭號',
+          desc: '光線圖要用直線加<strong>箭號</strong>表示傳播方向。先確認這兩條已給光線的箭號<strong>指向鏡面</strong>（入射光線）。',
+          footer: '入射光線：實線＋箭號，指向鏡面',
+          anim: 'incArrow'
+        },
+        {
+          title: '步驟 2：作法線，依反射定律畫反射線',
+          sub: '法線與反射線',
+          desc: '在每一擊中點作法線（垂直鏡面＝<strong>水平虛線</strong>）。依反射定律 <strong>i ＝ r</strong> 畫出反射線（實線＋箭號）。垂直平面鏡只把水平方向反轉，反射線向左下方散開。',
+          footer: '法線水平（垂直鏡面）；入射角 i ＝ 反射角 r',
+          anim: 'refGiven'
+        },
+        {
+          title: '步驟 3：虛線向鏡後延長，相交得筆尖的像',
+          sub: '定出筆尖的像',
+          desc: '把反射線以<strong>無箭號虛線</strong>向鏡後延長，兩條虛線相交於筆尖的像。這一點是筆尖對鏡面的<strong>水平鏡像</strong>（物距＝像距＝ 8 cm）。',
+          footer: '鏡後方線：虛線、無箭號（並非真實光線）',
+          anim: 'virtTip'
+        },
+        {
+          title: '步驟 4：由筆底再畫入射、反射與虛線延長',
+          sub: '定出筆底的像',
+          desc: '同樣由<strong>筆底</strong>畫兩條入射線射向鏡面，依反射定律畫反射線，再以無箭號虛線向鏡後延長，定出筆底的像。',
+          footer: '對物體底端重複相同步驟，物距同樣等於像距',
+          anim: 'baseRays'
+        },
+        {
+          title: '步驟 5：用虛線畫出整枝鉛筆的虛像',
+          sub: '虛像與 8 cm',
+          desc: '用<strong>虛線</strong>畫出整枝鉛筆的虛像：<strong>正立、等大、在鏡後</strong>。標示<strong>物距 ＝ 像距 ＝ 8 cm</strong>。',
+          footer: '平面鏡成像：正立、虛像、等大、像距＝物距',
+          anim: 'image'
+        },
+        {
+          title: '步驟 6：反射光線進入眼睛',
+          sub: '光線進入眼睛',
+          desc: '左上方的眼睛要看見筆尖，必須有反射光線射入眼睛。由筆尖另畫射向鏡面、再反射入眼的光線（實線＋箭號）；把這些反射線以無箭號虛線向鏡後延長，正好交於剛才得到的虛像。眼睛覺得光線好像來自鏡後虛像。',
+          footer: '眼睛接收反射光線；覺得它們是從鏡後虛像發出的',
+          anim: 'eyes'
+        },
+        {
+          title: '步驟 7：回答第 2 題小問',
+          sub: '小問答案',
+          desc: '(a) 反射角 ＝ <strong>40°</strong>（入射角等於反射角）。(c) 成像在<strong>平面鏡的後面</strong>。(d) 距離是 <strong>8 cm</strong>，因為平面鏡的<strong>物距等於像距</strong>。',
+          footer: '(a) 40°　　(c) 平面鏡的後面　　(d) 8 cm，物距等於像距',
+          anim: 'answers'
+        }
+      ]
+    },
+    {
+      id: 'C',
+      title: '第 3 題：潛望鏡',
+      headerSub: '丁部 · 第 3 題',
+      formulaDefault: '兩塊 45° 平面鏡使光線轉 90°；兩次反射後成像正立',
+      steps: [
+        {
+          title: '步驟 0：出示潛望鏡構造、景物與眼睛',
+          sub: '出示構造',
+          desc: '管內上、下各有一塊 <strong>45°</strong> 平面鏡（短斜線表示鏡背）。右上方是正立的<strong>景物</strong>（三角箭號），左下方是觀察者的<strong>眼睛</strong>。',
+          footer: '兩塊 45° 平面鏡互相平行，鏡面相對',
+          anim: 'none'
+        },
+        {
+          title: '步驟 1：由景物畫兩條水平入射線射向上鏡',
+          sub: '水平入射上鏡',
+          desc: '由景物的上端與下端各畫一條<strong>水平入射光線</strong>（實線＋箭號）向左，射向上方的 45° 平面鏡。',
+          footer: '入射光線：實線＋箭號，水平射向上鏡',
+          anim: 'inc'
+        },
+        {
+          title: '步驟 2：45° 鏡與反射定律——光線向下轉 90°',
+          sub: '上鏡反射向下',
+          desc: '45° 鏡的法線與鏡面垂直。水平入射時，入射角 ＝ 45°，所以反射角也是 45°，光線<strong>轉 90°</strong> 後垂直向下。',
+          footer: '入射角 45° ＝ 反射角 45°，光線轉 90° 向下',
+          anim: 'down'
+        },
+        {
+          title: '步驟 3：光線射到下鏡，再以 45° 反射進入眼睛',
+          sub: '下鏡反射入眼',
+          desc: '垂直向下的光線射到下方 45° 平面鏡，同樣轉 90°，變成水平向左，<strong>進入眼睛</strong>。下鏡也可加虛線向右延長作輔助。',
+          footer: '兩次 45° 反射後，光線水平進入眼睛',
+          anim: 'eye'
+        },
+        {
+          title: '步驟 4：標出正立成像並總結',
+          sub: '正立成像',
+          desc: '在景物右側用虛線畫出<strong>正立</strong>的三角箭號，標註「成像（正立）」。光線經<strong>兩次 45° 反射</strong>後進入眼睛，上下次序保持不變，所以成像正立。',
+          footer: '光線經兩次反射後進入眼睛；眼睛看到景物的正立成像',
+          anim: 'image'
+        }
+      ]
+    },
+    {
+      id: 'D',
+      title: '第 19 題：透視箱',
+      headerSub: '獎分題 · 第 19 題',
+      formulaDefault: '虛像是物體對鏡面的點對稱（物距＝像距），不能用屏幕接收',
+      steps: [
+        {
+          title: '步驟 0：出示透視箱、杯子、斜鏡與白紙',
+          sub: '出示構造',
+          desc: '箱左壁有<strong>觀景孔</strong>，眼睛在箱外向右望。箱內斜放一塊平面鏡（右側短斜線為鏡背），<strong>杯子</strong>在鏡前左下，右牆貼<strong>白紙</strong>。先請學生猜想：觀眾為甚麼覺得杯子「浮」在白紙前面？',
+          footer: '先觀察構造，再逐步畫光線圖',
+          anim: 'none'
+        },
+        {
+          title: '步驟 1：由杯子畫入射線射向鏡面',
+          sub: '入射線',
+          desc: '杯子是<strong>非發光體</strong>，反射展覽燈的光。由杯子畫一條入射光線（實線＋箭號）射向斜鏡上的一點。',
+          footer: '入射光線：實線＋箭號，由杯子射向鏡面',
+          anim: 'inc'
+        },
+        {
+          title: '步驟 2：作法線，依反射定律把反射線畫入眼睛',
+          sub: '法線與反射線',
+          desc: '在擊中點畫<strong>法線</strong>（垂直於斜鏡，虛線、無箭號）。依反射定律畫出反射線，經觀景孔<strong>進入眼睛</strong>（實線＋箭號）。',
+          footer: '法線垂直斜鏡；入射角 i ＝ 反射角 r',
+          anim: 'ref'
+        },
+        {
+          title: '步驟 3：虛線向鏡後延長，定出虛像',
+          sub: '定出虛像',
+          desc: '把反射線以<strong>無箭號虛線</strong>向鏡後延長，定出杯子的<strong>虛像</strong>。虛像是杯子對斜鏡平面的<strong>點對稱</strong>（每一點的物距＝像距），所以斜鏡會令成像的方位旋轉；它位於白紙<strong>前方</strong>，並不在白紙上。所以觀眾覺得杯子「浮」在箱後白紙前面。',
+          footer: '白紙上並無實像；觀眾看見的是鏡後虛像，看起來像浮在白紙前',
+          anim: 'virt'
+        },
+        {
+          title: '步驟 4：(b)(i) 關掉展覽燈之後',
+          sub: '(b)(i) 關燈',
+          desc: '若關掉展覽燈，箱內接近全黑，觀眾<strong>不能</strong>再清楚看見「浮杯」。因為杯子是<strong>非發光體</strong>，沒有光線射到鏡上再反射進入眼睛。',
+          footer: '不能看清：杯子是非發光體，無法產生光線在鏡上反射',
+          anim: 'dark'
+        },
+        {
+          title: '步驟 5：(b)(ii) 把白紙移到鏡前「接住」像？',
+          sub: '(b)(ii) 不能接住',
+          desc: '同學把白紙移到鏡前，想「接住」像以證明有實像。這做法<strong>不能</strong>達到目的：杯子形成的是<strong>虛像</strong>，在鏡後，反射光線並沒有真正會聚在鏡前，所以不能用屏幕接收。',
+          footer: '不能：杯子形成的成像是虛像，不能用屏幕接收',
+          anim: 'screen'
+        }
+      ]
+    }
+  ];
+
+  // =========================================================
+  // 狀態
+  // =========================================================
+  const state = {
+    scene: 0,
+    step: 0,
+    showNormal: true,
+    showAngles: true,
+    showGrid: true,
+    autoplay: false,
+    progress: 1,
+    animating: false,
+    lastTs: null,
+    paperSlide: 0 // D 題白紙移到鏡前的進度
+  };
+  let holdUntil = 0;
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const stepsEl = document.getElementById('steps');
+  const stepTitle = document.getElementById('stepTitle');
+  const stepDesc = document.getElementById('stepDesc');
+  const conclusion = document.getElementById('conclusion');
+  const formula = document.getElementById('formula');
+  const btnAuto = document.getElementById('btnAuto');
+  const headerSub = document.getElementById('headerSub');
+
+  function currentScene() { return SCENES[state.scene]; }
+  function currentSteps() { return currentScene().steps; }
+
+  function rebuildSteps() {
+    stepsEl.innerHTML = '';
+    currentSteps().forEach((s, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'step-btn' + (i === state.step ? ' active' : (i < state.step ? ' done' : ''));
+      b.innerHTML = '<span class="num">' + i + '</span>' + s.sub;
+      b.addEventListener('click', () => goStep(i, true));
+      stepsEl.appendChild(b);
+    });
+  }
+
+  function updateUI() {
+    const scene = currentScene();
+    const s = scene.steps[state.step];
+    stepTitle.textContent = s.title;
+    stepDesc.innerHTML = s.desc;
+    conclusion.textContent = s.footer;
+    formula.textContent = scene.formulaDefault;
+    headerSub.textContent = '中三物理 · 光　｜　' + scene.headerSub;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle('active', i === state.step);
+      el.classList.toggle('done', i < state.step);
+    });
+    document.querySelectorAll('.scene-btn').forEach((el, i) => {
+      el.classList.toggle('active', i === state.scene);
+    });
+    const atEnd = state.step === scene.steps.length - 1 && state.progress >= 1;
+    document.getElementById('btnPrev').disabled = state.step === 0;
+    document.getElementById('btnPrev2').disabled = state.step === 0;
+    document.getElementById('btnNext').disabled = atEnd && !state.autoplay;
+    document.getElementById('btnNext2').disabled = atEnd && !state.autoplay;
+    btnAuto.textContent = state.autoplay ? '⏸ 暫停' : '▶ 自動播放';
+  }
+
+  function goScene(i, replayAnim) {
+    i = clamp(i | 0, 0, SCENES.length - 1);
+    state.scene = i;
+    state.autoplay = false;
+    rebuildSteps();
+    goStep(0, !!replayAnim);
+    if (!replayAnim) {
+      state.progress = 1;
+      state.animating = false;
+    }
+    updateUI();
+  }
+
+  function goStep(i, replayAnim) {
+    const steps = currentSteps();
+    i = clamp(i, 0, steps.length - 1);
+    state.step = i;
+    const needsAnim = steps[i].anim !== 'none';
+    if (replayAnim && needsAnim) {
+      state.progress = 0;
+      state.animating = true;
+      state.lastTs = null;
+      if (steps[i].anim === 'screen') state.paperSlide = 0;
+    } else {
+      state.progress = 1;
+      state.animating = false;
+      if (steps[i].anim === 'screen') state.paperSlide = 1;
+    }
+    holdUntil = 0;
+    updateUI();
+  }
+
+  function nextStep() {
+    const steps = currentSteps();
+    if (state.step >= steps.length - 1 && state.progress >= 1) {
+      state.autoplay = false;
+      updateUI();
+      return;
+    }
+    if (state.progress < 1) {
+      state.progress = 1;
+      state.animating = false;
+      if (steps[state.step].anim === 'screen') state.paperSlide = 1;
+      updateUI();
+      return;
+    }
+    goStep(state.step + 1, true);
+  }
+
+  function prevStep() {
+    state.autoplay = false;
+    if (state.progress < 1 && state.step > 0) {
+      goStep(state.step, false);
+      state.progress = 1;
+      updateUI();
+      return;
+    }
+    goStep(Math.max(0, state.step - 1), false);
+    state.progress = 1;
+    updateUI();
+  }
+
+  function replay() {
+    state.autoplay = false;
+    goStep(0, true);
+    state.progress = 1;
+    state.animating = false;
+    updateUI();
+  }
+
+  function toggleAuto() {
+    state.autoplay = !state.autoplay;
+    if (state.autoplay) {
+      const steps = currentSteps();
+      if (state.step === steps.length - 1 && state.progress >= 1) {
+        goStep(0, true);
+        state.progress = 1;
+        state.animating = false;
+        holdUntil = performance.now() + 800;
+      } else if (state.progress >= 1) {
+        holdUntil = performance.now() + 400;
+      } else {
+        state.animating = true;
+        state.lastTs = null;
+      }
+    }
+    updateUI();
+  }
+
+  // =========================================================
+  // 繪圖：相機與原語
+  // =========================================================
+  let W = 0, H = 0, dpr = 1;
+  let scale = 1, ox = 0, oy = 0;
+
+  function resize() {
+    const rect = cv.parentElement.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(1, Math.floor(rect.width));
+    H = Math.max(1, Math.floor(rect.height));
+    cv.width = Math.floor(W * dpr);
+    cv.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // y 向上
+  function setWorld(xmin, xmax, ymin, ymax, pad) {
+    pad = pad == null ? 0.10 : pad;
+    const wx = xmax - xmin, wy = ymax - ymin;
+    scale = Math.min(W * (1 - 2 * pad) / wx, H * (1 - 2 * pad) / wy);
+    ox = W / 2 - (xmin + xmax) / 2 * scale;
+    oy = H / 2 + (ymin + ymax) / 2 * scale;
+  }
+  function tx(x) { return ox + x * scale; }
+  function ty(y) { return oy - y * scale; }
+
+  function lw(n) { return Math.max(1.2, n * scale / 18); } // 以「約 18 px／世界單位」作基準時的線寬
+  function fs(n) { return Math.max(11, n * scale / 18); }
+
+  function drawArrowHead(x1, y1, x2, y2, color, size) {
+    const px1 = tx(x1), py1 = ty(y1), px2 = tx(x2), py2 = ty(y2);
+    const ang = Math.atan2(py2 - py1, px2 - px1);
+    const s = size || Math.max(9, 11 * scale / 28);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px2, py2);
+    ctx.lineTo(px2 - s * Math.cos(ang - 0.4), py2 - s * Math.sin(ang - 0.4));
+    ctx.lineTo(px2 - s * Math.cos(ang + 0.4), py2 - s * Math.sin(ang + 0.4));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSolidRay(x1, y1, x2, y2, color, width, withArrow, t) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0) return;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y1));
+    ctx.lineTo(tx(x), ty(y));
+    ctx.stroke();
+    if (withArrow && t > 0.08) {
+      const midT = Math.min(t, 0.58);
+      if (t >= 0.45) {
+        const mx = x1 + (x2 - x1) * midT;
+        const my = y1 + (y2 - y1) * midT;
+        const mx0 = x1 + (x2 - x1) * (midT - 0.02);
+        const my0 = y1 + (y2 - y1) * (midT - 0.02);
+        drawArrowHead(mx0, my0, mx, my, color, Math.max(8, 10 * scale / 28));
+      }
+      drawArrowHead(x1, y1, x, y, color, Math.max(9, 11 * scale / 28));
+    }
+  }
+
+  function drawDashed(x1, y1, x2, y2, color, width, t) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0) return;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([8, 7]);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y1));
+    ctx.lineTo(tx(x), ty(y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 折線按弧長生長（用於潛望鏡多段光線）
+  function drawPolyline(pts, color, width, withArrow, t, dashed) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0 || pts.length < 2) return;
+    const segs = [];
+    let total = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const L = len(sub(pts[i + 1], pts[i]));
+      segs.push(L);
+      total += L;
+    }
+    let remain = total * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dashed ? [8, 7] : []);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    let last = pts[0], prev = pts[0];
+    for (let i = 0; i < segs.length; i++) {
+      if (remain <= 0) break;
+      const a = pts[i], b = pts[i + 1];
+      const L = segs[i];
+      const use = Math.min(L, remain);
+      const p = lerp(a, b, use / L);
+      ctx.lineTo(tx(p.x), ty(p.y));
+      prev = last;
+      last = p;
+      remain -= use;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (withArrow && t > 0.1) {
+      drawArrowHead(prev.x, prev.y, last.x, last.y, color, Math.max(9, 11 * scale / 28));
+      // 中段箭號：已走完的整段中點
+      if (t > 0.55) {
+        let acc = 0, mid = total * 0.45;
+        for (let i = 0; i < segs.length; i++) {
+          if (acc + segs[i] >= mid) {
+            const u = (mid - acc) / segs[i];
+            const p0 = lerp(pts[i], pts[i + 1], Math.max(0, u - 0.04));
+            const p1 = lerp(pts[i], pts[i + 1], u);
+            drawArrowHead(p0.x, p0.y, p1.x, p1.y, color, Math.max(8, 10 * scale / 28));
+            break;
+          }
+          acc += segs[i];
+        }
+      }
+    }
+  }
+
+  function drawLabel(text, x, y, color, fontSize, align, baseline) {
+    ctx.fillStyle = color || '#fff';
+    ctx.font = 'bold ' + (fontSize || Math.max(14, fs(16))) + 'px "Microsoft JhengHei", "PingFang HK", sans-serif';
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = baseline || 'middle';
+    ctx.fillText(text, tx(x), ty(y));
+  }
+
+  function drawDot(p, color, r) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(tx(p.x), ty(p.y), r || Math.max(3.5, 4.2 * scale / 28), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function drawGridWorld(xmin, xmax, ymin, ymax, step, alpha) {
+    if (!state.showGrid) return;
+    ctx.strokeStyle = 'rgba(127,220,255,' + (alpha == null ? 0.10 : alpha) + ')';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    for (let x = xmin; x <= xmax + 1e-6; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(tx(x), ty(ymin));
+      ctx.lineTo(tx(x), ty(ymax));
+      ctx.stroke();
+    }
+    for (let y = ymin; y <= ymax + 1e-6; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(tx(xmin), ty(y));
+      ctx.lineTo(tx(xmax), ty(y));
+      ctx.stroke();
+    }
+  }
+
+  function drawNormal(hit, nDir, lenN, t, label) {
+    if (!state.showNormal) return;
+    t = t == null ? 1 : t;
+    if (t <= 0) return;
+    const L = (lenN || 1.6) * t;
+    const a = add(hit, mul(nDir, L));
+    const b = add(hit, mul(nDir, -L * 0.35));
+    ctx.strokeStyle = COL.N;
+    ctx.lineWidth = Math.max(1.4, lw(1.8));
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(tx(a.x), ty(a.y));
+    ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (state.showAngles && t > 0.7 && label !== false) {
+      const lp = add(hit, mul(nDir, L + 0.25));
+      drawLabel('法線', lp.x, lp.y, COL.acc, fs(14));
+    }
+  }
+
+  function drawAngleArcs(hit, from, to, nDir, t, labels) {
+    if (!state.showAngles || !state.showNormal) return;
+    t = t == null ? 1 : t;
+    if (t < 0.45) return;
+    const inc = norm(sub(from, hit)); // 由擊中點指向光源
+    const ref = norm(sub(to, hit));
+    const n = norm(nDir);
+    const aN = Math.atan2(-n.y, n.x);     // canvas 角（y 向下已在 ty 處理，這裏用世界角再轉）
+    // 改用像素角
+    function pixAng(v) {
+      const p0 = { x: tx(hit.x), y: ty(hit.y) };
+      const p1 = { x: tx(hit.x + v.x), y: ty(hit.y + v.y) };
+      return Math.atan2(p1.y - p0.y, p1.x - p0.x);
+    }
+    const angN = pixAng(n);
+    const angI = pixAng(inc);
+    const angR = pixAng(ref);
+    const rad = Math.max(16, 22 * scale / 28);
+    function sweep(a, b) {
+      // 由 a 畫到 b，取較小夾角
+      let d = b - a;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      return d;
+    }
+    ctx.lineWidth = Math.max(1.3, 1.6 * scale / 28);
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.strokeStyle = COL.I;
+    ctx.arc(tx(hit.x), ty(hit.y), rad, angN, angN + sweep(angN, angI), sweep(angN, angI) < 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.strokeStyle = COL.R;
+    ctx.arc(tx(hit.x), ty(hit.y), rad * 0.72, angN, angN + sweep(angN, angR), sweep(angN, angR) < 0);
+    ctx.stroke();
+
+    if (labels !== false) {
+      const iPos = add(hit, mul(norm(add(n, inc)), 1.15));
+      const rPos = add(hit, mul(norm(add(n, ref)), 0.95));
+      const lab = labels || { i: 'i', r: 'r' };
+      drawLabel(lab.i, iPos.x, iPos.y, COL.I, fs(15));
+      drawLabel(lab.r, rPos.x, rPos.y, COL.R, fs(15));
+    }
+  }
+
+  function drawHatchMirror(a, b, backSidePoint, color) {
+    // 鏡面粗線 + 鏡背短斜線（朝 backSidePoint 一側）
+    ctx.strokeStyle = color || '#e8eef8';
+    ctx.lineWidth = Math.max(3, lw(3.4));
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(a.x), ty(a.y));
+    ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.stroke();
+    const d = sub(b, a);
+    const L = len(d);
+    const u = norm(d);
+    let n = { x: -u.y, y: u.x };
+    const mid = lerp(a, b, 0.5);
+    if (dot(n, sub(backSidePoint, mid)) < 0) n = { x: -n.x, y: -n.y };
+    ctx.strokeStyle = '#9eb0c8';
+    ctx.lineWidth = Math.max(1.4, lw(1.7));
+    const step = Math.max(0.35, L / 14);
+    const hLen = Math.max(0.45, L * 0.06);
+    for (let s = step * 0.35; s < L - step * 0.15; s += step) {
+      const p = add(a, mul(u, s));
+      const q = add(add(p, mul(n, hLen)), mul(u, hLen * 0.45));
+      ctx.beginPath();
+      ctx.moveTo(tx(p.x), ty(p.y));
+      ctx.lineTo(tx(q.x), ty(q.y));
+      ctx.stroke();
+    }
+  }
+
+  function drawEye(p, look, scaleE, label, labelOff) {
+    // look：眼睛「尖端」指向的方向（單位或非單位）
+    const s = scaleE || 1;
+    const u = norm(look);
+    const v = { x: -u.y, y: u.x };
+    const tip = add(p, mul(u, 0.85 * s));
+    const back = add(p, mul(u, -0.85 * s));
+    const w = 0.95 * s;
+    const p1 = add(back, mul(v, w));
+    const p2 = add(back, mul(v, -w));
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = Math.max(2, lw(2.2));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(tx(tip.x), ty(tip.y));
+    ctx.lineTo(tx(p1.x), ty(p1.y));
+    ctx.lineTo(tx(p2.x), ty(p2.y));
+    ctx.closePath();
+    ctx.stroke();
+    // 虹膜
+    const c = add(p, mul(u, 0.08 * s));
+    ctx.beginPath();
+    ctx.arc(tx(c.x), ty(c.y), Math.max(4, 0.38 * s * scale), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#7fdcff';
+    ctx.beginPath();
+    ctx.arc(tx(c.x), ty(c.y), Math.max(2, 0.16 * s * scale), 0, Math.PI * 2);
+    ctx.fill();
+    if (label) {
+      const lp = labelOff || add(p, { x: 0, y: -1.3 * s });
+      drawLabel(label, lp.x, lp.y, COL.mute, fs(14));
+    }
+  }
+
+  function drawPencil(tip, base, w, color, dashed) {
+    const u = norm(sub(tip, base));
+    const v = { x: -u.y, y: u.x };
+    const H = len(sub(tip, base));
+    const cone = 0.22 * H;
+    const ferrule = 0.07 * H;
+    const coneBase = add(tip, mul(u, -cone));
+    const bodyBot = add(base, mul(u, ferrule));
+    const hw = w;
+    function side(p, s) { return add(p, mul(v, s)); }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, lw(2.2));
+    ctx.setLineDash(dashed ? [7, 6] : []);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    // 筆尖
+    ctx.beginPath();
+    ctx.moveTo(tx(tip.x), ty(tip.y));
+    ctx.lineTo(tx(side(coneBase, hw).x), ty(side(coneBase, hw).y));
+    ctx.lineTo(tx(side(coneBase, -hw).x), ty(side(coneBase, -hw).y));
+    ctx.closePath();
+    ctx.stroke();
+    // 筆身
+    ctx.beginPath();
+    ctx.moveTo(tx(side(coneBase, hw).x), ty(side(coneBase, hw).y));
+    ctx.lineTo(tx(side(bodyBot, hw).x), ty(side(bodyBot, hw).y));
+    ctx.lineTo(tx(side(bodyBot, -hw).x), ty(side(bodyBot, -hw).y));
+    ctx.lineTo(tx(side(coneBase, -hw).x), ty(side(coneBase, -hw).y));
+    ctx.closePath();
+    ctx.stroke();
+    // 筆尾金屬環／擦膠
+    ctx.beginPath();
+    ctx.moveTo(tx(side(bodyBot, hw * 1.08).x), ty(side(bodyBot, hw * 1.08).y));
+    ctx.lineTo(tx(side(base, hw * 1.08).x), ty(side(base, hw * 1.08).y));
+    ctx.lineTo(tx(side(base, -hw * 1.08).x), ty(side(base, -hw * 1.08).y));
+    ctx.lineTo(tx(side(bodyBot, -hw * 1.08).x), ty(side(bodyBot, -hw * 1.08).y));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (!dashed) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(tx(tip.x), ty(tip.y), Math.max(3, 4 * scale / 28), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawCup(cx, y0, y1, r0, r1, color, dashed) {
+    const topL = { x: cx - r1, y: y1 }, topR = { x: cx + r1, y: y1 };
+    const botL = { x: cx - r0, y: y0 }, botR = { x: cx + r0, y: y0 };
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, lw(2.2));
+    ctx.setLineDash(dashed ? [6, 5] : []);
+    ctx.beginPath();
+    ctx.moveTo(tx(topL.x), ty(topL.y));
+    ctx.lineTo(tx(botL.x), ty(botL.y));
+    ctx.lineTo(tx(botR.x), ty(botR.y));
+    ctx.lineTo(tx(topR.x), ty(topR.y));
+    ctx.stroke();
+    // 頂橢圓
+    const rx = r1 * scale, ry = Math.max(3, 0.22 * r1 * scale);
+    ctx.beginPath();
+    ctx.ellipse(tx(cx), ty(y1), rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawCupTransformed(pts, color, dashed, topLo, topHi) {
+    if (!pts.length) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, lw(2.2));
+    ctx.setLineDash(dashed ? [6, 5] : []);
+    ctx.beginPath();
+    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawLamp(bulb) {
+    // 燈罩開口朝向左下（書本）
+    const shadeFront = { x: bulb.x - 0.15, y: bulb.y - 0.15 };
+    const dir = norm({ x: -1.15, y: -0.85 });
+    const side = { x: -dir.y, y: dir.x };
+    const back = add(bulb, mul(dir, -1.7));
+    const hinge = add(back, { x: 0.55, y: 0.15 });
+    const stand = { x: bulb.x + 2.55, y: 0 };
+    // 底座
+    ctx.strokeStyle = '#d5deec';
+    ctx.lineWidth = Math.max(2, lw(2));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.ellipse(tx(stand.x), ty(0.15), 1.15 * scale, 0.28 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // 支柱
+    ctx.beginPath();
+    ctx.moveTo(tx(stand.x), ty(0.2));
+    ctx.lineTo(tx(stand.x), ty(4.6));
+    ctx.stroke();
+    // 關節
+    ctx.beginPath();
+    ctx.arc(tx(stand.x), ty(4.6), Math.max(3, 0.16 * scale), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx(stand.x), ty(4.6));
+    ctx.lineTo(tx(back.x + 0.3), ty(back.y + 0.35));
+    ctx.stroke();
+    // 燈罩（梯形）
+    const f1 = add(bulb, add(mul(dir, 0.35), mul(side, 0.95)));
+    const f2 = add(bulb, add(mul(dir, 0.35), mul(side, -0.95)));
+    const b1 = add(bulb, add(mul(dir, -1.45), mul(side, 0.55)));
+    const b2 = add(bulb, add(mul(dir, -1.45), mul(side, -0.55)));
+    ctx.fillStyle = 'rgba(255,216,74,0.10)';
+    ctx.beginPath();
+    ctx.moveTo(tx(f1.x), ty(f1.y));
+    ctx.lineTo(tx(f2.x), ty(f2.y));
+    ctx.lineTo(tx(b2.x), ty(b2.y));
+    ctx.lineTo(tx(b1.x), ty(b1.y));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // 燈泡
+    ctx.fillStyle = '#ffd84a';
+    ctx.beginPath();
+    ctx.arc(tx(bulb.x), ty(bulb.y), Math.max(4, 0.22 * scale), 0, Math.PI * 2);
+    ctx.fill();
+    drawLabel('枱燈', stand.x + 1.7, 3.3, COL.mute, fs(15));
+  }
+
+  function drawBook(book) {
+    const { x, y, w, d, h } = book;
+    // 立體書：頂面、前面、側面
+    const top = [
+      { x: x - w, y: y }, { x: x + w, y: y },
+      { x: x + w + d * 0.7, y: y + d * 0.45 }, { x: x - w + d * 0.7, y: y + d * 0.45 }
+    ];
+    // 其實 y 向上，書在 y=0 的頂面；厚度向下（-y）不好看，改為視覺上「向前」的 3D（+x/+y 一點）
+    ctx.fillStyle = 'rgba(232,238,248,0.07)';
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = Math.max(2, lw(2.2));
+    ctx.setLineDash([]);
+    // 前面
+    ctx.beginPath();
+    ctx.moveTo(tx(x - w), ty(y));
+    ctx.lineTo(tx(x + w), ty(y));
+    ctx.lineTo(tx(x + w), ty(y - h));
+    ctx.lineTo(tx(x - w), ty(y - h));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // 頂面（稍向後）
+    ctx.beginPath();
+    ctx.moveTo(tx(x - w), ty(y));
+    ctx.lineTo(tx(x - w + d * 0.55), ty(y + d * 0.38));
+    ctx.lineTo(tx(x + w + d * 0.55), ty(y + d * 0.38));
+    ctx.lineTo(tx(x + w), ty(y));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // 右側
+    ctx.beginPath();
+    ctx.moveTo(tx(x + w), ty(y));
+    ctx.lineTo(tx(x + w + d * 0.55), ty(y + d * 0.38));
+    ctx.lineTo(tx(x + w + d * 0.55), ty(y - h + d * 0.38));
+    ctx.lineTo(tx(x + w), ty(y - h));
+    ctx.closePath();
+    ctx.stroke();
+    // 書頁線
+    ctx.strokeStyle = 'rgba(200,214,232,0.7)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 4; i++) {
+      const yy = y - 0.08;
+      const t = i / 5;
+      ctx.beginPath();
+      ctx.moveTo(tx(x - w * 0.7 + d * 0.15 * t), ty(y + 0.08 + 0.22 * t));
+      ctx.lineTo(tx(x + w * 0.7 + d * 0.15 * t), ty(y + 0.08 + 0.22 * t));
+      ctx.stroke();
+    }
+    drawLabel('書本', x - w - 0.2, y - h * 0.45, COL.mute, fs(15), 'right');
+  }
+
+  function drawBackground() {
+    const g = ctx.createRadialGradient(W * 0.5, H * 0.45, 20, W * 0.5, H * 0.5, Math.max(W, H) * 0.62);
+    g.addColorStop(0, '#122846');
+    g.addColorStop(1, '#0b1730');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawStepBadge(extra) {
+    ctx.fillStyle = 'rgba(127,220,255,0.92)';
+    ctx.font = 'bold ' + Math.max(13, Math.min(18, W * 0.014)) + 'px "Microsoft JhengHei", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const sc = currentScene();
+    const txt = sc.title + '　步驟 ' + state.step + ' / ' + (sc.steps.length - 1) + (extra ? '　' + extra : '');
+    ctx.fillText(txt, 14, 12);
+  }
+
+  // =========================================================
+  // 各場景繪製
+  // =========================================================
+  function drawSceneA() {
+    setWorld(-9.5, 10.2, -2.2, 8.4, 0.10);
+    drawBackground();
+    drawGridWorld(-10, 11, -2, 9, 1, 0.08);
+
+    drawBook(A.book);
+    drawLamp(A.lampBulb);
+    drawEye(A.eye, sub(A.hit, A.eye), 1.05, '小華的眼睛', { x: A.eye.x, y: A.eye.y + 1.45 });
+
+    const step = state.step, p = state.progress;
+    const wI = Math.max(2.4, lw(2.6));
+    const wR = Math.max(2.4, lw(2.6));
+
+    // 步驟 1+：入射光束
+    if (step >= 1) {
+      A.coneHits.forEach((h, i) => {
+        const t = step === 1 ? seg(p, i * 0.22, 0.35 + i * 0.28) : 1;
+        const main = (i === 1);
+        drawSolidRay(A.lampBulb.x, A.lampBulb.y, h.x, h.y, COL.I, wI, true, t);
+      });
+      if (state.showAngles && (step > 1 || p > 0.7)) {
+        const mid = lerp(A.lampBulb, A.coneHits[2], 0.55);
+        drawLabel('入射光線', mid.x + 1.15, mid.y + 0.55, COL.I, fs(14));
+      }
+    }
+
+    // 步驟 2+：法線
+    if (step >= 2) {
+      const t = step === 2 ? seg(p, 0, 1) : 1;
+      drawNormal(A.hit, { x: 0, y: 1 }, 2.4, t, true);
+    }
+
+    // 步驟 3+：反射線與角
+    if (step >= 3) {
+      const t = step === 3 ? seg(p, 0, 1) : 1;
+      drawSolidRay(A.hit.x, A.hit.y, A.eye.x, A.eye.y, COL.R, wR, true, t);
+      if (t > 0.55) {
+        drawAngleArcs(A.hit, A.lampBulb, A.eye, { x: 0, y: 1 }, t, false);
+        if (state.showAngles) {
+          const midR = lerp(A.hit, A.eye, 0.42);
+          drawLabel('反射光線', midR.x - 1.55, midR.y + 0.2, COL.R, fs(14));
+          // 角度全稱沿光線外側標，避免疊在擊中點
+          const iLab = lerp(A.hit, A.lampBulb, 0.32);
+          const rLab = lerp(A.hit, A.eye, 0.22);
+          drawLabel('入射角', iLab.x + 1.15, iLab.y - 0.15, COL.I, fs(14));
+          drawLabel('反射角', rLab.x - 0.15, rLab.y - 0.7, COL.R, fs(14));
+        }
+      }
+    }
+
+    if (step >= 4) {
+      const a = seg(p, 0, 0.6);
+      ctx.globalAlpha = a;
+      const boxW = Math.min(640, W * 0.7), boxH = 74;
+      const bx = (W - boxW) / 2, by = H - boxH - 14;
+      ctx.fillStyle = 'rgba(8,16,34,0.9)';
+      ctx.strokeStyle = '#ffe27a';
+      ctx.lineWidth = 2;
+      roundRect(ctx, bx, by, boxW, boxH, 12);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffe27a';
+      ctx.font = 'bold ' + Math.max(15, Math.min(20, W * 0.018)) + 'px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('書本是非發光體　→　反射枱燈的光　→　反射光線進入眼睛　才能看見', bx + boxW / 2, by + boxH / 2);
+      ctx.globalAlpha = 1;
+    }
+
+    drawStepBadge();
+  }
+
+  function drawDimArrow(x1, y, x2, dashed, label, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.6, lw(1.8));
+    ctx.setLineDash(dashed ? [7, 6] : []);
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y));
+    ctx.lineTo(tx(x2), ty(y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 兩端直標
+    const tick = 0.35;
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y - tick)); ctx.lineTo(tx(x1), ty(y + tick));
+    ctx.moveTo(tx(x2), ty(y - tick)); ctx.lineTo(tx(x2), ty(y + tick));
+    ctx.stroke();
+    drawArrowHead(x2, y, x1, y, color, Math.max(8, 10 * scale / 28));
+    drawArrowHead(x1, y, x2, y, color, Math.max(8, 10 * scale / 28));
+    drawLabel(label, (x1 + x2) / 2, y - 0.55, color, fs(15));
+  }
+
+  function drawSceneB() {
+    const step = state.step, p = state.progress;
+    setWorld(-4.6, 19.6, -2.8, 11.2, 0.08);
+    drawBackground();
+    drawGridWorld(-5, 20, -3, 12, 1, 0.13);
+
+    // 平面鏡
+    drawHatchMirror({ x: 8, y: -1.1 }, { x: 8, y: 10.4 }, { x: 9, y: 5 }, '#e8eef8');
+    drawLabel('平面鏡', 10.15, 10.15, COL.mute, fs(15));
+
+    // 鉛筆（物體）
+    drawPencil(B.tip, B.base, B.pencilW, '#f4f7fb', false);
+    drawLabel('鉛筆', -1.55, 3.0, COL.mute, fs(15));
+    drawLabel('物體', -1.55, 2.35, COL.mute, fs(13));
+
+    // 8 cm 物距（步驟 5 起改標「物距 8 cm」，與像距同一水平）
+    if (step < 5) drawDimArrow(0, -1.15, 8, false, '8 cm', COL.acc);
+    else drawDimArrow(0, -1.15, 8, false, '物距 8 cm', COL.acc);
+
+    const wI = Math.max(2.3, lw(2.5));
+    const wR = Math.max(2.3, lw(2.5));
+
+    // 已給的兩條入射線（步驟 0 先以淡線／無箭號出現，步驟 1 加箭號並加亮）
+    B.givenHits.forEach((h, i) => {
+      const tShow = 1;
+      if (step === 0) {
+        // 題目已畫出這兩條線，先顯示為淡白色（提問：還缺甚麼？）
+        drawSolidRay(B.tip.x, B.tip.y, h.x, h.y, 'rgba(244,247,251,0.85)', wI, false, 1);
+      } else {
+        const t = step === 1 ? seg(p, i * 0.35, 0.45 + i * 0.45) : 1;
+        drawSolidRay(B.tip.x, B.tip.y, h.x, h.y, COL.I, wI, true, t);
+      }
+    });
+
+    // 步驟 2+：法線與反射（已給的兩條）
+    if (step >= 2) {
+      const tn = step === 2 ? seg(p, 0, 0.3) : 1;
+      B.givenHits.forEach((h, i) => {
+        drawNormal(h, { x: -1, y: 0 }, 1.5, tn, i === 0);
+        const t = step === 2 ? seg(p, 0.25 + i * 0.28, 0.6 + i * 0.35) : 1;
+        const re = B.givenRefl[i];
+        drawSolidRay(h.x, h.y, re.x, re.y, COL.R, wR, true, t);
+        if (t > 0.7 && i === 0) drawAngleArcs(h, B.tip, re, { x: -1, y: 0 }, t);
+      });
+    }
+
+    // 步驟 3+：虛線延長至筆尖的像
+    if (step >= 3) {
+      B.givenHits.forEach((h, i) => {
+        const t = step === 3 ? seg(p, i * 0.15, 0.55 + i * 0.2) : 1;
+        drawDashed(h.x, h.y, B.imgTip.x, B.imgTip.y, COL.V, Math.max(1.8, lw(2)), t);
+      });
+      const tm = step === 3 ? seg(p, 0.7, 1) : 1;
+      if (tm > 0.2) {
+        ctx.globalAlpha = tm;
+        drawDot(B.imgTip, COL.V, Math.max(4, 5 * scale / 28));
+        drawLabel('筆尖的像', 16, 6.7, COL.V, fs(14));
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // 步驟 4+：筆底光線
+    if (step >= 4) {
+      B.baseHits.forEach((h, i) => {
+        const ti = step === 4 ? seg(p, 0.00 + i * 0.12, 0.28 + i * 0.12) : 1;
+        const tn = step === 4 ? seg(p, 0.25, 0.4) : 1;
+        const tr = step === 4 ? seg(p, 0.35 + i * 0.12, 0.62 + i * 0.12) : 1;
+        const tv = step === 4 ? seg(p, 0.62 + i * 0.1, 0.88 + i * 0.1) : 1;
+        drawSolidRay(B.base.x, B.base.y, h.x, h.y, COL.I, wI, true, ti);
+        drawNormal(h, { x: -1, y: 0 }, 1.3, tn, false);
+        drawSolidRay(h.x, h.y, B.baseRefl[i].x, B.baseRefl[i].y, COL.R, wR, true, tr);
+        drawDashed(h.x, h.y, B.imgBase.x, B.imgBase.y, COL.V, Math.max(1.8, lw(2)), tv);
+      });
+      const tm = step === 4 ? seg(p, 0.85, 1) : 1;
+      if (tm > 0.2) {
+        ctx.globalAlpha = tm;
+        drawDot(B.imgBase, COL.V, Math.max(4, 5 * scale / 28));
+        drawLabel('筆底的像', 16, -0.7, COL.V, fs(14));
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // 步驟 5+：整枝虛像 + 像距
+    if (step >= 5) {
+      const t = step === 5 ? seg(p, 0, 0.7) : 1;
+      ctx.globalAlpha = Math.max(0.15, t);
+      drawPencil(lerp(B.imgBase, B.imgTip, Math.max(0.08, t)), B.imgBase, B.pencilW, COL.V, true);
+      ctx.globalAlpha = 1;
+      if (t > 0.5) drawLabel('像（虛像）', 17.85, 3.0, COL.V, fs(15));
+      const td = step === 5 ? seg(p, 0.55, 1) : 1;
+      if (td > 0.2) {
+        ctx.globalAlpha = td;
+        drawDimArrow(8, -1.15, 16, true, '像距 8 cm', COL.V);
+        drawLabel('物距 ＝ 像距', 8, -2.55, '#ffe27a', fs(16));
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // 步驟 6+：眼睛與入眼光線（由虛像構造，嚴格遵守反射定律）
+    if (step >= 6) {
+      const tE = step === 6 ? seg(p, 0, 0.2) : 1;
+      ctx.globalAlpha = Math.max(0.2, tE);
+      B.eyes.forEach((e, i) => {
+        drawEye(e, { x: 1, y: 0 }, 0.72, i === 0 ? '眼睛' : '', i === 0 ? { x: e.x - 0.2, y: e.y + 1.15 } : null);
+      });
+      ctx.globalAlpha = 1;
+      B.eyes.forEach((e, i) => {
+        const h = B.eyeHits[i];
+        const ti = step === 6 ? seg(p, 0.15 + i * 0.2, 0.45 + i * 0.2) : 1;
+        const tr = step === 6 ? seg(p, 0.4 + i * 0.2, 0.7 + i * 0.2) : 1;
+        const tv = step === 6 ? seg(p, 0.65 + i * 0.12, 0.9 + i * 0.1) : 1;
+        drawSolidRay(B.tip.x, B.tip.y, h.x, h.y, COL.I, wI, true, ti);
+        drawSolidRay(h.x, h.y, e.x, e.y, COL.R, wR, true, tr);
+        drawDashed(h.x, h.y, B.imgTip.x, B.imgTip.y, COL.V, Math.max(1.8, lw(2)), tv);
+      });
+    }
+
+    // 步驟 7：答案卡
+    if (step >= 7) {
+      const a = seg(p, 0, 0.55);
+      ctx.globalAlpha = a;
+      const boxW = Math.min(700, W * 0.72), boxH = 86;
+      const bx = (W - boxW) / 2, by = 16;
+      ctx.fillStyle = 'rgba(8,16,34,0.92)';
+      ctx.strokeStyle = '#ffe27a';
+      ctx.lineWidth = 2;
+      roundRect(ctx, bx, by, boxW, boxH, 12);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffe27a';
+      ctx.font = 'bold ' + Math.max(14, Math.min(20, W * 0.017)) + 'px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('(a) 反射角 40°（i ＝ r）　　(c) 平面鏡的後面　　(d) 8 cm，因為物距等於像距', bx + boxW / 2, by + boxH / 2);
+      ctx.globalAlpha = 1;
+    }
+
+    drawStepBadge();
+  }
+
+  function drawTriangleArrow(cx, baseY, topY, half, color, dashed) {
+    const tip = { x: cx, y: topY };
+    const bl = { x: cx - half, y: baseY }, br = { x: cx + half, y: baseY };
+    const stemTop = { x: cx, y: baseY };
+    const stemBot = { x: cx, y: baseY - (topY - baseY) * 0.45 };
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, lw(2.3));
+    ctx.setLineDash(dashed ? [7, 6] : []);
+    ctx.beginPath();
+    ctx.moveTo(tx(tip.x), ty(tip.y));
+    ctx.lineTo(tx(bl.x), ty(bl.y));
+    ctx.lineTo(tx(br.x), ty(br.y));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx(stemTop.x), ty(stemTop.y));
+    ctx.lineTo(tx(stemBot.x), ty(stemBot.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawSceneC() {
+    setWorld(-55, 400, -40, 390, 0.08);
+    drawBackground();
+    drawGridWorld(-60, 410, -50, 400, 20, 0.07);
+
+    // 管身
+    const body = C.body;
+    ctx.fillStyle = 'rgba(18,36,64,0.55)';
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = Math.max(2.5, lw(2.4));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(tx(body[0].x), ty(body[0].y));
+    body.forEach(p => ctx.lineTo(tx(p.x), ty(p.y)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 兩塊 45° 鏡（鏡背短斜線）
+    // 上鏡：鏡背在左上（遠離景物）
+    drawHatchMirror(C.upperMir.a, C.upperMir.b, { x: 80, y: 350 }, '#e8eef8');
+    drawLabel('平面鏡', 70, 330, COL.mute, fs(14));
+    // 下鏡：鏡背在右下
+    drawHatchMirror(C.lowerMir.a, C.lowerMir.b, { x: 210, y: -5 }, '#e8eef8');
+    drawLabel('平面鏡', 215, 70, COL.mute, fs(14));
+
+    // 景物
+    drawTriangleArrow(C.scene.x, C.scene.baseY, C.scene.topY, C.scene.half, '#f4f7fb', false);
+    drawLabel('景物', C.scene.x, C.scene.baseY - 38, COL.mute, fs(15));
+
+    drawEye(C.eye, { x: 1, y: 0 }, 18, '眼睛', { x: C.eye.x, y: C.eye.y - 28 });
+
+    const step = state.step, p = state.progress;
+    const wI = Math.max(2.3, lw(2.2));
+
+    // 步驟 1+：水平入射
+    if (step >= 1) {
+      C.upperHits.forEach((h, i) => {
+        const src = { x: C.scene.x - C.scene.half, y: h.y };
+        const t = step === 1 ? seg(p, i * 0.3, 0.5 + i * 0.4) : 1;
+        drawSolidRay(src.x, src.y, h.x, h.y, COL.I, wI, true, t);
+      });
+    }
+
+    // 步驟 2+：上鏡法線與向下反射
+    if (step >= 2) {
+      const tn = step === 2 ? seg(p, 0, 0.25) : 1;
+      // 法線：上鏡斜率 +1，法線斜率 -1，指向右下（入射側）
+      const nU = norm({ x: 1, y: -1 });
+      C.upperHits.forEach((h, i) => {
+        if (i === 0) drawNormal(h, nU, 28, tn, true);
+        const t = step === 2 ? seg(p, 0.2 + i * 0.3, 0.6 + i * 0.35) : 1;
+        drawSolidRay(h.x, h.y, C.lowerHits[i].x, C.lowerHits[i].y, COL.R, wI, true, t);
+        if (i === 0 && t > 0.6) {
+          const from = { x: C.scene.x, y: h.y };
+          drawAngleArcs(h, from, C.lowerHits[i], nU, t, { i: '45°', r: '45°' });
+        }
+      });
+    }
+
+    // 步驟 3+：下鏡反射入眼 + 輔助虛線
+    if (step >= 3) {
+      const tn = step === 3 ? seg(p, 0, 0.2) : 1;
+      const nL = norm({ x: -1, y: 1 }); // 指向左上（入射側）
+      C.lowerHits.forEach((h, i) => {
+        if (i === 0) drawNormal(h, nL, 28, tn, true);
+        const t = step === 3 ? seg(p, 0.15 + i * 0.25, 0.55 + i * 0.3) : 1;
+        drawSolidRay(h.x, h.y, C.eyePts[i].x, C.eyePts[i].y, COL.R, wI, true, t);
+        const tv = step === 3 ? seg(p, 0.7, 1) : 1;
+        drawDashed(h.x, h.y, h.x + 70, h.y, 'rgba(255,122,217,0.7)', Math.max(1.5, lw(1.7)), tv);
+      });
+    }
+
+    // 步驟 4+：正立虛線成像
+    if (step >= 4) {
+      const t = step === 4 ? seg(p, 0, 0.7) : 1;
+      ctx.globalAlpha = t;
+      drawTriangleArrow(C.image.x, C.image.baseY, C.image.topY, C.image.half, COL.V, true);
+      // 輔助虛線連接景物與成像
+      drawDashed(C.scene.x + C.scene.half, C.scene.topY, C.image.x - C.image.half, C.image.topY, COL.V, Math.max(1.4, lw(1.5)), t);
+      drawDashed(C.scene.x + C.scene.half, C.scene.baseY, C.image.x - C.image.half, C.image.baseY, COL.V, Math.max(1.4, lw(1.5)), t);
+      drawLabel('成像', C.image.x, C.image.baseY - 38, COL.V, fs(15));
+      drawLabel('（正立）', C.image.x, C.image.baseY - 56, COL.V, fs(14));
+      ctx.globalAlpha = 1;
+    }
+
+    drawStepBadge();
+  }
+
+  function drawSceneD() {
+    setWorld(-80, 455, -40, 305, 0.08);
+    drawBackground();
+    drawGridWorld(-80, 460, -40, 310, 20, 0.07);
+
+    const box = D.box;
+    const dark = state.step === 4 ? seg(state.progress, 0, 0.7) : 0;
+
+    // 箱子
+    ctx.fillStyle = 'rgba(18,36,64,0.4)';
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = Math.max(2.5, lw(2.3));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.rect(tx(box.x), ty(box.y + box.h), box.w * scale, box.h * scale);
+    ctx.fill();
+    ctx.stroke();
+    drawLabel('透視箱（側視剖面）', box.w / 2, box.h + 16, COL.mute, fs(16));
+
+    // 觀景孔
+    ctx.strokeStyle = '#ffd84a';
+    ctx.lineWidth = Math.max(3, lw(3));
+    ctx.beginPath();
+    ctx.moveTo(tx(0), ty(D.hole.y1));
+    ctx.lineTo(tx(0), ty(D.hole.y2));
+    ctx.stroke();
+    // 小標記
+    ctx.lineWidth = Math.max(1.5, lw(1.6));
+    ctx.beginPath();
+    ctx.moveTo(tx(-4), ty(D.hole.y1)); ctx.lineTo(tx(4), ty(D.hole.y1));
+    ctx.moveTo(tx(-4), ty(D.hole.y2)); ctx.lineTo(tx(4), ty(D.hole.y2));
+    ctx.stroke();
+    drawLabel('觀景孔', 32, D.hole.y2 + 18, COL.I, fs(14));
+
+    // 斜鏡
+    drawHatchMirror(D.mir.a, D.mir.b, { x: 250, y: 230 }, '#e8eef8');
+    drawLabel('平面鏡', 150, 250, COL.mute, fs(15));
+
+    // 白紙：步驟 5 可移到鏡前
+    let paperX = D.paper.x;
+    if (state.step >= 5) {
+      const t = state.step === 5 ? (state.progress < 1 ? seg(state.progress, 0.15, 0.85) : 1) : 1;
+      // 移到斜鏡前方（約 x=200）
+      paperX = D.paper.x + (200 - D.paper.x) * t;
+    }
+    ctx.fillStyle = 'rgba(244,247,251,0.18)';
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = Math.max(1.6, lw(1.8));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.rect(tx(paperX), ty(D.paper.y + D.paper.h), D.paper.w * scale, D.paper.h * scale);
+    ctx.fill();
+    ctx.stroke();
+    // 格子紋
+    ctx.strokeStyle = 'rgba(200,214,232,0.35)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+      const yy = D.paper.y + D.paper.h * i / 8;
+      ctx.beginPath();
+      ctx.moveTo(tx(paperX), ty(yy));
+      ctx.lineTo(tx(paperX + D.paper.w), ty(yy));
+      ctx.stroke();
+    }
+    drawLabel('白紙', paperX + 28, D.paper.y + D.paper.h * 0.5, COL.mute, fs(15), 'left');
+
+    // 杯子
+    drawCup(D.cup.cx, D.cup.y0, D.cup.y1, D.cup.r0, D.cup.r1, '#f4f7fb', false);
+    drawLabel('杯子', D.cup.cx - 40, (D.cup.y0 + D.cup.y1) / 2, COL.mute, fs(15), 'right');
+
+    drawEye(D.eye, { x: 1, y: 0 }, 16, '眼睛', { x: D.eye.x, y: D.eye.y - 26 });
+
+    const step = state.step, p = state.progress;
+    const wI = Math.max(2.3, lw(2.2));
+
+    // 步驟 0 可淡顯虛像位置讓學生猜？依題旨「先不顯示或淡顯」
+    if (step === 0) {
+      ctx.globalAlpha = 0.12;
+      drawCupTransformed(D.cupImgPts, COL.V, true);
+      ctx.globalAlpha = 1;
+    }
+
+    if (step >= 1 && step !== 4) {
+      const t = step === 1 ? seg(p, 0, 1) : 1;
+      drawSolidRay(D.src.x, D.src.y, D.hit.x, D.hit.y, COL.I, wI, true, t);
+    }
+
+    if (step >= 2 && step !== 4) {
+      const tn = step === 2 ? seg(p, 0, 0.3) : 1;
+      const n = normalToward(D.mir.a, D.mir.b, D.src); // 指向杯子／觀景孔一側
+      drawNormal(D.hit, n, 36, tn, true);
+      const t = step === 2 ? seg(p, 0.25, 1) : 1;
+      drawSolidRay(D.hit.x, D.hit.y, D.eye.x, D.eye.y, COL.R, wI, true, t);
+      if (t > 0.55) drawAngleArcs(D.hit, D.src, D.eye, n, t);
+    }
+
+    if (step >= 3 && step !== 4) {
+      const t = step === 3 ? seg(p, 0, 0.55) : 1;
+      drawDashed(D.hit.x, D.hit.y, D.srcImg.x, D.srcImg.y, COL.V, Math.max(1.8, lw(2)), t);
+      const tm = step === 3 ? seg(p, 0.45, 1) : 1;
+      if (tm > 0.1) {
+        ctx.globalAlpha = tm;
+        drawCupTransformed(D.cupImgPts, COL.V, true);
+        drawDot(D.srcImg, COL.V, Math.max(3.5, 4 * scale / 28));
+        // 標在成像輪廓上方
+        let maxY = D.cupImgPts[0].y, sumX = 0;
+        D.cupImgPts.forEach(pt => { if (pt.y > maxY) maxY = pt.y; sumX += pt.x; });
+        drawLabel('虛像', sumX / D.cupImgPts.length, maxY + 16, COL.V, fs(16));
+        ctx.globalAlpha = 1;
+      }
+      if (step >= 3 && step !== 5) {
+        // 註：虛像在白紙前方
+      }
+    }
+
+    // 步驟 4：關燈
+    if (step === 4) {
+      // 先畫已完成的光線（逐漸變暗）
+      ctx.globalAlpha = 1 - dark * 0.7;
+      drawSolidRay(D.src.x, D.src.y, D.hit.x, D.hit.y, COL.I, wI, true, 1);
+      const n = normalToward(D.mir.a, D.mir.b, D.src);
+      drawNormal(D.hit, n, 36, 1, true);
+      drawSolidRay(D.hit.x, D.hit.y, D.eye.x, D.eye.y, COL.R, wI, true, 1);
+      drawDashed(D.hit.x, D.hit.y, D.srcImg.x, D.srcImg.y, COL.V, Math.max(1.8, lw(2)), 1);
+      drawCupTransformed(D.cupImgPts, COL.V, true);
+      ctx.globalAlpha = 1;
+      // 暗幕
+      ctx.fillStyle = 'rgba(0,0,0,' + (0.55 * dark) + ')';
+      ctx.fillRect(tx(box.x), ty(box.y + box.h), box.w * scale, box.h * scale);
+      if (dark > 0.5) {
+        ctx.globalAlpha = seg(p, 0.5, 1);
+        const boxW = Math.min(640, W * 0.7), boxH = 70;
+        const bx = (W - boxW) / 2, by = 18;
+        ctx.fillStyle = 'rgba(8,16,34,0.94)';
+        ctx.strokeStyle = '#ff8a6a';
+        ctx.lineWidth = 2;
+        roundRect(ctx, bx, by, boxW, boxH, 12);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ff8a6a';
+        ctx.font = 'bold ' + Math.max(14, Math.min(20, W * 0.017)) + 'px "Microsoft JhengHei", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('關燈後不能看清：杯子是非發光體，沒有光線射到鏡上反射', bx + boxW / 2, by + boxH / 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    if (step >= 5) {
+      // 光線與虛像仍在鏡後
+      drawSolidRay(D.src.x, D.src.y, D.hit.x, D.hit.y, COL.I, wI, true, 1);
+      const n = normalToward(D.mir.a, D.mir.b, D.src);
+      drawNormal(D.hit, n, 36, 1, false);
+      drawSolidRay(D.hit.x, D.hit.y, D.eye.x, D.eye.y, COL.R, wI, true, 1);
+      drawDashed(D.hit.x, D.hit.y, D.srcImg.x, D.srcImg.y, COL.V, Math.max(1.8, lw(2)), 1);
+      drawCupTransformed(D.cupImgPts, COL.V, true);
+      drawLabel('虛像仍在鏡後', D.srcImg.x, D.srcImg.y + 22, COL.V, fs(14));
+      const a = state.progress >= 0.8 || state.step > 5 ? 1 : seg(state.progress, 0.7, 1);
+      if (a > 0) {
+        ctx.globalAlpha = a;
+        const boxW = Math.min(680, W * 0.72), boxH = 70;
+        const bx = (W - boxW) / 2, by = 18;
+        ctx.fillStyle = 'rgba(8,16,34,0.94)';
+        ctx.strokeStyle = '#ffe27a';
+        ctx.lineWidth = 2;
+        roundRect(ctx, bx, by, boxW, boxH, 12);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ffe27a';
+        ctx.font = 'bold ' + Math.max(14, Math.min(20, W * 0.017)) + 'px "Microsoft JhengHei", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('白紙移到鏡前也接不住像：這是虛像，反射光線沒有在鏡前會聚', bx + boxW / 2, by + boxH / 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    drawStepBadge();
+  }
+
+  const DRAW = [drawSceneA, drawSceneB, drawSceneC, drawSceneD];
+
+  function drawFrame() {
+    DRAW[state.scene]();
+  }
+
+  // =========================================================
+  // 動畫迴圈
+  // =========================================================
+  function tick(ts) {
+    const steps = currentSteps();
+    const anim = steps[state.step].anim;
+    if (state.animating && anim !== 'none') {
+      if (state.lastTs == null) state.lastTs = ts;
+      const dt = ts - state.lastTs;
+      state.lastTs = ts;
+      const dur = (anim === 'screen' || anim === 'dark') ? 1500 : GROW_MS;
+      state.progress = Math.min(1, state.progress + dt / dur);
+      if (state.progress >= 1) {
+        state.animating = false;
+        state.progress = 1;
+        if (state.autoplay) holdUntil = ts + AUTO_HOLD_MS;
+        updateUI();
+      }
+    } else if (state.autoplay && state.progress >= 1) {
+      if (!holdUntil) holdUntil = ts + AUTO_HOLD_MS;
+      if (ts >= holdUntil) {
+        holdUntil = 0;
+        if (state.step >= steps.length - 1) {
+          state.autoplay = false;
+          updateUI();
+        } else {
+          goStep(state.step + 1, true);
+        }
+      }
+    }
+    drawFrame();
+    requestAnimationFrame(tick);
+  }
+
+  // =========================================================
+  // 事件
+  // =========================================================
+  document.getElementById('btnNext').addEventListener('click', () => { state.autoplay = false; nextStep(); });
+  document.getElementById('btnNext2').addEventListener('click', () => { state.autoplay = false; nextStep(); });
+  document.getElementById('btnPrev').addEventListener('click', prevStep);
+  document.getElementById('btnPrev2').addEventListener('click', prevStep);
+  document.getElementById('btnAuto').addEventListener('click', toggleAuto);
+  document.getElementById('btnReplay').addEventListener('click', replay);
+  document.getElementById('btnFull').addEventListener('click', () => {
+    const doc = document;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+    } else {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  });
+  document.getElementById('btnAside').addEventListener('click', () => {
+    document.body.classList.toggle('hide-aside');
+    document.body.classList.toggle('hide-nav');
+    setTimeout(resize, 60);
+  });
+  document.getElementById('chkNormal').addEventListener('change', e => { state.showNormal = e.target.checked; });
+  document.getElementById('chkAngles').addEventListener('change', e => { state.showAngles = e.target.checked; });
+  document.getElementById('chkGrid').addEventListener('change', e => { state.showGrid = e.target.checked; });
+
+  document.querySelectorAll('.scene-btn').forEach((el) => {
+    el.addEventListener('click', () => goScene(+el.dataset.scene, false));
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); state.autoplay = false; nextStep(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
+    else if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); toggleAuto(); }
+    else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replay(); }
+    else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.getElementById('btnFull').click(); }
+    else if (e.key >= '1' && e.key <= '4') { e.preventDefault(); goScene(+e.key - 1, false); }
+  });
+
+  window.addEventListener('resize', () => { resize(); });
+
+  function applyHash() {
+    const h = (location.hash || '').replace('#', '').toUpperCase();
+    const m = h.match(/^([ABCD])(\d+)?$/);
+    if (!m) return;
+    const si = 'ABCD'.indexOf(m[1]);
+    goScene(si, false);
+    if (m[2] != null) goStep(Math.min(+m[2], currentSteps().length - 1), false);
+  }
+  window.addEventListener('hashchange', applyHash);
+
+  rebuildSteps();
+  resize();
+  updateUI();
+  applyHash();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
