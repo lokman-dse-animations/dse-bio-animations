@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>實驗 14.4：介質的折射率</title>
+<!--
+  中三物理 · 實驗 14.4 觀察光線進入不同介質時發生的折射
+  單一離線檔案。canvas 自繪，逐步示範裝置、描繪光線圖，並比較折射率。
+  快捷鍵：← / → 換步　Space 暫停／自動播放　R 重播　F 全螢幕　1–3 切換場景
+-->
+<style>
+  :root {
+    --bg: #0b1730;
+    --panel: #12233f;
+    --text: #f4f7fb;
+    --ray: #ffd84a;
+    --accent: #7fdcff;
+    --reflect: #ff8a6a;
+    --image: #ff7ad9;
+    --object: #f4f7fb;
+    --mirror: #c8d6e8;
+    --ok: #7dffa0;
+    --muted: #b8c6dc;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: "Microsoft JhengHei", "微軟正黑體", "PingFang HK", "PingFang TC",
+                 "Noto Sans CJK HK", "Noto Sans CJK TC", "Noto Sans TC", "Heiti TC", sans-serif;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 2px solid #ffffff22;
+  }
+  header h1 { margin: 0; font-size: clamp(18px, 2vw, 32px); }
+  header .sub { font-size: clamp(14px, 1.3vw, 22px); color: #ffe27a; font-weight: bold; }
+  header .spacer { flex: 1; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  #nav {
+    width: clamp(200px, 18vw, 280px);
+    padding: 12px 12px; background: #0e1c36;
+    display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto; border-right: 2px solid #ffffff22;
+  }
+  #nav .nav-title {
+    font-size: 15px; font-weight: bold; color: var(--accent);
+    margin-bottom: 2px;
+  }
+  .scene-btn {
+    text-align: left; font-size: 15px; font-weight: 700;
+    padding: 10px 12px; border-radius: 10px;
+    border: 2px solid #ffffff33; background: #12233f; color: var(--text);
+    cursor: pointer; line-height: 1.35;
+  }
+  .scene-btn small { display: block; font-weight: 600; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .scene-btn.active {
+    background: #e0a400; color: #111; border-color: #ffd84a;
+  }
+  .scene-btn.active small { color: #3a2a00; }
+  .scene-btn:hover { filter: brightness(1.12); }
+
+  #stage { flex: 1; position: relative; min-width: 0; min-height: 0; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  aside {
+    width: clamp(280px, 24vw, 400px);
+    padding: 12px 14px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 12px;
+    overflow-y: auto; font-size: 18px;
+  }
+  body.hide-aside aside { display: none; }
+  body.hide-nav #nav { display: none; }
+
+  button {
+    font: inherit; font-size: 18px; font-weight: bold;
+    padding: 9px 14px; border-radius: 12px;
+    border: 2px solid #ffffff55; background: #1f3a66; color: #fff; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: #e0a400; color: #111; border-color: #ffd84a; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row button { flex: 1 1 auto; min-width: 0; }
+
+  .step-title {
+    font-size: clamp(17px, 1.4vw, 24px);
+    font-weight: bold; color: var(--accent); line-height: 1.35;
+  }
+  .step-desc {
+    font-size: clamp(15px, 1.2vw, 20px);
+    line-height: 1.55; color: var(--text);
+  }
+  .step-desc strong { color: #ffe27a; }
+
+  .steps {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 420px; overflow-y: auto;
+  }
+  .step-btn {
+    text-align: left; font-size: 13.5px; font-weight: 600;
+    padding: 6px 10px; border-radius: 8px;
+    border: 1px solid #ffffff33; background: #0e1c36; color: var(--text);
+    cursor: pointer;
+  }
+  .step-btn .num {
+    display: inline-block; width: 1.6em; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-btn.active {
+    background: #e0a400; color: #111; border-color: #ffd84a;
+  }
+  .step-btn.active .num { color: #111; }
+  .step-btn.done { border-color: #7dffa055; }
+
+  .check {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 16px; cursor: pointer;
+  }
+  .check input { width: 22px; height: 22px; accent-color: #ffd84a; }
+
+  .legend {
+    font-size: 15px; line-height: 1.7;
+    border-top: 2px solid #ffffff22; padding-top: 8px;
+  }
+  .legend .sw {
+    display: inline-block; width: 28px; height: 4px;
+    vertical-align: middle; margin-right: 8px; border-radius: 2px;
+  }
+  .hint { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+  #mediaPanel, #ghostWrap {
+    border-top: 2px solid #ffffff22; padding-top: 8px;
+  }
+  #mediaPanel[hidden], #ghostWrap[hidden] { display: none !important; }
+  #mediaPanel .media-title {
+    font-weight: bold; color: var(--accent); margin-bottom: 8px; font-size: 16px;
+  }
+  .media-btn {
+    font-size: 16px !important; padding: 10px 12px !important;
+    flex: 1 1 46%;
+  }
+  .media-btn.active {
+    background: #e0a400; color: #111; border-color: #ffd84a;
+  }
+
+  footer {
+    padding: 8px 16px 10px; background: #081022;
+    border-top: 2px solid #ffffff22; text-align: center;
+  }
+  #conclusion {
+    font-size: clamp(16px, 1.6vw, 28px);
+    font-weight: bold; color: #ffe27a; line-height: 1.4;
+  }
+  #formula {
+    font-size: clamp(14px, 1.2vw, 22px);
+    margin-top: 4px; line-height: 1.45; color: var(--muted);
+  }
+
+  kbd {
+    display: inline-block; padding: 1px 6px;
+    border: 1px solid #ffffff44; border-radius: 4px;
+    background: #1a2d4d; font-family: ui-monospace, monospace; font-size: 0.9em;
+  }
+
+  @media (max-width: 1100px) {
+    #nav { width: 200px; }
+    aside { width: 280px; }
+  }
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow: auto; }
+    main { flex-direction: column; }
+    #nav { width: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 2px solid #ffffff22; }
+    .scene-btn { flex: 1 1 140px; }
+    #stage { flex: none; height: 52vh; }
+    aside { width: auto; }
+    .steps { max-height: 180px; flex-direction: row; flex-wrap: wrap; }
+    .step-btn { flex: 1 1 140px; }
+  }
+
+  a.back-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: clamp(18px, 1.4vw, 24px);
+    white-space: nowrap;
+  }
+  a.back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="f3-physics.html">← 返回中三物理</a>
+  <h1>實驗 14.4：介質的折射率</h1>
+  <span class="sub" id="headerSub">中三物理 · 光</span>
+  <span class="spacer"></span>
+  <button type="button" id="btnPrev" title="快捷鍵 ←">◀ 上一步</button>
+  <button type="button" id="btnNext" class="primary" title="快捷鍵 →">下一步 ▶</button>
+  <button type="button" id="btnAuto" title="快捷鍵 Space">▶ 自動播放</button>
+  <button type="button" id="btnReplay" title="快捷鍵 R">重播</button>
+  <button type="button" id="btnFull" title="快捷鍵 F">全螢幕</button>
+  <button type="button" id="btnAside">控制面板</button>
+</header>
+
+<main>
+  <div id="nav">
+    <div class="nav-title">場景選單 <span style="font-weight:600;color:#b8c6dc;font-size:12px">（按 1–3）</span></div>
+    <button type="button" class="scene-btn active" data-scene="0" id="btnScene0">
+      A　逐步描繪光線圖
+      <small>以水為例：裝置、入射、折射、量度</small>
+    </button>
+    <button type="button" class="scene-btn" data-scene="1" id="btnScene1">
+      B　比較不同介質
+      <small>同一入射角 60°，對照偏折程度</small>
+    </button>
+    <button type="button" class="scene-btn" data-scene="2" id="btnScene2">
+      C　折射率
+      <small>表 14.2、光疏／光密與教學重點</small>
+    </button>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv" aria-label="介質折射率與折射光線圖動畫"></canvas>
+  </div>
+
+  <aside>
+    <div class="step-title" id="stepTitle">步驟 0</div>
+    <div class="step-desc" id="stepDesc"></div>
+
+    <div class="row">
+      <button type="button" id="btnPrev2">◀ 上一步</button>
+      <button type="button" id="btnNext2" class="primary">下一步 ▶</button>
+    </div>
+
+    <div>
+      <div style="font-weight:bold;margin-bottom:6px;color:var(--accent)">步驟選單</div>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <div id="mediaPanel" hidden>
+      <div class="media-title">切換介質（課堂對照）</div>
+      <div class="row" id="mediaBtns"></div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="chkNormal" checked> 顯示法線</label>
+    <label class="check"><input type="checkbox" id="chkAngles" checked> 顯示角度標籤</label>
+    <label class="check"><input type="checkbox" id="chkStraight" checked> 顯示未偏折虛線</label>
+    <label class="check"><input type="checkbox" id="chkGrid" checked> 顯示方格</label>
+    <label class="check" id="ghostWrap" hidden><input type="checkbox" id="chkGhost" checked> 顯示其他介質的光線（對照）</label>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#ffd84a"></span>入射線／出射線（實線＋箭號）</div>
+      <div><span class="sw" style="background:#7dffa0"></span>介質中的折射線（實線＋箭號）</div>
+      <div><span class="sw" style="background:#ff7ad9;height:0;border-top:3px dashed #ff7ad9"></span>未偏折路徑（虛線、無箭號）</div>
+      <div><span class="sw" style="background:#7fdcff;height:2px"></span>法線（虛線、無箭號，垂直界面）</div>
+    </div>
+
+    <div class="hint">
+      入射角 i、折射角 r 都由<strong>法線</strong>起計，不是由界面起計。<br>
+      快捷鍵：<kbd>←</kbd><kbd>→</kbd> 換步　<kbd>Space</kbd> 暫停／自動播放　<kbd>R</kbd> 重播　<kbd>F</kbd> 全螢幕　<kbd>1</kbd>–<kbd>3</kbd> 切換場景
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div id="conclusion">準備開始：先認識實驗裝置</div>
+  <div id="formula">入射角、折射角都由法線起計（法線垂直於界面）</div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  const COL = {
+    I: '#ffd84a',
+    R: '#7dffa0',
+    E: '#ffd84a',
+    V: '#ff7ad9',
+    N: 'rgba(127,220,255,0.9)',
+    ink: '#e8eef8',
+    mute: '#9eb0c8',
+    ok: '#7dffa0',
+    acc: '#7fdcff',
+    text: '#f4f7fb',
+    paper: '#152848',
+    paperEdge: '#8fb4d8'
+  };
+
+  const AUTO_HOLD_MS = 1800;
+  const GROW_MS = 1200;
+
+  const hypot = Math.hypot;
+  function add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+  function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+  function mul(a, s) { return { x: a.x * s, y: a.y * s }; }
+  function len(a) { return hypot(a.x, a.y) || 1e-9; }
+  function norm(a) { const L = len(a); return { x: a.x / L, y: a.y / L }; }
+  function lerp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function deg(rad) { return rad * 180 / Math.PI; }
+  function rad(d) { return d * Math.PI / 180; }
+
+  const I_DEG = 60;
+  const I_ANG = rad(I_DEG);
+
+  const MEDIA = {
+    air: {
+      id: 'air', n: 1.0003, name: '空氣', short: '空氣',
+      rLabel: '約 60°', rShort: '≈ 60°', kind: 'air',
+      fill: 'rgba(200,220,255,0.06)', stroke: '#9eb0c8',
+      ghost: 'rgba(200,220,255,0.45)'
+    },
+    water: {
+      id: 'water', n: 1.33, name: '水', short: '水',
+      rLabel: '約 41°', rShort: '≈ 41°', kind: 'liquid',
+      fill: 'rgba(64,168,255,0.38)', stroke: '#7fdcff',
+      liquid: 'rgba(70,170,255,0.48)',
+      ghost: 'rgba(100,190,255,0.55)'
+    },
+    oil: {
+      id: 'oil', n: 1.46, name: '嬰兒潤滑油', short: '潤滑油',
+      rLabel: '約 36°', rShort: '≈ 36°', kind: 'liquid',
+      fill: 'rgba(240,200,70,0.38)', stroke: '#ffd84a',
+      liquid: 'rgba(236,196,60,0.50)',
+      ghost: 'rgba(240,200,80,0.55)'
+    },
+    perspex: {
+      id: 'perspex', n: 1.50, name: '有機玻璃', short: '有機玻璃',
+      rLabel: '約 35°', rShort: '≈ 35°', kind: 'solid',
+      fill: 'rgba(150,220,230,0.36)', stroke: '#9be7f0',
+      ghost: 'rgba(120,220,230,0.55)'
+    },
+    glass: {
+      id: 'glass', n: 1.60, name: '玻璃', short: '玻璃',
+      rLabel: '約 33°（範圍 31°–35°）', rShort: '≈ 33°', kind: 'solid',
+      fill: 'rgba(150,200,185,0.42)', stroke: '#b8ddd0',
+      ghost: 'rgba(180,220,200,0.55)'
+    },
+    diamond: {
+      id: 'diamond', n: 2.42, name: '鑽石', short: '鑽石',
+      rLabel: '約 21°', rShort: '≈ 21°', kind: 'solid',
+      fill: 'rgba(180,230,255,0.34)', stroke: '#e8f6ff',
+      ghost: 'rgba(200,230,255,0.55)'
+    }
+  };
+
+  function refractRad(n) {
+    const s = Math.sin(I_ANG) / n;
+    return Math.asin(Math.min(1, Math.max(-1, s)));
+  }
+
+  // 長方形介質（世界座標，y 向上）。寬度與高度令 i=60° 的未偏折線剛好在右下角附近離開。
+  const BOX = { L: 0, R: 5.4, B: 0, T: 10.2 };
+  const P_IN = { x: BOX.L, y: 9.50 };
+  const WIDTH = BOX.R - BOX.L;
+  const INC_DIR = { x: Math.cos(-I_ANG), y: Math.sin(-I_ANG) };
+  const INC_BACK = 4.9;
+  const P_START = { x: P_IN.x - INC_DIR.x * INC_BACK, y: P_IN.y - INC_DIR.y * INC_BACK };
+  const EXIT_LEN = 4.4;
+
+  function geomFor(n) {
+    const r = refractRad(n);
+    const refDir = { x: Math.cos(-r), y: Math.sin(-r) };
+    const pOut = { x: BOX.R, y: P_IN.y - WIDTH * Math.tan(r) };
+    const pEnd = { x: pOut.x + INC_DIR.x * EXIT_LEN, y: pOut.y + INC_DIR.y * EXIT_LEN };
+    const x1 = { x: pOut.x + INC_DIR.x * 1.25, y: pOut.y + INC_DIR.y * 1.25 };
+    const x2 = { x: pOut.x + INC_DIR.x * 2.7, y: pOut.y + INC_DIR.y * 2.7 };
+    const undefOut = { x: BOX.R, y: P_IN.y - WIDTH * Math.tan(I_ANG) };
+    const undefEnd = { x: undefOut.x + INC_DIR.x * 2.4, y: undefOut.y + INC_DIR.y * 2.4 };
+    return { r, rDeg: deg(r), refDir, pOut, pEnd, x1, x2, undefOut, undefEnd };
+  }
+
+  const TABLE_14_2 = [
+    ['介質', '折射率'],
+    ['真空', '1'],
+    ['空氣', '1.0003'],
+    ['水', '1.33'],
+    ['嬰兒潤滑油', '1.46'],
+    ['有機玻璃', '1.50'],
+    ['玻璃', '1.50–1.70'],
+    ['鑽石', '2.42']
+  ];
+
+  const RESULT_TABLE = [
+    ['', '水', '嬰兒潤滑油', '玻璃', '有機玻璃'],
+    ['入射角', '60°', '60°', '60°', '60°'],
+    ['折射角', '約 41°', '約 36°', '約 31°–35°', '約 35°']
+  ];
+
+  const SCENES = [
+    {
+      id: 'A',
+      title: '逐步描繪光線圖（以水為例）',
+      headerSub: '實驗 14.4 · 以水為例',
+      formulaDefault: '入射角 i、折射角 r 都由法線起計（法線垂直於界面）',
+      defaultMedium: 'water',
+      mediaSet: null,
+      steps: [
+        {
+          title: '步驟 0：出示儀器與材料',
+          sub: '出示裝置',
+          desc: '實驗目的：觀察光線由空氣進入不同介質時，<strong>偏折程度</strong>會否因介質不同而出現差異。先以<strong>水</strong>為例。台上有 <strong>A4 紙</strong>、盛着水的<strong>透明長方形容器</strong>，以及裝有單狹縫板的<strong>光線箱</strong>。',
+          footer: '目的：比較光線進入不同介質時的偏折程度',
+          anim: 'none'
+        },
+        {
+          title: '步驟 1：勾畫容器邊緣',
+          sub: '勾畫邊緣',
+          desc: '把容器放在 A4 紙上。用鉛筆沿容器<strong>勾畫邊緣</strong>，以便稍後移走容器時，紙上仍留下界面的位置。',
+          footer: '用鉛筆在紙上勾畫出容器的邊緣',
+          anim: 'outline'
+        },
+        {
+          title: '步驟 2：畫法線與 60° 入射線',
+          sub: '法線與入射線',
+          desc: '在入射點畫<strong>法線</strong>：垂直於容器側面的虛線，並標上直角記號。入射角由法線起計，不是由界面起計。先在紙上畫出 <strong>i = 60°</strong> 的入射線。',
+          footer: '入射角 i = 60°，由法線起計（法線垂直於界面）',
+          anim: 'incident'
+        },
+        {
+          title: '步驟 3：拉下窗簾、關上燈',
+          sub: '關燈準備',
+          desc: '拉下窗簾和關上實驗室的燈，令周圍較暗，較易觀察光線箱射出的光束。',
+          footer: '環境變暗，方便觀察光線的路徑',
+          anim: 'dark'
+        },
+        {
+          title: '步驟 4：沿入射線射向容器',
+          sub: '光束進入水中',
+          desc: '把光線沿步驟 2 繪畫的路徑射向容器。光線由空氣進入水（光密介質）時，會<strong>偏向法線</strong>，所以折射角 r 小於入射角 i。',
+          footer: '光線由空氣進入水時偏向法線（r ＜ i）',
+          anim: 'enter'
+        },
+        {
+          title: '步驟 5：在出射路徑上標兩個交叉',
+          sub: '標出兩個「×」',
+          desc: '光線從水射回空氣時會<strong>偏離法線</strong>。在紙上沿着光線離開水的路徑，繪畫兩個交叉「×」。長方形兩側面平行，出射角等於原來的入射角，出射線與入射線平行。',
+          footer: '出射線與入射線平行，並有側向位移',
+          anim: 'exitX'
+        },
+        {
+          title: '步驟 6：連結交叉，延長至容器邊',
+          sub: '連結並延長',
+          desc: '繪畫一條直線，把兩個交叉連結起來，然後把直線延長至容器的邊緣。這就得到出射點與出射線。',
+          footer: '直線連結兩個交叉，並延長至容器邊緣',
+          anim: 'join'
+        },
+        {
+          title: '步驟 7：移走容器，補畫水中路徑',
+          sub: '移走容器',
+          desc: '把容器移走，紙上留下剛才勾畫的邊緣。然後在紙上繪畫光線在水中的路徑（連接入射點與出射點），以完成光線圖。',
+          footer: '移走容器後，補畫光線在水中的路徑',
+          anim: 'remove'
+        },
+        {
+          title: '步驟 8：量度折射角，完成光線圖',
+          sub: '量度 r ≈ 41°',
+          desc: '用量角器量度光線進入水時的<strong>折射角</strong>（法線與折射線之間）。水的折射角約為 <strong>41°</strong>。圖中粉紅色虛線是「若沒有介質、光線直行不偏折」的路徑，用來對照偏折。',
+          footer: '光線由空氣進入水時偏向法線；水的折射角約為 41°',
+          anim: 'measure'
+        }
+      ]
+    },
+    {
+      id: 'B',
+      title: '比較不同介質的偏折程度',
+      headerSub: '實驗 14.4 · 比較介質',
+      formulaDefault: '入射角同為 60°，只改變介質（獨立變項）',
+      defaultMedium: 'water',
+      mediaSet: ['water', 'oil', 'perspex', 'glass'],
+      steps: [
+        {
+          title: '步驟 0：同一入射角，先看水',
+          sub: '水　r ≈ 41°',
+          desc: '控制變項：<strong>入射角同為 60°</strong>。先看水：量得折射角約為 <strong>41°</strong>。可用右側按鈕隨時切換介質，對照光線偏折多少。',
+          footer: '水：i = 60°，r ≈ 41°',
+          anim: 'beam',
+          medium: 'water'
+        },
+        {
+          title: '步驟 1：改為嬰兒潤滑油',
+          sub: '潤滑油　r ≈ 36°',
+          desc: '把容器中的水改為<strong>嬰兒潤滑油</strong>，入射角仍是 60°。折射角約為 <strong>36°</strong>，比水的 41° 更小，即光線更靠近法線，<strong>偏折程度較大</strong>。',
+          footer: '嬰兒潤滑油：i = 60°，r ≈ 36°（偏折較水大）',
+          anim: 'beam',
+          medium: 'oil'
+        },
+        {
+          title: '步驟 2：改為有機玻璃塊',
+          sub: '有機玻璃　r ≈ 35°',
+          desc: '改用實心的<strong>有機玻璃塊</strong>（不是盛着液體的容器）。入射角仍是 60°，折射角約為 <strong>35°</strong>，偏折比嬰兒潤滑油再稍大一點。',
+          footer: '有機玻璃：i = 60°，r ≈ 35°',
+          anim: 'beam',
+          medium: 'perspex'
+        },
+        {
+          title: '步驟 3：改為玻璃塊',
+          sub: '玻璃　約 33°',
+          desc: '再改用<strong>玻璃塊</strong>。課本量得折射角約為 <strong>31°–35°</strong>（動畫按 n = 1.60 計算，約 33°）。在這四種介質之中，玻璃的折射角最小，<strong>偏折程度最大</strong>。',
+          footer: '玻璃：i = 60°，r ≈ 33°（課本範圍 31°–35°）',
+          anim: 'beam',
+          medium: 'glass'
+        },
+        {
+          title: '步驟 4：對照課本結果表與鬼影光線',
+          sub: '結果表與對照',
+          desc: '四種介質的入射角都是 60°。淡色「鬼影」光線顯示其他介質的折射路徑，方便即時對照。也可按右側按鈕逐一切換。',
+          footer: '同一入射角下，不同介質的折射角不同',
+          anim: 'compare',
+          medium: 'glass',
+          showGhost: true
+        },
+        {
+          title: '步驟 5：按偏折程度由高至低排列',
+          sub: '排序總結',
+          desc: '把以上各種介質按光線偏折的程度由高至低排列：<strong>玻璃、有機玻璃、嬰兒潤滑油、水</strong>。折射角愈小，表示光線愈靠近法線，偏折程度愈高。',
+          footer: '偏折程度由高至低：玻璃、有機玻璃、嬰兒潤滑油、水',
+          anim: 'rank',
+          medium: 'glass',
+          showGhost: true
+        }
+      ]
+    },
+    {
+      id: 'C',
+      title: '折射率',
+      headerSub: 'B　介質的折射率',
+      formulaDefault: '當光線由空氣進入介質時，偏折程度取決於該介質的折射率',
+      defaultMedium: 'water',
+      mediaSet: ['air', 'water', 'oil', 'perspex', 'glass', 'diamond'],
+      steps: [
+        {
+          title: '步驟 0：為甚麼偏折程度不同？',
+          sub: '帶出折射率',
+          desc: '從實驗 14.4 得知，光線由空氣進入介質時的偏折程度，會因為介質不同而有所分別。這是由於不同介質有不同的<strong>折射率</strong>。',
+          footer: '不同介質有不同的折射率，所以偏折程度不同',
+          anim: 'concept'
+        },
+        {
+          title: '步驟 1：表 14.2　一些介質的折射率',
+          sub: '表 14.2',
+          desc: '下表列出一些介質的折射率。學生需要知道<strong>空氣／真空的折射率最小</strong>：真空為 <strong>1</strong>，空氣為 <strong>1.00</strong>（更精確是 1.0003）。其餘介質的折射率<strong>毋須背誦</strong>。',
+          footer: '真空 n = 1，空氣 n ≈ 1.00；其餘折射率毋須背誦',
+          anim: 'table'
+        },
+        {
+          title: '步驟 2：折射率愈大，偏折程度愈高',
+          sub: 'n 越大偏折越多',
+          desc: '同一入射角 60°，用按鈕切換空氣、水、嬰兒潤滑油、有機玻璃、玻璃和鑽石。可見介質的<strong>折射率愈大</strong>，光線偏折的程度便<strong>愈高</strong>（折射角愈小）。',
+          footer: '介質的折射率愈大，光線偏折的程度便愈高',
+          anim: 'slider',
+          medium: 'water'
+        },
+        {
+          title: '步驟 3：光疏介質與光密介質',
+          sub: '光疏／光密',
+          desc: '折射率較大的介質稱為<strong>光密介質</strong>；折射率較小的稱為<strong>光疏介質</strong>。光在光疏介質中的<strong>傳播速率較高</strong>。例如空氣相對水是光疏介質，水是光密介質。',
+          footer: '光密：折射率較大；光疏：折射率較小。光在光疏介質中速率較高',
+          anim: 'density',
+          medium: 'water'
+        },
+        {
+          title: '步驟 4：由光疏進入光密，光線偏向法線',
+          sub: '偏向法線',
+          desc: '光線從光疏介質（例如空氣）進入光密介質（例如水）時，光線會<strong>偏向法線</strong>。因此折射角 r 小於入射角 i。從光密射回光疏時，則會偏離法線。',
+          footer: '光線從光疏介質進入光密介質時，會偏向法線',
+          anim: 'toward',
+          medium: 'water'
+        },
+        {
+          title: '步驟 5：教學重點總結',
+          sub: '重點總結',
+          desc: '總結：偏折程度取決於折射率，<strong>n 愈大偏折愈高</strong>。折射率較大稱光密介質，較小稱光疏介質；光在光疏介質中速率較高。由光疏進入光密會偏向法線。必須記得真空 n = 1、空氣 n ≈ 1.00，其餘毋須背誦。',
+          footer: '折射率愈大，偏折程度愈高；由光疏進入光密會偏向法線',
+          anim: 'summary'
+        }
+      ]
+    }
+  ];
+
+
+  // =========================================================
+  // 狀態與介面
+  // =========================================================
+  const state = {
+    scene: 0,
+    step: 0,
+    showNormal: true,
+    showAngles: true,
+    showGrid: true,
+    showStraight: true,
+    showGhost: true,
+    autoplay: false,
+    progress: 1,
+    animating: false,
+    lastTs: null,
+    medium: 'water',
+    boxShift: 0,
+    darkLab: 0
+  };
+  let holdUntil = 0;
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const stepsEl = document.getElementById('steps');
+  const stepTitle = document.getElementById('stepTitle');
+  const stepDesc = document.getElementById('stepDesc');
+  const conclusion = document.getElementById('conclusion');
+  const formula = document.getElementById('formula');
+  const btnAuto = document.getElementById('btnAuto');
+  const headerSub = document.getElementById('headerSub');
+  const mediaPanel = document.getElementById('mediaPanel');
+  const mediaBtns = document.getElementById('mediaBtns');
+  const ghostWrap = document.getElementById('ghostWrap');
+
+  function currentScene() { return SCENES[state.scene]; }
+  function currentSteps() { return currentScene().steps; }
+  function currentStep() { return currentSteps()[state.step]; }
+  function currentMedia() { return MEDIA[state.medium] || MEDIA.water; }
+
+  function rebuildSteps() {
+    stepsEl.innerHTML = '';
+    currentSteps().forEach((s, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'step-btn' + (i === state.step ? ' active' : (i < state.step ? ' done' : ''));
+      b.innerHTML = '<span class="num">' + i + '</span>' + s.sub;
+      b.addEventListener('click', () => goStep(i, true));
+      stepsEl.appendChild(b);
+    });
+  }
+
+  function rebuildMediaBtns() {
+    const set = currentScene().mediaSet;
+    mediaBtns.innerHTML = '';
+    if (!set) return;
+    set.forEach(id => {
+      const m = MEDIA[id];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'media-btn' + (state.medium === id ? ' active' : '');
+      b.textContent = m.name;
+      b.addEventListener('click', () => {
+        state.medium = id;
+        rebuildMediaBtns();
+        updateUI();
+      });
+      mediaBtns.appendChild(b);
+    });
+  }
+
+  function applyStepDefaults(s) {
+    if (s.medium) state.medium = s.medium;
+    if (s.showGhost) state.showGhost = true;
+  }
+
+  function updateUI() {
+    const scene = currentScene();
+    const s = scene.steps[state.step];
+    stepTitle.textContent = s.title;
+    stepDesc.innerHTML = s.desc;
+    conclusion.textContent = s.footer;
+    const med = currentMedia();
+    const rInfo = '　｜　' + med.name + '　n = ' + (med.id === 'glass' ? '1.60（1.50–1.70）' : String(med.n)) +
+      '　r = ' + med.rLabel;
+    formula.textContent = scene.formulaDefault + (scene.mediaSet ? rInfo : '');
+    headerSub.textContent = '中三物理 · 光　｜　' + scene.headerSub;
+    [...stepsEl.children].forEach((el, i) => {
+      el.classList.toggle('active', i === state.step);
+      el.classList.toggle('done', i < state.step);
+    });
+    document.querySelectorAll('.scene-btn').forEach((el, i) => {
+      el.classList.toggle('active', i === state.scene);
+    });
+    const atEnd = state.step === scene.steps.length - 1 && state.progress >= 1;
+    document.getElementById('btnPrev').disabled = state.step === 0;
+    document.getElementById('btnPrev2').disabled = state.step === 0;
+    document.getElementById('btnNext').disabled = atEnd && !state.autoplay;
+    document.getElementById('btnNext2').disabled = atEnd && !state.autoplay;
+    btnAuto.textContent = state.autoplay ? '⏸ 暫停' : '▶ 自動播放';
+    const hasMedia = !!scene.mediaSet;
+    mediaPanel.hidden = !hasMedia;
+    ghostWrap.hidden = scene.id === 'A';
+    if (hasMedia) {
+      [...mediaBtns.children].forEach((el, i) => {
+        el.classList.toggle('active', scene.mediaSet[i] === state.medium);
+      });
+    }
+  }
+
+  function goScene(i, replayAnim) {
+    i = clamp(i | 0, 0, SCENES.length - 1);
+    state.scene = i;
+    state.autoplay = false;
+    state.medium = SCENES[i].defaultMedium || 'water';
+    rebuildSteps();
+    rebuildMediaBtns();
+    goStep(0, !!replayAnim);
+    if (!replayAnim) {
+      state.progress = 1;
+      state.animating = false;
+      finishAnimExtras();
+    }
+    updateUI();
+  }
+
+  function finishAnimExtras() {
+    const anim = currentStep().anim;
+    if (anim === 'remove' || anim === 'measure') state.boxShift = 1;
+    else state.boxShift = 0;
+    if (anim === 'dark' || anim === 'enter' || anim === 'exitX' || anim === 'join') state.darkLab = 1;
+    else if (anim === 'remove' || anim === 'measure') state.darkLab = 0.15;
+    else state.darkLab = 0;
+  }
+
+  function startAnimExtras() {
+    const anim = currentStep().anim;
+    if (anim === 'remove') state.boxShift = 0;
+    if (anim === 'dark') state.darkLab = 0;
+  }
+
+  function goStep(i, replayAnim) {
+    const steps = currentSteps();
+    i = clamp(i, 0, steps.length - 1);
+    state.step = i;
+    applyStepDefaults(steps[i]);
+    rebuildMediaBtns();
+    const needsAnim = steps[i].anim !== 'none';
+    if (replayAnim && needsAnim) {
+      state.progress = 0;
+      state.animating = true;
+      state.lastTs = null;
+      startAnimExtras();
+    } else {
+      state.progress = 1;
+      state.animating = false;
+      finishAnimExtras();
+    }
+    holdUntil = 0;
+    updateUI();
+  }
+
+  function nextStep() {
+    const steps = currentSteps();
+    if (state.step >= steps.length - 1 && state.progress >= 1) {
+      state.autoplay = false;
+      updateUI();
+      return;
+    }
+    if (state.progress < 1) {
+      state.progress = 1;
+      state.animating = false;
+      finishAnimExtras();
+      updateUI();
+      return;
+    }
+    goStep(state.step + 1, true);
+  }
+
+  function prevStep() {
+    state.autoplay = false;
+    if (state.progress < 1 && state.step > 0) {
+      goStep(state.step, false);
+      return;
+    }
+    goStep(Math.max(0, state.step - 1), false);
+  }
+
+  function replay() {
+    state.autoplay = false;
+    state.medium = currentScene().defaultMedium || 'water';
+    goStep(0, true);
+    state.progress = 1;
+    state.animating = false;
+    finishAnimExtras();
+    updateUI();
+  }
+
+  function toggleAuto() {
+    state.autoplay = !state.autoplay;
+    if (state.autoplay) {
+      const steps = currentSteps();
+      if (state.step === steps.length - 1 && state.progress >= 1) {
+        goStep(0, true);
+        state.progress = 1;
+        state.animating = false;
+        finishAnimExtras();
+        holdUntil = performance.now() + 800;
+      } else if (state.progress >= 1) {
+        holdUntil = performance.now() + 400;
+      } else {
+        state.animating = true;
+        state.lastTs = null;
+      }
+    }
+    updateUI();
+  }
+
+  // =========================================================
+  // 繪圖：相機與原語
+  // =========================================================
+  let W = 0, H = 0, dpr = 1;
+  let scale = 1, ox = 0, oy = 0;
+
+  function resize() {
+    const rect = cv.parentElement.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(1, Math.floor(rect.width));
+    H = Math.max(1, Math.floor(rect.height));
+    cv.width = Math.floor(W * dpr);
+    cv.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function setWorld(xmin, xmax, ymin, ymax, pad, view) {
+    pad = pad == null ? 0.08 : pad;
+    view = view || { x: 0, y: 0, w: 1, h: 1 };
+    const vx = W * view.x, vy = H * view.y, vw = W * view.w, vh = H * view.h;
+    const wx = xmax - xmin, wy = ymax - ymin;
+    scale = Math.min(vw * (1 - 2 * pad) / wx, vh * (1 - 2 * pad) / wy);
+    ox = vx + vw / 2 - (xmin + xmax) / 2 * scale;
+    oy = vy + vh / 2 + (ymin + ymax) / 2 * scale;
+  }
+  function tx(x) { return ox + x * scale; }
+  function ty(y) { return oy - y * scale; }
+  function lw(n) { return Math.max(1.2, n * scale / 18); }
+  function fs(n) { return Math.max(12, n * scale / 18); }
+
+  function drawArrowHead(x1, y1, x2, y2, color, size) {
+    const px1 = tx(x1), py1 = ty(y1), px2 = tx(x2), py2 = ty(y2);
+    const ang = Math.atan2(py2 - py1, px2 - px1);
+    const s = size || Math.max(9, 11 * scale / 28);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px2, py2);
+    ctx.lineTo(px2 - s * Math.cos(ang - 0.4), py2 - s * Math.sin(ang - 0.4));
+    ctx.lineTo(px2 - s * Math.cos(ang + 0.4), py2 - s * Math.sin(ang + 0.4));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSolidRay(x1, y1, x2, y2, color, width, withArrow, t) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0) return;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y1));
+    ctx.lineTo(tx(x), ty(y));
+    ctx.stroke();
+    if (withArrow && t > 0.08) {
+      const midT = Math.min(t, 0.55);
+      if (t >= 0.45) {
+        const mx = x1 + (x2 - x1) * midT;
+        const my = y1 + (y2 - y1) * midT;
+        const mx0 = x1 + (x2 - x1) * (midT - 0.02);
+        const my0 = y1 + (y2 - y1) * (midT - 0.02);
+        drawArrowHead(mx0, my0, mx, my, color, Math.max(8, 10 * scale / 28));
+      }
+      drawArrowHead(x1, y1, x, y, color, Math.max(9, 11 * scale / 28));
+    }
+  }
+
+  function drawDashed(x1, y1, x2, y2, color, width, t) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0) return;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash([8, 7]);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(x1), ty(y1));
+    ctx.lineTo(tx(x), ty(y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawPolyline(pts, color, width, withArrow, t, dashed) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0 || pts.length < 2) return;
+    const segs = [];
+    let total = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const L = len(sub(pts[i + 1], pts[i]));
+      segs.push(L);
+      total += L;
+    }
+    let remain = total * t;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dashed ? [8, 7] : []);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    let last = pts[0], prev = pts[0];
+    const midPts = [];
+    let acc0 = 0;
+    for (let i = 0; i < segs.length; i++) {
+      if (remain <= 0) break;
+      const a = pts[i], b = pts[i + 1];
+      const L = segs[i];
+      const use = Math.min(L, remain);
+      const p = lerp(a, b, use / L);
+      ctx.lineTo(tx(p.x), ty(p.y));
+      prev = last;
+      last = p;
+      remain -= use;
+      if (use >= L * 0.55) {
+        midPts.push([lerp(a, b, 0.48), lerp(a, b, 0.55)]);
+      }
+      acc0 += use;
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (withArrow && t > 0.1) {
+      drawArrowHead(prev.x, prev.y, last.x, last.y, color, Math.max(9, 11 * scale / 28));
+      if (t > 0.5) {
+        midPts.forEach(pair => {
+          drawArrowHead(pair[0].x, pair[0].y, pair[1].x, pair[1].y, color, Math.max(8, 10 * scale / 28));
+        });
+      }
+    }
+  }
+
+  function drawLabel(text, x, y, color, fontSize, align, baseline) {
+    ctx.fillStyle = color || '#fff';
+    ctx.font = 'bold ' + (fontSize || Math.max(14, fs(16))) + 'px "Microsoft JhengHei", "PingFang HK", "Noto Sans CJK HK", sans-serif';
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = baseline || 'middle';
+    ctx.fillText(text, tx(x), ty(y));
+  }
+
+  function drawLabelPx(text, px, py, color, fontSize, align, baseline) {
+    ctx.fillStyle = color || '#fff';
+    ctx.font = 'bold ' + (fontSize || 16) + 'px "Microsoft JhengHei", "PingFang HK", "Noto Sans CJK HK", sans-serif';
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = baseline || 'middle';
+    ctx.fillText(text, px, py);
+  }
+
+  function drawDot(p, color, r) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(tx(p.x), ty(p.y), r || Math.max(3.5, 4.2 * scale / 28), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
+    c.beginPath();
+    c.moveTo(x + rr, y);
+    c.arcTo(x + w, y, x + w, y + h, rr);
+    c.arcTo(x + w, y + h, x, y + h, rr);
+    c.arcTo(x, y + h, x, y, rr);
+    c.arcTo(x, y, x + w, y, rr);
+    c.closePath();
+  }
+
+  function drawGridWorld(xmin, xmax, ymin, ymax, step, alpha) {
+    if (!state.showGrid) return;
+    ctx.strokeStyle = 'rgba(127,220,255,' + (alpha == null ? 0.10 : alpha) + ')';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    for (let x = xmin; x <= xmax + 1e-6; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(tx(x), ty(ymin));
+      ctx.lineTo(tx(x), ty(ymax));
+      ctx.stroke();
+    }
+    for (let y = ymin; y <= ymax + 1e-6; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(tx(xmin), ty(y));
+      ctx.lineTo(tx(xmax), ty(y));
+      ctx.stroke();
+    }
+  }
+
+
+  function pixAngAt(hit, v) {
+    const p0 = { x: tx(hit.x), y: ty(hit.y) };
+    const p1 = { x: tx(hit.x + v.x), y: ty(hit.y + v.y) };
+    return Math.atan2(p1.y - p0.y, p1.x - p0.x);
+  }
+
+  function drawRightAngleMark(hit, nDir, ifaceDir, size) {
+    if (!state.showNormal) return;
+    const s = size || 0.32;
+    const a = add(hit, mul(nDir, s));
+    const b = add(a, mul(ifaceDir, s));
+    const c = add(hit, mul(ifaceDir, s));
+    ctx.strokeStyle = '#b8ecff';
+    ctx.lineWidth = Math.max(2.0, lw(2.2));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(tx(a.x), ty(a.y));
+    ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.lineTo(tx(c.x), ty(c.y));
+    ctx.stroke();
+  }
+
+  function drawNormalAt(hit, nDir, lenN, t, label, ifaceUp) {
+    if (!state.showNormal) return;
+    t = t == null ? 1 : t;
+    if (t <= 0) return;
+    const L = (lenN || 2.2) * t;
+    const a = add(hit, mul(nDir, L));
+    const b = add(hit, mul(nDir, -L));
+    ctx.strokeStyle = COL.N;
+    ctx.lineWidth = Math.max(1.4, lw(1.8));
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(tx(a.x), ty(a.y));
+    ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 直角記號畫在空氣一側、入射線的對面（法線下方），減少與 i 角弧重疊
+    if (t > 0.5) {
+      const airN = nDir; // 傳入時以指向空氣為正
+      const up = ifaceUp || { x: 0, y: 1 };
+      drawRightAngleMark(hit, mul(airN, 1), mul(up, -1), 0.42);
+    }
+    if (state.showAngles && t > 0.7 && label !== false) {
+      // 標在介質一側、法線上方，避免與空氣一側的入射角標籤重疊
+      const lp = add(add(hit, mul(nDir, -(L + 0.05))), { x: 0, y: 0.40 });
+      drawLabel('法線', lp.x, lp.y, COL.acc, fs(15));
+    }
+  }
+
+  function drawAngleArc(hit, fromVec, toVec, radius, color, label, labelR, t) {
+    if (!state.showAngles) return;
+    t = t == null ? 1 : t;
+    if (t < 0.4) return;
+    const a0 = pixAngAt(hit, fromVec);
+    const a1 = pixAngAt(hit, toVec);
+    let d = a1 - a0;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    const radPx = radius || Math.max(22, 28 * scale / 28);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.6, lw(1.8));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(tx(hit.x), ty(hit.y), radPx, a0, a0 + d, d < 0);
+    ctx.stroke();
+    if (label) {
+      const mid = a0 + d / 2;
+      const lr = (labelR || radPx + 14);
+      const lx = tx(hit.x) + Math.cos(mid) * lr;
+      const ly = ty(hit.y) + Math.sin(mid) * lr;
+      drawLabelPx(label, lx, ly, color, Math.max(15, fs(16)));
+    }
+  }
+
+  function drawCross(p, color, size, t) {
+    t = t == null ? 1 : t;
+    if (t <= 0) return;
+    const s = (size || 0.22) * t;
+    ctx.strokeStyle = color || '#ff8a6a';
+    ctx.lineWidth = Math.max(2.2, lw(2.6));
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx(p.x - s), ty(p.y - s));
+    ctx.lineTo(tx(p.x + s), ty(p.y + s));
+    ctx.moveTo(tx(p.x - s), ty(p.y + s));
+    ctx.lineTo(tx(p.x + s), ty(p.y - s));
+    ctx.stroke();
+  }
+
+  function drawBackground(dark) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    const k = dark || 0;
+    const top = k > 0 ? 'rgb(' + Math.round(8 * (1 - k * 0.5)) + ',' + Math.round(16 * (1 - k * 0.4)) + ',' + Math.round(36 * (1 - k * 0.3)) + ')' : '#0b1730';
+    const bot = k > 0 ? '#050914' : '#081022';
+    g.addColorStop(0, top);
+    g.addColorStop(1, bot);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawStepBadge(extra) {
+    const scene = currentScene();
+    const label = scene.id + (state.step) + (extra ? '　' + extra : '');
+    const pad = 10, fsx = Math.max(13, Math.min(18, W / 70));
+    ctx.font = 'bold ' + fsx + 'px "Microsoft JhengHei", "PingFang HK", sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(8,16,34,0.72)';
+    roundRect(ctx, 12, 12, tw + pad * 2, fsx + 14, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff33';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#7fdcff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 12 + pad, 12 + (fsx + 14) / 2);
+  }
+
+  function drawPaper() {
+    const x0 = -5.2, x1 = 11.2, y0 = -2.0, y1 = 16.2;
+    const px = tx(x0), py = ty(y1), pw = tx(x1) - tx(x0), ph = ty(y0) - ty(y1);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 6;
+    const dim = state.darkLab;
+    ctx.fillStyle = dim > 0.5 ? '#0d1a30' : COL.paper;
+    roundRect(ctx, px, py, pw, ph, 8);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = dim > 0.5 ? '#3a5478' : COL.paperEdge;
+    ctx.lineWidth = Math.max(1.5, lw(1.6));
+    roundRect(ctx, px, py, pw, ph, 8);
+    ctx.stroke();
+    const labY = y1 + 0.35;
+    drawLabel('A4 紙', (x0 + x1) / 2, y1 + 0.42, dim > 0.5 ? '#6a80a0' : '#9eb0c8', fs(14));
+    drawGridWorld(-4, 10.5, -1.5, 14.2, 1, dim > 0.5 ? 0.05 : 0.10);
+  }
+
+  function drawOutline(t) {
+    t = t == null ? 1 : clamp(t, 0, 1);
+    if (t <= 0) return;
+    const L = BOX.L, R = BOX.R, B = BOX.B, T = BOX.T;
+    // 按周長逐漸畫出鉛筆邊緣
+    const pts = [
+      { x: L, y: T }, { x: R, y: T }, { x: R, y: B }, { x: L, y: B }, { x: L, y: T }
+    ];
+    ctx.strokeStyle = '#d8e4f4';
+    ctx.lineWidth = Math.max(1.8, lw(2.0));
+    ctx.setLineDash([5, 4]);
+    ctx.lineCap = 'round';
+    drawPolyline(pts, '#d8e4f4', Math.max(1.8, lw(2.0)), false, t, true);
+    if (t > 0.85) {
+      drawLabel('容器邊緣', (L + R) / 2, B - 0.45, '#c8d6e8', fs(14));
+    }
+  }
+
+  function drawLiquidSurface(L, R, Tliq, color) {
+    ctx.strokeStyle = color || 'rgba(220,240,255,0.7)';
+    ctx.lineWidth = Math.max(1.4, lw(1.6));
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    const mid = (L + R) / 2;
+    ctx.moveTo(tx(L), ty(Tliq));
+    ctx.quadraticCurveTo(tx(mid), ty(Tliq + 0.12), tx(R), ty(Tliq));
+    ctx.stroke();
+  }
+
+  function drawBubbles(L, R, B, Tliq, color) {
+    const bubbles = [
+      { x: L + 0.7, y: B + 1.4, r: 0.10 },
+      { x: L + 1.5, y: B + 2.8, r: 0.07 },
+      { x: R - 1.1, y: B + 1.9, r: 0.09 },
+      { x: R - 2.0, y: Tliq - 1.6, r: 0.06 },
+      { x: L + 2.6, y: Tliq - 2.2, r: 0.08 }
+    ];
+    ctx.strokeStyle = color || 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = Math.max(1, lw(1.1));
+    ctx.setLineDash([]);
+    bubbles.forEach(b => {
+      ctx.beginPath();
+      ctx.arc(tx(b.x), ty(b.y), Math.max(2, b.r * scale), 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  }
+
+  function drawMediumBlock(media, shift, opts) {
+    opts = opts || {};
+    const shx = (shift || 0) * 3.4;
+    const shy = (shift || 0) * -1.1;
+    const L = BOX.L + shx, R = BOX.R + shx, B = BOX.B + shy, T = BOX.T + shy;
+    if (shift > 0.97 && !opts.force) return;
+    const wall = media.kind === 'liquid' ? 0.16 : 0;
+    ctx.save();
+    // 外框
+    ctx.beginPath();
+    ctx.rect(tx(L), ty(T), tx(R) - tx(L), ty(B) - ty(T));
+    if (media.kind === 'liquid') {
+      ctx.fillStyle = 'rgba(200,220,240,0.10)';
+      ctx.fill();
+      const iL = L + wall, iR = R - wall, iB = B + wall, iT = T - 0.35;
+      ctx.fillStyle = media.liquid || media.fill;
+      ctx.fillRect(tx(iL), ty(iT), tx(iR) - tx(iL), ty(iB) - ty(iT));
+      drawLiquidSurface(iL, iR, iT, 'rgba(255,255,255,0.55)');
+      drawBubbles(iL, iR, iB, iT);
+      // 薄壁
+      ctx.strokeStyle = 'rgba(200,220,235,0.7)';
+      ctx.lineWidth = Math.max(2.0, lw(2.4));
+      ctx.strokeRect(tx(L), ty(T), tx(R) - tx(L), ty(B) - ty(T));
+      ctx.strokeStyle = 'rgba(200,220,235,0.35)';
+      ctx.lineWidth = Math.max(1.0, lw(1.1));
+      ctx.strokeRect(tx(iL), ty(T - 0.02), tx(iR) - tx(iL), ty(iB) - ty(T - 0.02));
+    } else if (media.kind === 'air') {
+      ctx.fillStyle = 'rgba(180,200,230,0.05)';
+      ctx.fill();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = media.stroke;
+      ctx.lineWidth = Math.max(1.6, lw(1.8));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = media.fill;
+      ctx.fill();
+      ctx.strokeStyle = media.stroke;
+      ctx.lineWidth = Math.max(2.2, lw(2.6));
+      ctx.stroke();
+      // 實心塊的輕微高光，與液體區分
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.beginPath();
+      ctx.moveTo(tx(L), ty(T));
+      ctx.lineTo(tx(L + 0.45), ty(T));
+      ctx.lineTo(tx(L + 0.45), ty(B + 0.15));
+      ctx.lineTo(tx(L), ty(B));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    const nTxt = media.id === 'glass' ? 'n = 1.60' : (media.id === 'air' ? 'n ≈ 1.00' : 'n = ' + media.n);
+    const label = (media.kind === 'liquid' ? media.name : (media.kind === 'air' ? '空氣（對照）' : media.name + '塊')) + '　' + nTxt;
+    drawLabel(label, (L + R) / 2, B + 0.55, media.stroke || COL.acc, fs(16));
+    if (media.kind === 'liquid') {
+      drawLabel('液面', R + 0.55, T - 0.35, '#c8d6e8', fs(12), 'left');
+    }
+  }
+
+  function drawLightBox(on, t) {
+    t = t == null ? 1 : t;
+    if (t <= 0) return;
+    const dir = INC_DIR;
+    const back = { x: -dir.x, y: -dir.y };
+    const perp = { x: -dir.y, y: dir.x };
+    const slit = P_START;
+    const depth = 1.50, half = 0.58;
+    const body = [
+      add(slit, mul(perp, -half * 0.50)),
+      add(slit, mul(perp, half * 0.50)),
+      add(add(slit, mul(back, depth)), mul(perp, half)),
+      add(add(slit, mul(back, depth)), mul(perp, -half))
+    ];
+    ctx.save();
+    ctx.globalAlpha = t;
+    ctx.fillStyle = '#2a2a32';
+    ctx.beginPath();
+    ctx.moveTo(tx(body[0].x), ty(body[0].y));
+    body.forEach((pt, i) => { if (i) ctx.lineTo(tx(pt.x), ty(pt.y)); });
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#d0c8a8';
+    ctx.lineWidth = Math.max(1.6, lw(1.8));
+    ctx.stroke();
+    // 前板狹縫
+    const s1 = add(slit, mul(perp, 0.09));
+    const s0 = add(slit, mul(perp, -0.09));
+    const s2 = add(s0, mul(back, 0.12));
+    const s3 = add(s1, mul(back, 0.12));
+    ctx.fillStyle = on ? '#ffe27a' : '#111';
+    ctx.beginPath();
+    ctx.moveTo(tx(s0.x), ty(s0.y));
+    ctx.lineTo(tx(s1.x), ty(s1.y));
+    ctx.lineTo(tx(s3.x), ty(s3.y));
+    ctx.lineTo(tx(s2.x), ty(s2.y));
+    ctx.closePath();
+    ctx.fill();
+    if (on) {
+      ctx.shadowColor = '#ffd84a';
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    // 電線（向紙外左上方，避免穿過光線）
+    const cord = add(add(slit, mul(back, depth)), mul(perp, -0.2));
+    ctx.strokeStyle = '#8a8a90';
+    ctx.lineWidth = Math.max(1.5, lw(1.6));
+    ctx.beginPath();
+    ctx.moveTo(tx(cord.x), ty(cord.y));
+    ctx.lineTo(tx(cord.x - 0.7), ty(cord.y + 0.55));
+    ctx.stroke();
+    ctx.restore();
+    // 標籤放在箱體左上方，避開箱身與入射線
+    drawLabel('光線箱（單狹縫）', slit.x + 1.05, slit.y + 0.95, '#ffe27a', fs(14), 'left');
+  }
+
+  function drawProtractor(hit, t) {
+    if (t < 0.2) return;
+    const radW = 1.25;
+    ctx.save();
+    ctx.globalAlpha = 0.9 * Math.min(1, t);
+    const rPx = radW * scale;
+    const aN = pixAngAt(hit, { x: 1, y: 0 });
+    const aDown = pixAngAt(hit, { x: 0, y: -1 });
+    const aMid = pixAngAt(hit, { x: 1, y: -1 });
+    function inCcw(a, b, p) {
+      let db = b - a, dp = p - a;
+      while (db < 0) db += Math.PI * 2;
+      while (db >= Math.PI * 2) db -= Math.PI * 2;
+      while (dp < 0) dp += Math.PI * 2;
+      while (dp >= Math.PI * 2) dp -= Math.PI * 2;
+      return dp <= db + 1e-6;
+    }
+    const ccw = inCcw(aN, aDown, aMid);
+    ctx.strokeStyle = 'rgba(255,226,122,0.85)';
+    ctx.fillStyle = 'rgba(255,226,122,0.07)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(tx(hit.x), ty(hit.y), rPx, aN, aDown, !ccw);
+    ctx.stroke();
+    for (let d = 0; d <= 90; d += 10) {
+      const ang = rad(-d);
+      const v = { x: Math.cos(ang), y: Math.sin(ang) };
+      const inner = d % 30 === 0 ? 0.78 : 0.90;
+      const p0 = add(hit, mul(v, radW * inner));
+      const p1 = add(hit, mul(v, radW));
+      ctx.beginPath();
+      ctx.moveTo(tx(p0.x), ty(p0.y));
+      ctx.lineTo(tx(p1.x), ty(p1.y));
+      ctx.stroke();
+    }
+    ctx.restore();
+    drawLabel('量角器', hit.x - 2.05, hit.y - 0.15, '#ffe27a', fs(13), 'right');
+  }
+
+  function drawUndeviated(g, t) {
+    if (!state.showStraight) return;
+    t = t == null ? 1 : t;
+    if (t <= 0) return;
+    drawDashed(P_IN.x, P_IN.y, g.undefEnd.x, g.undefEnd.y, COL.V, Math.max(1.5, lw(1.8)), t);
+    if (t > 0.7) {
+      drawLabel('未偏折', g.undefOut.x + 0.55, g.undefOut.y - 0.15, COL.V, fs(13), 'left');
+    }
+  }
+
+  function drawFullRays(g, media, opts) {
+    opts = opts || {};
+    const tInc = opts.tInc == null ? 1 : opts.tInc;
+    const tRef = opts.tRef == null ? 1 : opts.tRef;
+    const tEx = opts.tEx == null ? 1 : opts.tEx;
+    const glow = !!opts.glow;
+    const withArrow = opts.withArrow !== false;
+    const alpha = opts.alpha == null ? 1 : opts.alpha;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (glow) {
+      ctx.shadowColor = COL.I;
+      ctx.shadowBlur = 14;
+    }
+    drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, COL.I, Math.max(2.4, lw(2.8)), withArrow, tInc);
+    if (glow) ctx.shadowColor = COL.R;
+    drawSolidRay(P_IN.x, P_IN.y, g.pOut.x, g.pOut.y, COL.R, Math.max(2.4, lw(2.8)), withArrow, tRef);
+    if (glow) ctx.shadowColor = COL.E;
+    drawSolidRay(g.pOut.x, g.pOut.y, g.pEnd.x, g.pEnd.y, COL.E, Math.max(2.4, lw(2.8)), withArrow, tEx);
+    ctx.restore();
+  }
+
+  function drawGhostRay(n, color, label, alpha, labelYOff) {
+    const g = geomFor(n);
+    ctx.save();
+    ctx.globalAlpha = alpha == null ? 0.62 : alpha;
+    drawDashed(P_IN.x, P_IN.y, g.pOut.x, g.pOut.y, color, Math.max(1.8, lw(2.0)), 1);
+    drawDashed(g.pOut.x, g.pOut.y, g.pEnd.x, g.pEnd.y, color, Math.max(1.8, lw(2.0)), 1);
+    ctx.restore();
+    if (label) {
+      const lp = { x: g.pEnd.x + 0.15, y: g.pEnd.y + (labelYOff || 0) };
+      drawLabel(label, lp.x, lp.y, color, fs(13), 'left');
+    }
+  }
+
+  function drawIncidentLabels(t) {
+    if (!state.showAngles || t < 0.5) return;
+    // 入射角弧：空氣一側，法線向左 與 入射方向的反向（指向光源）
+    const nAir = { x: -1, y: 0 };
+    const toSource = { x: -INC_DIR.x, y: -INC_DIR.y };
+    drawAngleArc(P_IN, nAir, toSource, Math.max(26, 32 * scale / 28), COL.I, 'i = 60°', null, t);
+  }
+
+  function drawRefractLabels(g, media, t) {
+    if (!state.showAngles || t < 0.5) return;
+    const nMed = { x: 1, y: 0 };
+    drawAngleArc(P_IN, nMed, g.refDir, Math.max(36, 44 * scale / 28), COL.R, 'r ' + media.rShort, null, t);
+  }
+
+  function drawExitLabels(g, t) {
+    if (!state.showAngles || t < 0.5) return;
+    const nAir = { x: 1, y: 0 }; // 出射點空氣在右側
+    drawAngleArc(g.pOut, nAir, INC_DIR, Math.max(24, 28 * scale / 28), COL.I, 'e = 60°', null, t);
+    if (t > 0.75) {
+      drawLabel('出射線 ∥ 入射線', g.pEnd.x + 0.15, g.pEnd.y + 0.55, '#ffe27a', fs(13), 'left');
+    }
+  }
+
+  function drawRayCaptions(g, tInc, tRef, tEx) {
+    if (tInc > 0.6) drawLabel('入射線', lerp(P_START, P_IN, 0.45).x - 0.15, lerp(P_START, P_IN, 0.45).y + 0.42, COL.I, fs(14), 'right');
+    if (tRef > 0.6) drawLabel('折射線', lerp(P_IN, g.pOut, 0.55).x + 0.55, lerp(P_IN, g.pOut, 0.55).y + 0.15, COL.R, fs(14), 'left');
+    if (tEx > 0.6) drawLabel('出射線', lerp(g.pOut, g.pEnd, 0.62).x + 0.2, lerp(g.pOut, g.pEnd, 0.62).y + 0.42, COL.I, fs(14), 'left');
+  }
+
+  function drawEntryExitNormals(g, tIn, tOut) {
+    const nAir = { x: -1, y: 0 };
+    drawNormalAt(P_IN, nAir, 2.15, tIn, true, { x: 0, y: 1 });
+    if (tOut > 0) drawNormalAt(g.pOut, { x: 1, y: 0 }, 1.7, tOut, tOut > 0.7, { x: 0, y: 1 });
+  }
+
+  function drawCanvasTable(rows, px, py, colW, rowH, title, highlightRow) {
+    const cols = rows[0].length;
+    const w = colW * cols;
+    const h = rowH * rows.length;
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,18,36,0.88)';
+    roundRect(ctx, px, py, w, h + (title ? 36 : 0), 10);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff33';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    let y = py;
+    if (title) {
+      drawLabelPx(title, px + w / 2, py + 20, '#7fdcff', Math.max(18, Math.min(26, W / 55)));
+      y = py + 36;
+    }
+    const fsz = Math.max(15, Math.min(22, W / 70));
+    rows.forEach((row, ri) => {
+      const ry = y + ri * rowH;
+      if (ri === 0) {
+        ctx.fillStyle = '#1f3a66';
+        ctx.fillRect(px, ry, w, rowH);
+      } else if (ri === highlightRow) {
+        ctx.fillStyle = 'rgba(224,164,0,0.28)';
+        ctx.fillRect(px, ry, w, rowH);
+      } else if (ri % 2 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillRect(px, ry, w, rowH);
+      }
+      row.forEach((cell, ci) => {
+        const cx = px + ci * colW + colW / 2;
+        const color = ri === 0 ? '#ffe27a' : (ci === 0 ? '#7fdcff' : '#f4f7fb');
+        drawLabelPx(cell, cx, ry + rowH / 2, color, fsz);
+      });
+    });
+    // 格線
+    ctx.strokeStyle = '#ffffff22';
+    ctx.lineWidth = 1;
+    for (let c = 1; c < cols; c++) {
+      ctx.beginPath();
+      ctx.moveTo(px + c * colW, y);
+      ctx.lineTo(px + c * colW, y + rowH * rows.length);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return h + (title ? 36 : 0);
+  }
+
+
+  function worldForDiagram(rightFrac) {
+    // 紙張與光線箱範圍
+    const view = rightFrac ? { x: 0, y: 0, w: 1 - rightFrac, h: 1 } : null;
+    setWorld(-5.6, 11.6, -2.4, 16.6, 0.06, view);
+  }
+
+  function commonBase(opts) {
+    opts = opts || {};
+    const media = currentMedia();
+    const g = geomFor(media.n);
+    const p = state.progress;
+    const dark = state.darkLab;
+    drawBackground(dark);
+    worldForDiagram(opts.rightFrac);
+    drawPaper();
+    if (opts.outline || opts.outlineT) {
+      drawOutline(opts.outlineT == null ? 1 : opts.outlineT);
+    }
+    if (opts.box !== false) {
+      const sh = opts.shift == null ? state.boxShift : opts.shift;
+      if (sh < 0.98) drawMediumBlock(media, sh);
+    }
+    if (opts.lightBox !== false) {
+      drawLightBox(!!opts.beamOn, opts.lightT == null ? 1 : opts.lightT);
+    }
+    return { media, g, p, dark };
+  }
+
+  function drawSceneA() {
+    const step = state.step;
+    const p = state.progress;
+    const media = MEDIA.water;
+    state.medium = 'water';
+
+    if (step === 0) {
+      drawBackground(0);
+      worldForDiagram();
+      drawPaper();
+      drawMediumBlock(media, 0);
+      drawLightBox(false, 1);
+      drawLabel('俯視圖', 8.6, 13.8, '#9eb0c8', fs(14));
+      drawLabel('透明長方形容器（盛水）', 8.6, 13.2, COL.acc, fs(15));
+    } else if (step === 1) {
+      drawBackground(0);
+      worldForDiagram();
+      drawPaper();
+      drawMediumBlock(media, 0);
+      drawOutline(p);
+      drawLightBox(false, 1);
+    } else if (step === 2) {
+      const tN = clamp(p / 0.4, 0, 1);
+      const tI = clamp((p - 0.35) / 0.55, 0, 1);
+      drawBackground(0);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, 0);
+      drawLightBox(false, 1);
+      drawEntryExitNormals({ pOut: geomFor(media.n).pOut }, tN, 0);
+      drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, COL.I, Math.max(2.4, lw(2.8)), true, tI);
+      drawIncidentLabels(tI);
+      if (tI > 0.55) drawLabel('入射線', lerp(P_START, P_IN, 0.45).x - 0.15, lerp(P_START, P_IN, 0.45).y + 0.42, COL.I, fs(14), 'right');
+    } else if (step === 3) {
+      state.darkLab = p;
+      drawBackground(p);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, 0);
+      drawLightBox(false, 1);
+      drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, 'rgba(255,216,74,0.35)', Math.max(2, lw(2.2)), false, 1);
+      drawEntryExitNormals(geomFor(media.n), 1, 0);
+      if (p > 0.45) {
+        drawLabel('拉下窗簾，關上燈……', 5.4, -1.35, '#ffe27a', fs(16));
+      }
+    } else if (step === 4) {
+      state.darkLab = 1;
+      const t1 = clamp(p / 0.42, 0, 1);
+      const t2 = clamp((p - 0.38) / 0.52, 0, 1);
+      const g = geomFor(media.n);
+      drawBackground(1);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, 0);
+      drawLightBox(true, 1);
+      drawEntryExitNormals(g, 1, 0);
+      drawUndeviated(g, t2);
+      ctx.save();
+      ctx.shadowColor = COL.I;
+      ctx.shadowBlur = 16;
+      drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, COL.I, Math.max(2.6, lw(3.0)), true, t1);
+      ctx.shadowColor = COL.R;
+      drawSolidRay(P_IN.x, P_IN.y, g.pOut.x, g.pOut.y, COL.R, Math.max(2.6, lw(3.0)), true, t2);
+      ctx.restore();
+      drawIncidentLabels(t1);
+      drawRefractLabels(g, media, t2);
+      drawRayCaptions(g, t1, t2, 0);
+      if (t2 > 0.7) {
+        drawLabel('偏向法線（r ＜ i）', 1.85, 6.35, COL.ok, fs(14), 'left');
+      }
+    } else if (step === 5) {
+      state.darkLab = 1;
+      const g = geomFor(media.n);
+      const tEx = clamp(p / 0.55, 0, 1);
+      const tX = clamp((p - 0.5) / 0.45, 0, 1);
+      drawBackground(1);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, 0);
+      drawLightBox(true, 1);
+      drawEntryExitNormals(g, 1, tEx);
+      drawUndeviated(g, 1);
+      drawFullRays(g, media, { tInc: 1, tRef: 1, tEx: tEx, glow: true });
+      drawIncidentLabels(1);
+      drawRefractLabels(g, media, 1);
+      drawExitLabels(g, tEx);
+      drawRayCaptions(g, 1, 1, tEx);
+      drawCross(g.x1, '#ff8a6a', 0.24, tX);
+      drawCross(g.x2, '#ff8a6a', 0.24, clamp((tX - 0.25) / 0.75, 0, 1));
+      if (tX > 0.6) {
+        drawLabel('繪畫交叉', g.x2.x + 0.2, g.x2.y + 0.50, '#ff8a6a', fs(14), 'left');
+      }
+    } else if (step === 6) {
+      state.darkLab = 0.85;
+      const g = geomFor(media.n);
+      const tJ = p;
+      drawBackground(0.85);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, 0);
+      drawLightBox(true, 1);
+      drawEntryExitNormals(g, 1, 1);
+      drawUndeviated(g, 1);
+      drawFullRays(g, media, { tInc: 1, tRef: 1, tEx: 0, glow: true });
+      // 先顯示兩個交叉，再連線延長至容器邊
+      drawCross(g.x1, '#ff8a6a', 0.24, 1);
+      drawCross(g.x2, '#ff8a6a', 0.24, 1);
+      const joinA = g.x2;
+      const joinB = g.pOut;
+      // 由較遠的交叉向容器邊延長
+      drawSolidRay(g.x2.x, g.x2.y, g.pOut.x, g.pOut.y, COL.E, Math.max(2.4, lw(2.8)), false, tJ);
+      // 同時畫出出射方向向外的部分
+      drawSolidRay(g.x1.x, g.x1.y, g.pEnd.x, g.pEnd.y, COL.E, Math.max(2.4, lw(2.8)), true, tJ);
+      if (tJ > 0.55) drawDot(g.pOut, '#ffe27a', Math.max(4, 5 * scale / 28));
+      if (tJ > 0.7) drawLabel('延長至容器邊緣', g.pOut.x + 0.35, g.pOut.y - 0.45, '#ffe27a', fs(13), 'left');
+      drawIncidentLabels(1);
+      drawRefractLabels(g, media, 1);
+    } else if (step === 7) {
+      // 容器移走，補畫水中路徑
+      state.darkLab = 0.15 * (1 - p) + 0.0;
+      state.boxShift = p;
+      const g = geomFor(media.n);
+      const tIn = clamp((p - 0.45) / 0.5, 0, 1);
+      drawBackground(state.darkLab);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawMediumBlock(media, p);
+      drawLightBox(false, 1);
+      drawEntryExitNormals(g, 1, 1);
+      drawUndeviated(g, 1);
+      drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, COL.I, Math.max(2.4, lw(2.8)), true, 1);
+      drawSolidRay(g.pOut.x, g.pOut.y, g.pEnd.x, g.pEnd.y, COL.E, Math.max(2.4, lw(2.8)), true, 1);
+      drawCross(g.x1, '#ff8a6a', 0.22, 1);
+      drawCross(g.x2, '#ff8a6a', 0.22, 1);
+      drawSolidRay(P_IN.x, P_IN.y, g.pOut.x, g.pOut.y, COL.R, Math.max(2.4, lw(2.8)), true, tIn);
+      drawIncidentLabels(1);
+      if (tIn > 0.4) {
+        drawRefractLabels(g, media, tIn);
+        drawRayCaptions(g, 1, tIn, 1);
+      }
+      if (p > 0.2 && p < 0.85) drawLabel('移走容器……', 8.4, 6.5, '#ffe27a', fs(16));
+    } else {
+      // 步驟 8：完整光線圖＋量度
+      state.darkLab = 0;
+      state.boxShift = 1;
+      const g = geomFor(media.n);
+      const tM = p;
+      drawBackground(0);
+      worldForDiagram();
+      drawPaper();
+      drawOutline(1);
+      drawLightBox(false, 1);
+      drawEntryExitNormals(g, 1, 1);
+      drawUndeviated(g, 1);
+      drawFullRays(g, media, { tInc: 1, tRef: 1, tEx: 1, glow: false, withArrow: true });
+      drawCross(g.x1, '#ff8a6a', 0.20, 1);
+      drawCross(g.x2, '#ff8a6a', 0.20, 1);
+      drawIncidentLabels(1);
+      drawRefractLabels(g, media, tM);
+      drawExitLabels(g, 1);
+      drawRayCaptions(g, 1, 1, 1);
+      if (tM > 0.25) drawProtractor(P_IN, tM);
+      if (tM > 0.55) {
+        drawLabel('量度這個角 →', 3.55, 8.55, '#ffe27a', fs(15), 'left');
+        drawLabel('水：r ≈ 41°', 8.5, 13.2, COL.ok, fs(18));
+        drawLabel('偏向法線（r ＜ i）', 8.5, 12.6, COL.ok, fs(15));
+      }
+    }
+    drawStepBadge('以水為例');
+  }
+
+  function drawGhostLegend(x, y) {
+    const ids = (currentScene().mediaSet || ['water', 'oil', 'perspex', 'glass']);
+    const fsz = fs(13);
+    const dy = (fsz + 10) / scale;
+    drawLabel('對照：', x, y, '#9eb0c8', fsz, 'left');
+    ids.forEach((id, i) => {
+      const m = MEDIA[id];
+      const yy = y - dy * (i + 1);
+      ctx.strokeStyle = m.ghost;
+      ctx.globalAlpha = 0.95;
+      ctx.lineWidth = Math.max(2.4, lw(2.6));
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(tx(x), ty(yy));
+      ctx.lineTo(tx(x + 0.55), ty(yy));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      const name = (id === state.medium ? '▶ ' : '') + m.short;
+      drawLabel(name, x + 0.7, yy, m.ghost, fsz, 'left');
+    });
+  }
+
+  function drawCompareExtras(g, media, showAllGhost, showRank) {
+    if (state.showGhost || showAllGhost) {
+      const set = [
+        { id: 'water', n: 1.33, name: '水' },
+        { id: 'oil', n: 1.46, name: '潤滑油' },
+        { id: 'perspex', n: 1.50, name: '有機玻璃' },
+        { id: 'glass', n: 1.60, name: '玻璃' }
+      ];
+      set.forEach(s => {
+        if (s.id === media.id) return;
+        drawGhostRay(s.n, MEDIA[s.id].ghost, null, 0.72);
+      });
+    }
+  }
+
+  function drawSceneB() {
+    const step = currentStep();
+    const media = currentMedia();
+    const g = geomFor(media.n);
+    const p = state.progress;
+    const showTable = state.step >= 4;
+    const rightFrac = showTable ? 0.40 : 0;
+    state.darkLab = 0;
+    state.boxShift = 0;
+    drawBackground(0);
+    worldForDiagram(rightFrac);
+    drawPaper();
+    drawOutline(1);
+    drawMediumBlock(media, 0);
+    drawLightBox(true, 1);
+    const tBeam = (step.anim === 'beam') ? p : 1;
+    const t1 = clamp(tBeam / 0.35, 0, 1);
+    const t2 = clamp((tBeam - 0.30) / 0.35, 0, 1);
+    const t3 = clamp((tBeam - 0.60) / 0.35, 0, 1);
+    drawEntryExitNormals(g, 1, t3);
+    if (state.step >= 4) drawCompareExtras(g, media, true, state.step >= 5);
+    else if (state.showGhost) drawCompareExtras(g, media, false, false);
+    drawUndeviated(g, t2);
+    ctx.save();
+    ctx.shadowColor = COL.I;
+    ctx.shadowBlur = 12;
+    drawSolidRay(P_START.x, P_START.y, P_IN.x, P_IN.y, COL.I, Math.max(2.5, lw(2.9)), true, t1);
+    ctx.shadowColor = COL.R;
+    drawSolidRay(P_IN.x, P_IN.y, g.pOut.x, g.pOut.y, COL.R, Math.max(2.5, lw(2.9)), true, t2);
+    ctx.shadowColor = COL.E;
+    drawSolidRay(g.pOut.x, g.pOut.y, g.pEnd.x, g.pEnd.y, COL.E, Math.max(2.5, lw(2.9)), true, t3);
+    ctx.restore();
+    drawIncidentLabels(t1);
+    drawRefractLabels(g, media, t2);
+    drawExitLabels(g, t3);
+    drawRayCaptions(g, t1, t2, t3);
+    if (state.showGhost && !showTable) drawGhostLegend(8.0, 15.25);
+    if (showTable) {
+      const colW = Math.min(118, (W * 0.40 - 28) / 5);
+      const rowH = Math.max(36, Math.min(52, H / 16));
+      const tabW = colW * 5;
+      const px = W * 0.62 + (W * 0.38 - tabW) / 2;
+      const py = 70;
+      drawCanvasTable(RESULT_TABLE, px, py, colW, rowH, '課本結果（入射角均為 60°）');
+      const noteY = py + rowH * 3 + 36 + 28;
+      drawLabelPx('動畫中玻璃取 n = 1.60，', px + tabW / 2, noteY, '#b8c6dc', Math.max(14, W / 90));
+      drawLabelPx('故 r ≈ 33°，落在 31°–35°。', px + tabW / 2, noteY + 24, '#b8c6dc', Math.max(14, W / 90));
+      if (state.step >= 5) {
+        drawLabelPx('偏折程度由高至低', px + tabW / 2, noteY + 64, '#7fdcff', Math.max(16, W / 70));
+        drawLabelPx('玻璃、有機玻璃、', px + tabW / 2, noteY + 92, '#ffe27a', Math.max(18, W / 60));
+        drawLabelPx('嬰兒潤滑油、水', px + tabW / 2, noteY + 120, '#ffe27a', Math.max(18, W / 60));
+      }
+    }
+    drawStepBadge(media.name);
+  }
+
+  function drawSceneC() {
+    const stepN = state.step;
+    const media = currentMedia();
+    const g = geomFor(media.n);
+    const p = state.progress;
+    const showTable = stepN === 1 || stepN === 5;
+    const showPoints = stepN >= 3;
+    const useRight = showTable || showPoints || stepN === 0;
+    state.darkLab = 0;
+    state.boxShift = 0;
+    drawBackground(0);
+    worldForDiagram(useRight ? 0.40 : 0);
+    drawPaper();
+    drawOutline(1);
+    drawMediumBlock(media, 0);
+    drawLightBox(true, 1);
+    const tBeam = (stepN === 0 || stepN === 1) ? 1 : p;
+    const t1 = clamp(tBeam / 0.35, 0, 1);
+    const t2 = clamp((tBeam - 0.30) / 0.35, 0, 1);
+    const t3 = clamp((tBeam - 0.60) / 0.35, 0, 1);
+    drawEntryExitNormals(g, 1, t3);
+    if (state.showGhost && stepN >= 2) {
+      const set = currentScene().mediaSet || [];
+      set.forEach(id => {
+        if (id === media.id) return;
+        drawGhostRay(MEDIA[id].n, MEDIA[id].ghost, null, 0.65);
+      });
+    }
+    drawUndeviated(g, stepN === 1 ? 0 : t2);
+    drawFullRays(g, media, { tInc: t1, tRef: t2, tEx: t3, glow: true });
+    drawIncidentLabels(t1);
+    drawRefractLabels(g, media, t2);
+    drawExitLabels(g, t3);
+    drawRayCaptions(g, t1, t2, t3);
+    if (state.showGhost && stepN >= 2 && !showTable && !showPoints) drawGhostLegend(8.0, 14.7);
+
+    const px = W * 0.60;
+    const colW = Math.min(160, (W * 0.38 - 24) / 2);
+    const rowH = Math.max(32, Math.min(46, H / 18));
+
+    if (stepN === 0 && p > 0.3) {
+      drawLabelPx('為甚麼偏折不同？', W * 0.80, 80, '#7fdcff', Math.max(20, W / 50));
+      drawLabelPx('因為介質有不同的', W * 0.80, 120, '#f4f7fb', Math.max(18, W / 55));
+      drawLabelPx('折射率', W * 0.80, 165, '#ffe27a', Math.max(32, W / 35));
+    }
+
+    if (stepN === 1) {
+      drawCanvasTable(TABLE_14_2, px, 54, colW, rowH, '表 14.2　一些介質的折射率', 2);
+      drawLabelPx('真空 n = 1，空氣 n ≈ 1.00', px + colW, 54 + 36 + rowH * 8 + 24, '#ffe27a', Math.max(16, W / 70));
+      drawLabelPx('其餘折射率毋須背誦', px + colW, 54 + 36 + rowH * 8 + 50, '#7dffa0', Math.max(16, W / 70));
+    }
+
+    // 步驟 2 的句子已在頁尾顯示，避免與「光線箱」標籤重疊
+
+
+    if (stepN >= 3) {
+      const lines = stepN === 3 ? [
+        ['光密介質', '折射率較大', '例如水、玻璃、鑽石'],
+        ['光疏介質', '折射率較小', '例如空氣、真空'],
+        ['傳播速率', '光疏介質中較高', '']
+      ] : stepN === 4 ? [
+        ['空氣 → 水', '由光疏進入光密', '光線偏向法線'],
+        ['水 → 空氣', '由光密進入光疏', '光線偏離法線'],
+        ['長方形塊', '兩側面平行', '出射線 ∥ 入射線']
+      ] : [
+        ['偏折程度', '取決於折射率', 'n 愈大，偏折愈高'],
+        ['光密／光疏', '比折射率大小', '光疏中速率較高'],
+        ['偏向法線', '光疏進入光密', '例如空氣 → 水'],
+        ['必須記得', '真空 n = 1', '空氣 n ≈ 1.00'],
+        ['其餘折射率', '毋須背誦', '']
+      ];
+      const boxX = W * 0.61, boxY = 60;
+      const bw = W * 0.37, bh = 52 * lines.length + 50;
+      ctx.fillStyle = 'rgba(10,18,36,0.86)';
+      roundRect(ctx, boxX, boxY, bw, bh, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff33';
+      ctx.stroke();
+      const title = stepN === 3 ? '光疏介質與光密介質' : (stepN === 4 ? '光線怎樣偏折？' : '教學重點');
+      drawLabelPx(title, boxX + bw / 2, boxY + 26, '#7fdcff', Math.max(18, W / 55));
+      lines.forEach((row, i) => {
+        const y = boxY + 58 + i * 52;
+        drawLabelPx(row[0], boxX + 16, y, '#ffe27a', Math.max(16, W / 65), 'left');
+        drawLabelPx(row[1], boxX + 16, y + 22, '#f4f7fb', Math.max(14, W / 75), 'left');
+        if (row[2]) drawLabelPx(row[2], boxX + bw - 16, y + 10, '#7dffa0', Math.max(14, W / 75), 'right');
+      });
+    }
+
+    drawStepBadge(media.name + '　n = ' + (media.id === 'glass' ? '1.60' : media.n));
+  }
+
+  const DRAW = [drawSceneA, drawSceneB, drawSceneC];
+
+  function drawFrame() {
+    DRAW[state.scene]();
+  }
+
+  function tick(ts) {
+    const steps = currentSteps();
+    const anim = steps[state.step].anim;
+    if (state.animating && anim !== 'none') {
+      if (state.lastTs == null) state.lastTs = ts;
+      const dt = ts - state.lastTs;
+      state.lastTs = ts;
+      const dur = (anim === 'dark' || anim === 'remove' || anim === 'measure' || anim === 'compare' || anim === 'table') ? 1500
+        : (anim === 'enter' || anim === 'beam' || anim === 'slider') ? 1400
+        : GROW_MS;
+      state.progress = Math.min(1, state.progress + dt / dur);
+      if (anim === 'dark') state.darkLab = state.progress;
+      if (anim === 'remove') state.boxShift = state.progress;
+      if (state.progress >= 1) {
+        state.animating = false;
+        state.progress = 1;
+        finishAnimExtras();
+        if (state.autoplay) holdUntil = ts + AUTO_HOLD_MS;
+        updateUI();
+      }
+    } else if (state.autoplay && state.progress >= 1) {
+      if (!holdUntil) holdUntil = ts + AUTO_HOLD_MS;
+      if (ts >= holdUntil) {
+        holdUntil = 0;
+        if (state.step >= steps.length - 1) {
+          state.autoplay = false;
+          updateUI();
+        } else {
+          goStep(state.step + 1, true);
+        }
+      }
+    }
+    drawFrame();
+    requestAnimationFrame(tick);
+  }
+
+  document.getElementById('btnNext').addEventListener('click', () => { state.autoplay = false; nextStep(); });
+  document.getElementById('btnNext2').addEventListener('click', () => { state.autoplay = false; nextStep(); });
+  document.getElementById('btnPrev').addEventListener('click', prevStep);
+  document.getElementById('btnPrev2').addEventListener('click', prevStep);
+  document.getElementById('btnAuto').addEventListener('click', toggleAuto);
+  document.getElementById('btnReplay').addEventListener('click', replay);
+  document.getElementById('btnFull').addEventListener('click', () => {
+    const doc = document;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+    } else {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  });
+  document.getElementById('btnAside').addEventListener('click', () => {
+    document.body.classList.toggle('hide-aside');
+    document.body.classList.toggle('hide-nav');
+    setTimeout(resize, 60);
+  });
+  document.getElementById('chkNormal').addEventListener('change', e => { state.showNormal = e.target.checked; });
+  document.getElementById('chkAngles').addEventListener('change', e => { state.showAngles = e.target.checked; });
+  document.getElementById('chkGrid').addEventListener('change', e => { state.showGrid = e.target.checked; });
+  document.getElementById('chkStraight').addEventListener('change', e => { state.showStraight = e.target.checked; });
+  document.getElementById('chkGhost').addEventListener('change', e => { state.showGhost = e.target.checked; });
+
+  document.querySelectorAll('.scene-btn').forEach((el) => {
+    el.addEventListener('click', () => goScene(+el.dataset.scene, false));
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); state.autoplay = false; nextStep(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
+    else if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); toggleAuto(); }
+    else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replay(); }
+    else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.getElementById('btnFull').click(); }
+    else if (e.key >= '1' && e.key <= '3') { e.preventDefault(); goScene(+e.key - 1, false); }
+  });
+
+  window.addEventListener('resize', () => { resize(); });
+
+  function applyHash() {
+    const h = (location.hash || '').replace('#', '').toUpperCase();
+    const m = h.match(/^([ABC])(\d+)?$/);
+    if (!m) return;
+    const si = 'ABC'.indexOf(m[1]);
+    goScene(si, false);
+    if (m[2] != null) goStep(Math.min(+m[2], currentSteps().length - 1), false);
+  }
+  window.addEventListener('hashchange', applyHash);
+
+  rebuildSteps();
+  rebuildMediaBtns();
+  resize();
+  updateUI();
+  applyHash();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
